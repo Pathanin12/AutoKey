@@ -4,12 +4,6 @@ import threading
 import time
 from typing import Callable
 
-from constants.flow_model import (
-    FLOW_1_END_LABEL,
-    FLOW_1_LABEL,
-    STEP_REGION_FLOW_1_END,
-    STEP_REGION_FLOW_1_START,
-)
 from constants.step_regions import get_step_region
 from constants.routes import (
     ACCOUNT_CASH,
@@ -23,7 +17,6 @@ from models.ka_tam_row import KaTamRow
 from models.run_config import RunConfig
 from models.screen_region import ScreenRegion
 from services.image_service import ImageService, MatchResult
-from services.company_switch_service import CompanySwitchSettings, select_company
 from services.tax_reference_service import resolve_tax_payer_id
 
 
@@ -55,7 +48,6 @@ class KaTamWorkflow:
         on_step: Callable[[int, str, str], None] | None = None,
         on_highlight: Callable[[ScreenRegion], None] | None = None,
         dry_run: bool = False,
-        company_switch_settings: CompanySwitchSettings | None = None,
     ) -> None:
         self.image = image_service
         self.stop_event = stop_event
@@ -64,7 +56,6 @@ class KaTamWorkflow:
         self.on_step = on_step
         self.on_highlight = on_highlight
         self.dry_run = dry_run
-        self.company_switch_settings = company_switch_settings
 
     def run(
         self,
@@ -165,26 +156,6 @@ class KaTamWorkflow:
         self.image.press(MENU_PAYMENT_JOURNAL)
         self.image.wait(1.5)
 
-    def select_company_flow(self, company_name: str, *, is_final: bool = False) -> None:
-        label = FLOW_1_END_LABEL if is_final else FLOW_1_LABEL
-        step_index = STEP_REGION_FLOW_1_END if is_final else STEP_REGION_FLOW_1_START
-        self._step(step_index, label, company_name)
-        self._status(f"{label}: {company_name}")
-        if self.dry_run:
-            self._simulate(0.8)
-            return
-        if self.company_switch_settings is None:
-            return
-        select_company(
-            self.image,
-            company_name,
-            self.company_switch_settings,
-            press_menu_others=is_final,
-        )
-
-    def switch_company_after_flow(self, company_name: str) -> None:
-        self.select_company_flow(company_name, is_final=True)
-
     def _create_voucher(self, config: RunConfig, row: KaTamRow) -> None:
         if self.dry_run:
             self._simulate()
@@ -196,7 +167,7 @@ class KaTamWorkflow:
             return
         self.image.press("f2")
         self.image.wait(0.8)
-        if not config.use_work_date and config.pv_date.strip():
+        if config.pv_date.strip():
             self.image.type_text(config.pv_date.strip(), clear_first=True)
 
     def _fill_header(self, config: RunConfig, row: KaTamRow) -> None:
@@ -204,7 +175,7 @@ class KaTamWorkflow:
             self._simulate()
             return
         self.image.press("tab", presses=2)
-        if not config.use_work_date and config.pv_date.strip():
+        if config.pv_date.strip():
             self.image.type_text(config.pv_date.strip(), clear_first=True)
         self.image.press("tab", presses=2)
         self.image.type_thai(config.description.strip(), clear_first=True)

@@ -4,6 +4,7 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
+from constants.date_utils import default_work_date
 from constants.routes import DEFAULT_EXCEL_PATH, PROJECT_ROOT, TOPIC_PAYMENT_JOURNAL, UI_TEXT
 from constants.version import __version__
 from models.run_config import ExcelSheetSummary, RunConfig
@@ -20,7 +21,7 @@ class MainWindow:
     def __init__(self) -> None:
         self.root = tk.Tk()
         self.root.title(f"{UI_TEXT['app_title']} v{__version__}")
-        self.root.geometry("560x660")
+        self.root.geometry("560x520")
         self.root.resizable(False, False)
         self._set_window_icon()
 
@@ -57,14 +58,12 @@ class MainWindow:
         self.is_running = False
         self._total_rows = 0
 
+        defaults = self.automation_service.default_settings
+        initial_pv_date = str(defaults.get("pv_date", "")).strip() or default_work_date()
         self.excel_path = tk.StringVar(value=str(DEFAULT_EXCEL_PATH))
-        self.pv_date = tk.StringVar(value="")
-        self.use_work_date = tk.BooleanVar(value=True)
+        self.pv_date = tk.StringVar(value=initial_pv_date)
         self.description = tk.StringVar(value="")
         self.tax_payer_id = tk.StringVar(value="")
-        self.switch_company = tk.BooleanVar(value=False)
-        self.company_name = tk.StringVar(value="")
-        self.next_company_name = tk.StringVar(value="")
         self.status_text = tk.StringVar(value=UI_TEXT["ready"])
         self.progress_text = tk.StringVar(value="0 / 0")
         self.excel_summary = tk.StringVar(value=UI_TEXT["excel_summary_empty"])
@@ -88,16 +87,11 @@ class MainWindow:
             row=1, column=0, columnspan=3, sticky="w", pady=(4, 0)
         )
 
-        ttk.Checkbutton(
-            form_frame,
-            text=UI_TEXT["use_work_date"],
-            variable=self.use_work_date,
-            command=self._toggle_date_field,
-        ).grid(row=2, column=0, columnspan=3, sticky="w", pady=(8, 0))
-
-        ttk.Label(form_frame, text=UI_TEXT["pv_date"]).grid(row=3, column=0, sticky="w")
-        self.date_entry = ttk.Entry(form_frame, textvariable=self.pv_date, width=20, state="disabled")
-        self.date_entry.grid(row=3, column=1, sticky="w")
+        ttk.Label(form_frame, text=UI_TEXT["pv_date"]).grid(row=2, column=0, sticky="w")
+        ttk.Entry(form_frame, textvariable=self.pv_date, width=20).grid(row=2, column=1, sticky="w")
+        ttk.Label(form_frame, text=UI_TEXT["pv_date_hint"], wraplength=500, foreground="#555555").grid(
+            row=3, column=0, columnspan=3, sticky="w", pady=(2, 0)
+        )
 
         ttk.Label(form_frame, text=UI_TEXT["description"]).grid(row=4, column=0, sticky="nw")
         ttk.Entry(form_frame, textvariable=self.description, width=48).grid(row=4, column=1, columnspan=2, sticky="ew")
@@ -106,28 +100,6 @@ class MainWindow:
         ttk.Entry(form_frame, textvariable=self.tax_payer_id, width=48).grid(row=5, column=1, columnspan=2, sticky="ew")
         ttk.Label(form_frame, text=UI_TEXT["tax_payer_id_hint"], wraplength=500, foreground="#555555").grid(
             row=6, column=0, columnspan=3, sticky="w", pady=(2, 0)
-        )
-
-        ttk.Checkbutton(
-            form_frame,
-            text=UI_TEXT["switch_company"],
-            variable=self.switch_company,
-            command=self._toggle_next_company_field,
-        ).grid(row=7, column=0, columnspan=3, sticky="w", pady=(8, 0))
-
-        ttk.Label(form_frame, text=UI_TEXT["company_name"]).grid(row=8, column=0, sticky="nw")
-        ttk.Entry(form_frame, textvariable=self.company_name, width=48).grid(row=8, column=1, columnspan=2, sticky="ew")
-        ttk.Label(form_frame, text=UI_TEXT["company_name_hint"], wraplength=500, foreground="#555555").grid(
-            row=9, column=0, columnspan=3, sticky="w", pady=(2, 0)
-        )
-
-        ttk.Label(form_frame, text=UI_TEXT["next_company_name"]).grid(row=10, column=0, sticky="nw")
-        self.next_company_entry = ttk.Entry(
-            form_frame, textvariable=self.next_company_name, width=48, state="disabled"
-        )
-        self.next_company_entry.grid(row=10, column=1, columnspan=2, sticky="ew")
-        ttk.Label(form_frame, text=UI_TEXT["next_company_name_hint"], wraplength=500, foreground="#555555").grid(
-            row=11, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
         form_frame.columnconfigure(1, weight=1)
 
@@ -147,7 +119,7 @@ class MainWindow:
         self.log_box = tk.Text(status_frame, height=12, wrap="word")
         self.log_box.pack(fill="both", expand=True, padx=8, pady=8)
         welcome = (
-            "เปิด Express อยู่หน้า Dialog เลือกข้อมูล แล้วกดเริ่ม — AutoKey กด ค้นหา ให้เลย\n"
+            "เปิด Express อยู่หน้าเมนูหลัก (เลือกบริษัทแล้ว) แล้วกดเริ่ม — AutoKey เปิด PV (5→1→2)\n"
             + UI_TEXT["cancel_hotkey_hint"].format(hotkey=self.hotkey_label)
         )
         if self.automation_service.dry_run:
@@ -203,18 +175,6 @@ class MainWindow:
             self._append_log(line.strip())
         self._append_log(summary_text)
 
-    def _toggle_next_company_field(self) -> None:
-        if self.switch_company.get():
-            self.next_company_entry.configure(state="normal")
-        else:
-            self.next_company_entry.configure(state="disabled")
-
-    def _toggle_date_field(self) -> None:
-        if self.use_work_date.get():
-            self.date_entry.configure(state="disabled")
-        else:
-            self.date_entry.configure(state="normal")
-
     def _choose_excel(self) -> None:
         selected = filedialog.askopenfilename(
             title=UI_TEXT["choose_file"],
@@ -240,12 +200,12 @@ class MainWindow:
             pv_date=self.pv_date.get().strip(),
             description=self.description.get().strip(),
             tax_payer_id=self.tax_payer_id.get().strip(),
-            switch_company=self.switch_company.get(),
-            company_name=self.company_name.get().strip(),
-            next_company_name=self.next_company_name.get().strip(),
-            use_work_date=self.use_work_date.get(),
             sheet_summaries=self.sheet_summaries,
         )
+        errors = run_config.validate()
+        if errors:
+            messagebox.showwarning("AutoKey", "\n".join(errors))
+            return
 
         confirm_rows = run_config.total_rows
         confirm_sheets = len(run_config.sheet_names)

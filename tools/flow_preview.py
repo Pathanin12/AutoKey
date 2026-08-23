@@ -413,7 +413,7 @@ class FlowPreviewApp:
 
 
 def main() -> None:
-    actions = build_workflow_actions(use_work_date=True)
+    actions = build_workflow_actions()
 
     if "--export" in sys.argv:
         export_phase_images()

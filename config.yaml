@@ -28,12 +28,3 @@ defaults:
   excel_path: "~/Downloads/ค่าทำ.xlsx"
   pv_date: ""
   description: ""
-
-# โฟล์แรก=ค้นหาในหน้าเลือกข้อมูล (ไม่กด 8) | โฟล์สุดท้าย=กด 8 ก่อน — ดู constants/flow_model.py
-company_switch:
-  menu_others: "8"
-  submenu_keys: []
-  menu_wait: 0.8
-  use_search_button: true
-  search_enter_count: 2
-  dismiss_work_date: true

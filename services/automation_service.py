@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 import threading
-from dataclasses import replace
 from pathlib import Path
 from typing import Callable
 
 import yaml
 
-from constants.flow_model import FLOW_1_END_LABEL, FLOW_1_LABEL
 from constants.routes import CONFIG_PATH, TEMPLATES_DIR, TOPIC_LABEL
 from models.run_config import RunConfig
-from services.company_switch_service import CompanySwitchSettings
 from services.excel_service import ExcelService
 from services.image_service import ImageService
 from topics.ka_tam.workflow import KaTamWorkflow
@@ -34,27 +31,16 @@ class AutomationService:
         return self.config.get("automation", {})
 
     @property
+    def default_settings(self) -> dict:
+        return self.config.get("defaults", {})
+
+    @property
     def ui_settings(self) -> dict:
         return self.config.get("ui", {})
 
     @property
     def dry_run(self) -> bool:
         return bool(self.automation_settings.get("dry_run", False))
-
-    @property
-    def company_switch_settings(self) -> CompanySwitchSettings:
-        raw = self.config.get("company_switch", {})
-        submenu = raw.get("submenu_keys")
-        if submenu is None:
-            submenu = []
-        return CompanySwitchSettings(
-            menu_others=str(raw.get("menu_others", "8")),
-            submenu_keys=[str(key) for key in submenu],
-            menu_wait=float(raw.get("menu_wait", 0.8)),
-            use_search_button=bool(raw.get("use_search_button", True)),
-            search_enter_count=int(raw.get("search_enter_count", 2)),
-            dismiss_work_date=bool(raw.get("dismiss_work_date", True)),
-        )
 
     def create_image_service(self) -> ImageService:
         settings = self.automation_settings
@@ -113,18 +99,10 @@ class AutomationService:
                     on_step=on_step,
                     on_highlight=on_highlight,
                     dry_run=self.dry_run,
-                    company_switch_settings=self.company_switch_settings,
                 )
 
                 total_rows = sum(summary.row_count for summary in sheet_summaries)
                 processed_rows = 0
-
-                # โฟล์แรก — อยู่หน้าเลือกข้อมูลแล้ว → กด ค้นหา ให้เลย (ไม่กด 8)
-                on_status(f"{FLOW_1_LABEL}: {run_config.company_name.strip()}")
-                workflow.select_company_flow(
-                    run_config.company_name.strip(),
-                    is_final=False,
-                )
 
                 for sheet_index, summary in enumerate(sheet_summaries):
                     self._check_stop()
@@ -132,8 +110,6 @@ class AutomationService:
                     rows = ExcelService.load_ka_tam_rows(run_config.excel_path, summary.name)
                     if not rows:
                         continue
-
-                    sheet_config = replace(run_config, switch_company=False)
 
                     def progress_callback(current: int, total: int) -> None:
                         on_progress(processed_rows + current, total_rows)
@@ -144,17 +120,8 @@ class AutomationService:
                                 f"{processed_rows + current} / {total_rows} — {rows[current - 1].legal_name}",
                             )
 
-                    workflow.run(sheet_config, rows, progress_callback=progress_callback)
+                    workflow.run(run_config, rows, progress_callback=progress_callback)
                     processed_rows += len(rows)
-
-                if run_config.switch_company and run_config.next_company_name.strip():
-                    on_status(
-                        f"{FLOW_1_END_LABEL}: {run_config.next_company_name.strip()}"
-                    )
-                    workflow.select_company_flow(
-                        run_config.next_company_name.strip(),
-                        is_final=True,
-                    )
 
                 mode = " (โหมดทดสอบ)" if self.dry_run else ""
                 if self._stop_event.is_set():

@@ -34,13 +34,20 @@ jobs:
         run: |
           (Get-Content config.yaml) -replace 'dry_run: true', 'dry_run: false' | Set-Content config.yaml
 
+      - name: Read version
+        id: version
+        shell: pwsh
+        run: |
+          $version = python -c "from constants.version import __version__; print(__version__)"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
       - name: Build executable
         run: pyinstaller --noconfirm AutoKey.spec
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AutoKey-windows-${{ github.sha }}
+          name: AutoKey-v${{ steps.version.outputs.version }}
           path: dist/AutoKey.exe
           retention-days: 30
 
@@ -49,4 +56,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/AutoKey.exe
+          name: AutoKey v${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref_name }}
           generate_release_notes: true
