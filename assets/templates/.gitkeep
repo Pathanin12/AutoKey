@@ -1,0 +1,3 @@
+Capture template images on Windows using:
+
+python tools/capture_templates.py

@@ -1,0 +1,39 @@
+screen:
+  width: 1920
+  height: 1080
+  scale: 100
+
+automation:
+  action_delay: 0.4
+  type_interval: 0.03
+  confidence: 0.85
+  fail_safe: true
+  dry_run: true
+
+ui:
+  hide_on_start: true
+  show_status_overlay: true
+  show_region_highlight: true
+  demo_reference_image: "assets/reference/11-3945f8bc-e840-4695-bfda-d310e4004dde.png"
+  cancel_hotkeys:
+    - "control+f9"
+    - "esc"
+
+accounts:
+  service: "5330-05"
+  vat: "1154-00"
+  cash: "1111-00"
+
+defaults:
+  excel_path: "~/Downloads/ค่าทำ.xlsx"
+  pv_date: ""
+  description: ""
+
+# โฟล์แรก=ค้นหาในหน้าเลือกข้อมูล (ไม่กด 8) | โฟล์สุดท้าย=กด 8 ก่อน — ดู constants/flow_model.py
+company_switch:
+  menu_others: "8"
+  submenu_keys: []
+  menu_wait: 0.8
+  use_search_button: true
+  search_enter_count: 2
+  dismiss_work_date: true
