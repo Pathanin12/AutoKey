@@ -1,16 +1,16 @@
-"""แหล่งความจริงของลำดับ Flow — บริษัทเดียว: เปิด PV แล้วทำทุกแถว"""
+"""แหล่งความจริงของลำดับ Flow — โฟล์ 1 ค้นหาใน dialog → PV → โฟล์สุดท้าย กด 8"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from constants.routes import MENU_OTHERS
+from constants.routes import MENU_OTHERS, MENU_OTHERS_CHANGE_COMPANY
 
 FLOW_1_LABEL = "โฟล์แรก — เลือกบริษัท"
 FLOW_1_END_LABEL = "โฟล์สุดท้าย — เปลี่ยนบริษัท"
 FLOW_2_LABEL = "โฟล์ 2 — สมุดรายวันจ่าย (PV)"
 
-FULL_SEQUENCE_NOTE = "บริษัทเดียว — เปิด PV (5→1→2) แล้วทำทุกแถวทุกชีต"
+FULL_SEQUENCE_NOTE = "โฟล์ 1 เลือก DB → PV ทุกแถว (F8=เจ้าหนี้, F10=ภาษีซื้อ) → จบ"
 
 PHASE_FLOW_1_START = 0
 PHASE_FLOW_2_OPEN = 1
@@ -25,7 +25,7 @@ PHASE_FLOW_2_SAVE = 9
 PHASE_FLOW_1_END = 10
 
 PHASE_TITLES: dict[int, str] = {
-    PHASE_FLOW_1_START: f"{FLOW_1_LABEL} (ค้นหาในหน้าเลือกข้อมูล)",
+    PHASE_FLOW_1_START: f"{FLOW_1_LABEL} (dialog เลือกข้อมูล — ไม่กด 8)",
     PHASE_FLOW_2_OPEN: f"{FLOW_2_LABEL} — เปิด (5→1→2)",
     PHASE_FLOW_2_NEW: f"{FLOW_2_LABEL} — สร้างรายการ (F2)",
     PHASE_FLOW_2_HEADER: f"{FLOW_2_LABEL} — กรอกหัวเรื่อง",
@@ -34,8 +34,8 @@ PHASE_TITLES: dict[int, str] = {
     PHASE_FLOW_2_TAX_DIALOG: f"{FLOW_2_LABEL} — Dialog ใบกำกับ",
     PHASE_FLOW_2_WT_DIALOG: f"{FLOW_2_LABEL} — Dialog WT (ยกเลิก)",
     PHASE_FLOW_2_CASH: f"{FLOW_2_LABEL} — 1111-00",
-    PHASE_FLOW_2_SAVE: f"{FLOW_2_LABEL} — บันทึก (F10)",
-    PHASE_FLOW_1_END: f"{FLOW_1_END_LABEL} (กด {MENU_OTHERS})",
+    PHASE_FLOW_2_SAVE: f"{FLOW_2_LABEL} — F10 + ยืนยันภาษีซื้อ",
+    PHASE_FLOW_1_END: f"{FLOW_1_END_LABEL} (กด {MENU_OTHERS}→{MENU_OTHERS_CHANGE_COMPANY})",
 }
 
 STEP_REGION_FLOW_1_START = 0
@@ -53,72 +53,24 @@ class FlowStepSpec:
     note: str = ""
 
 
-def build_flow1_detail(*, press_menu_others: bool) -> tuple[FlowStepSpec, ...]:
-    """press_menu_others=False → โฟล์แรก (อยู่หน้าเลือกข้อมูลแล้ว)
-    press_menu_others=True  → โฟล์สุดท้าย (กด 8 ก่อน)
-    """
-    steps: list[FlowStepSpec] = []
-    n = 1
+FLOW_1_START_DETAIL: tuple[FlowStepSpec, ...] = (
+    FlowStepSpec(1, "tab", "Tab → ปุ่ม ค้นหา", note="Tab ×2 (lookup_search.button_tabs)"),
+    FlowStepSpec(2, "enter", "Enter → เปิดช่องค้นหา", note="แทนคลิกปุ่ม ค้นหา"),
+    FlowStepSpec(3, "type", "พิมพ์ชื่อบริษัท", note="จากฟอร์ม AutoKey"),
+    FlowStepSpec(4, "enter", "Enter ครั้งที่ 1", note="เลือกรายการ"),
+    FlowStepSpec(5, "enter", "Enter ครั้งที่ 2", note="ยืนยัน → เข้าเมนูหลัก"),
+)
 
-    if press_menu_others:
-        steps.append(
-            FlowStepSpec(
-                n,
-                "key",
-                "กดเมนู 8. อื่นๆ",
-                MENU_OTHERS,
-                "จากหน้าเมนูหลัก — เฉพาะโฟล์สุดท้าย",
-            )
-        )
-        n += 1
-
-    steps.extend(
-        [
-            FlowStepSpec(
-                n,
-                "wait",
-                "รอ Dialog เลือกข้อมูล",
-                note="ตารางรายการชื่อข้อมูล/บริษัท (หน้าแรกของโฟล์เลือกบริษัท)",
-            ),
-            FlowStepSpec(
-                n + 1,
-                "click",
-                "คลิก ค้นหา",
-                note="ปุ่ม ค้นหา ด้านล่าง dialog — btn_search.png",
-            ),
-            FlowStepSpec(
-                n + 2,
-                "wait",
-                "รอช่องค้นหาเปิด",
-                note="dialog ชื่อข้อมูล / ช่องพิมพ์ชื่อบริษัท",
-            ),
-            FlowStepSpec(
-                n + 3,
-                "type",
-                "พิมพ์ชื่อบริษัทเต็ม",
-                note="ชื่อเต็มตรงกับใน Express (จากช่อง UI)",
-            ),
-            FlowStepSpec(n + 4, "enter", "Enter ครั้งที่ 1", note="เลือกรายการที่ค้นหาเจอ"),
-            FlowStepSpec(
-                n + 5,
-                "enter",
-                "Enter ครั้งที่ 2",
-                note="ยืนยัน — dialog วันที่ทำการ เด้งขึ้นเลย (ไม่ต้องกด ตกลง dialog เลือกข้อมูล)",
-            ),
-            FlowStepSpec(
-                n + 6,
-                "click",
-                "คลิก ตกลง (วันที่ทำการ)",
-                note="btn_ok.png หรือ Enter",
-            ),
-            FlowStepSpec(n + 7, "wait", "กลับหน้าเมนูหลัก", note="พร้อมเปิด PV (5→1→2)"),
-        ]
-    )
-    return tuple(steps)
-
-
-FLOW_1_START_DETAIL = build_flow1_detail(press_menu_others=False)
-FLOW_1_END_DETAIL = build_flow1_detail(press_menu_others=True)
+FLOW_1_END_DETAIL: tuple[FlowStepSpec, ...] = (
+    FlowStepSpec(1, "key", "กด 8. อื่นๆ", MENU_OTHERS, "หลังจบ PV — อยู่เมนูหลัก"),
+    FlowStepSpec(
+        2,
+        "key",
+        "กด 8. เปลี่ยนบริษัท",
+        MENU_OTHERS_CHANGE_COMPANY,
+        "เปิด dialog เลือกข้อมูล (Shift+F11)",
+    ),
+)
 
 FLOW_1_STEPS_START: tuple[str, ...] = tuple(
     f"{s.step_no}. {s.label}" + (f" → {s.value}" if s.value else "") for s in FLOW_1_START_DETAIL

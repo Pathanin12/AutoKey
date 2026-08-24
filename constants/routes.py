@@ -5,7 +5,9 @@ ASSETS_DIR = PROJECT_ROOT / "assets"
 TEMPLATES_DIR = ASSETS_DIR / "templates"
 REFERENCE_DIR = ASSETS_DIR / "reference"
 CONFIG_PATH = PROJECT_ROOT / "config.yaml"
-DEFAULT_EXCEL_PATH = Path.home() / "Downloads" / "ค่าทำ.xlsx"
+
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
 
 TOPIC_PAYMENT_JOURNAL = "payment_journal"
 TOPIC_LABEL = "สมุดรายวันจ่าย"
@@ -18,6 +20,8 @@ MENU_ACCOUNT = "5"
 MENU_DAILY_ENTRY = "1"
 MENU_PAYMENT_JOURNAL = "2"
 MENU_OTHERS = "8"
+MENU_OTHERS_CHANGE_COMPANY = "8"
+VENDOR_LOOKUP_KEY = "f8"
 
 UI_TEXT = {
     "app_title": "AutoKey — สมุดรายวันจ่าย",
@@ -28,6 +32,7 @@ UI_TEXT = {
     "pv_date": "วันที่ใบสำคัญ",
     "pv_date_hint": "ค่าเริ่มต้นเป็นวันที่ทำการ (วันนี้) — แก้ได้ก่อนกดเริ่ม",
     "description": "รายละเอียด",
+    "description_hint": "ใช้เหมือนกันทุกแถวในรอบนั้น — พิมพ์ในช่องรายละเอียดหลัง F2",
     "tax_payer_id": "เลขผู้เสียภาษี",
     "tax_payer_id_hint": "อ่านจากคอลัมน์ TAX ID ใน Excel ทุกแถว — ช่องนี้ใช้เมื่อแถวใดใน Excel ว่าง",
     "start": "เริ่มทำงาน",
@@ -37,20 +42,20 @@ UI_TEXT = {
     "window_restored": "แสดงหน้าต่างอีกครั้ง",
     "status_frame": "สถานะ",
     "welcome_log": (
-        "เปิด Express อยู่หน้าเมนูหลัก (เลือกบริษัทแล้ว) แล้วกดเริ่ม — AutoKey เปิด PV (5→1→2)\n"
+        "Express อยู่ dialog เลือกข้อมูล → กดเริ่ม\n"
         "กด Ctrl+F9 หรือ Esc เพื่อยกเลิกขณะทำงาน"
     ),
     "ready": "พร้อมทำงาน",
     "confirm_title": "ยืนยันการทำงาน",
     "confirm_message": (
-        "ตรวจสอบว่า Express เปิดอยู่หน้าเมนูหลัก (บริษัทเดียว — เลือกเองก่อนรัน)\n"
-        "AutoKey จะเปิดสมุดรายวันจ่าย (5→1→2) แล้วทำทุกแถว\n"
+        "Express ต้องเปิดอยู่ (AutoKey จะโฟกัส Express ให้อัตโนมัติ)\n"
+        "AutoKey: PV ทุกแถว (F10 แล้วกรอกภาษีซื้อต่อแถว)\n"
         "ต้องการเริ่ม Auto หรือไม่?"
     ),
     "stop_requested": "ส่งคำสั่งหยุด...",
     "excel_loaded": "โหลดไฟล์: {path}",
     "excel_sheet_line": "  • {sheet}: {rows} รายการ",
-    "excel_total": "รวม {rows} รายการ จาก {sheets} ชีต",
+    "excel_total": "พบ {rows} รายการ",
     "no_excel_data": "ไม่พบข้อมูลที่รองรับในไฟล์นี้",
     "no_excel_loaded": "กรุณาเลือกไฟล์ Excel ก่อน",
 }

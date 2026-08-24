@@ -25,23 +25,16 @@ except ImportError as exc:  # pragma: no cover
 import tkinter as tk
 from tkinter import ttk
 
-from constants.routes import PROJECT_ROOT as ROOT
-from constants.step_regions import STEP_REGIONS
+from constants.reference_images import CAPTURE_CHECKLIST, capture_instructions, reference_path
+from constants.routes import PROJECT_ROOT as ROOT, SCREEN_HEIGHT, SCREEN_WIDTH
 from models.workflow_action import WorkflowAction
 from constants.flow_model import FULL_SEQUENCE_NOTE, PHASE_TITLES
 from topics.ka_tam.workflow_actions import SAMPLE_VALUES, build_workflow_actions
 
 REFERENCE_DIR = ROOT / "assets" / "reference"
 EXPORT_DIR = ROOT / "assets" / "flow_preview"
-DEFAULT_REFERENCE = REFERENCE_DIR / "11-3945f8bc-e840-4695-bfda-d310e4004dde.png"
 
-IMAGE_PATHS: dict[str, Path] = {
-    "menu": REFERENCE_DIR / "7-863dbbb2-42f7-4439-85c5-b1049836d310.png",
-    "pv_main": DEFAULT_REFERENCE,
-    "tax_dialog": REFERENCE_DIR / "14-c5a3186f-074c-4711-9354-a9852be04f12.png",
-    "wt_dialog": REFERENCE_DIR / "wt_dialog_auto.png",
-    "company_select": REFERENCE_DIR / "company_select_dialog.png",
-}
+MAX_DISPLAY_ZOOM = 2.0
 
 KIND_COLORS = {
     "section": "#a855f7",
@@ -56,6 +49,7 @@ KIND_COLORS = {
 
 
 def crop_with_highlight(image: Image.Image, region, padding: int = 12) -> Image.Image:
+    """unused in preview — kept for export experiments"""
     left = max(region.x - padding, 0)
     top = max(region.y - padding, 0)
     right = min(region.x + region.width + padding, image.width)
@@ -76,26 +70,13 @@ def crop_with_highlight(image: Image.Image, region, padding: int = 12) -> Image.
 
 def export_phase_images() -> None:
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
-    for phase, title in PHASE_TITLES.items():
-        image_path = IMAGE_PATHS.get("pv_main")
-        if phase == 1:
-            image_path = IMAGE_PATHS["menu"]
-        elif phase == 6:
-            image_path = IMAGE_PATHS["tax_dialog"]
-        elif phase == 8:
-            image_path = IMAGE_PATHS["wt_dialog"]
-
-        region = STEP_REGIONS.get(phase)
-        if region is None or not image_path.exists():
-            print(f"ข้าม phase {phase}: ไม่พบรูปหรือ region")
+    for item in CAPTURE_CHECKLIST:
+        if not item.path.exists():
+            print(f"ข้าม {item.screen_id}: ไม่พบ {item.filename}")
             continue
-
-        image = Image.open(image_path).convert("RGBA")
-        highlighted = crop_with_highlight(image, region)
-        safe_title = title.replace(" ", "_")
-        output = EXPORT_DIR / f"phase_{phase:02d}_{safe_title}.png"
-        highlighted.save(output)
-        print(f"บันทึก {output.relative_to(ROOT)}")
+        output = EXPORT_DIR / f"{item.screen_id}.png"
+        Image.open(item.path).convert("RGBA").save(output)
+        print(f"บันทึก {output.relative_to(ROOT)} — {item.label}")
     print(f"\nเสร็จ — ดูภาพใน {EXPORT_DIR}")
 
 
@@ -310,48 +291,36 @@ class FlowPreviewApp:
                 )
             return
 
-        image_path = IMAGE_PATHS.get(action.image_key, IMAGE_PATHS["pv_main"])
-        region = STEP_REGIONS.get(action.region_step)
-
-        if not image_path.exists() or region is None:
+        image_path = reference_path(action.image_key)
+        if not image_path.exists():
             self.canvas.delete("all")
-            missing = []
-            if not image_path.exists():
-                missing.append(f"ไม่พบรูป: {image_path.name}")
-            if region is None:
-                missing.append(f"ไม่พบ region step {action.region_step}")
             self.canvas.create_text(
                 40,
                 40,
                 anchor="nw",
                 fill="#f87171",
-                text="\n".join(missing),
+                text=f"ไม่พบรูป: {image_path.name}\n\n" + "\n".join(capture_instructions()[:4]),
                 font=("Tahoma", 12),
+                width=max(self.canvas.winfo_width() - 80, 400),
             )
             return
 
         self._full_image = Image.open(image_path).convert("RGBA")
-        self._render_canvas(region, action.phase_title)
+        self._render_canvas(action.label, image_path.name)
 
-    def _render_canvas(self, region, label: str) -> None:
+    def _render_canvas(self, action_label: str, filename: str) -> None:
         assert self._full_image is not None
         canvas_w = max(self.canvas.winfo_width(), 640)
         canvas_h = max(self.canvas.winfo_height(), 480)
         image = self._full_image.copy()
 
-        scale = min(canvas_w / image.width, canvas_h / image.height)
-        display_w = int(image.width * scale)
-        display_h = int(image.height * scale)
+        scale = min(canvas_w / image.width, canvas_h / image.height, MAX_DISPLAY_ZOOM)
+        display_w = max(int(image.width * scale), 1)
+        display_h = max(int(image.height * scale), 1)
         offset_x = (canvas_w - display_w) // 2
         offset_y = (canvas_h - display_h) // 2
 
         resized = image.resize((display_w, display_h), Image.Resampling.LANCZOS)
-        draw = ImageDraw.Draw(resized)
-        rx = int(region.x * scale)
-        ry = int(region.y * scale)
-        rw = int(region.width * scale)
-        rh = int(region.height * scale)
-        draw.rectangle((rx, ry, rx + rw, ry + rh), outline=(255, 215, 0), width=4)
 
         self._photo = ImageTk.PhotoImage(resized)
         self.canvas.delete("all")
@@ -360,9 +329,20 @@ class FlowPreviewApp:
             offset_x + 8,
             offset_y + 8,
             anchor="nw",
-            text=label,
+            text=action_label,
             fill="#FFD700",
             font=("Tahoma", 11, "bold"),
+        )
+        note = f"{filename} ({image.width}×{image.height})"
+        if image.width < SCREEN_WIDTH or image.height < SCREEN_HEIGHT:
+            note += f" — จอจริง {SCREEN_WIDTH}×{SCREEN_HEIGHT} ถ่ายใหม่จะชัดขึ้น"
+        self.canvas.create_text(
+            offset_x + 8,
+            offset_y + display_h - 24,
+            anchor="nw",
+            text=note,
+            fill="#9ca3af",
+            font=("Tahoma", 9),
         )
 
     def _prev_action(self) -> None:

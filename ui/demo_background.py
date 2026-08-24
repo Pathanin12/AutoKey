@@ -24,6 +24,8 @@ class DemoBackground:
         self.image_path = image_path
         self.base_width = base_width
         self.base_height = base_height
+        self.coord_base_width = base_width
+        self.coord_base_height = base_height
         self.window: tk.Toplevel | None = None
         self.offset_x = 0
         self.offset_y = 0
@@ -38,13 +40,17 @@ class DemoBackground:
         self.root.after(0, self._hide_window)
 
     def map_region(self, region: ScreenRegion) -> ScreenRegion:
-        scale_x = self.display_width / self.base_width
-        scale_y = self.display_height / self.base_height
+        scaled = region.scaled(
+            self.display_width,
+            self.display_height,
+            self.coord_base_width,
+            self.coord_base_height,
+        )
         return ScreenRegion(
-            x=int(self.offset_x + region.x * scale_x),
-            y=int(self.offset_y + region.y * scale_y),
-            width=max(int(region.width * scale_x), 40),
-            height=max(int(region.height * scale_y), 24),
+            x=int(self.offset_x + scaled.x),
+            y=int(self.offset_y + scaled.y),
+            width=scaled.width,
+            height=scaled.height,
             label=region.label,
         )
 
@@ -56,9 +62,8 @@ class DemoBackground:
 
         image = Image.open(self.image_path)
         image_width, image_height = image.size
-        if image_width > self.base_width or image_height > self.base_height:
-            self.base_width = image_width
-            self.base_height = image_height
+        self.coord_base_width = self.base_width
+        self.coord_base_height = self.base_height
 
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()

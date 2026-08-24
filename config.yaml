@@ -6,7 +6,6 @@ screen:
 automation:
   action_delay: 0.4
   type_interval: 0.03
-  confidence: 0.85
   fail_safe: true
   dry_run: true
 
@@ -14,7 +13,7 @@ ui:
   hide_on_start: true
   show_status_overlay: true
   show_region_highlight: true
-  demo_reference_image: "assets/reference/11-3945f8bc-e840-4695-bfda-d310e4004dde.png"
+  demo_reference_image: "assets/reference/12.png"
   cancel_hotkeys:
     - "control+f9"
     - "esc"
@@ -25,6 +24,24 @@ accounts:
   cash: "1111-00"
 
 defaults:
-  excel_path: "~/Downloads/ค่าทำ.xlsx"
   pv_date: ""
-  description: ""
+
+lookup_search:
+  button_tabs: 2
+  field_tabs: 0
+  confirm_enter_count: 1
+
+# โฟล์สุดท้าย — หลังจบ PV: Esc → 8→8 (ไม่ค้นหา)
+company_switch:
+  menu_others: "8"
+  submenu_keys: ["8"]
+  menu_wait: 0.8
+  search_enter_count: 2
+  exit_pv_esc_count: 2
+
+window_focus:
+  enabled: true
+  title_contains: "Express"
+  prepare_seconds: 0.3
+  wait_after_focus_seconds: 0.5
+  required: true

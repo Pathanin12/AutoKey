@@ -11,7 +11,7 @@ a = Analysis(
         (str(root / "config.yaml"), "."),
         (str(root / "assets"), "assets"),
     ],
-    hiddenimports=["pandas", "openpyxl", "cv2", "PIL", "yaml", "pyperclip", "pynput"],
+    hiddenimports=["pandas", "openpyxl", "PIL", "yaml", "pyperclip", "pynput"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

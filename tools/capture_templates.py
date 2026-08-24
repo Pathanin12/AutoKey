@@ -1,4 +1,4 @@
-"""Capture small UI templates for AutoKey on Windows."""
+"""(เลิกใช้แล้ว) เคย crop ปุ่มสำหรับ OpenCV — ระบบใช้คีย์บอร์ดเท่านั้นแล้ว"""
 
 from __future__ import annotations
 

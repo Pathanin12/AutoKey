@@ -12,9 +12,14 @@ from services.tax_reference_service import resolve_tax_payer_id
 
 
 def main() -> None:
-    excel_path = Path("/Users/pathanin/Downloads/ค่าทำ.xlsx")
+    if len(sys.argv) < 2:
+        print("Usage: python tools/validate_excel.py <path-to-excel>")
+        raise SystemExit(1)
+
+    excel_path = Path(sys.argv[1]).expanduser()
     if not excel_path.exists():
-        excel_path = Path.home() / "Downloads" / "ค่าทำ.xlsx"
+        print(f"ไม่พบไฟล์: {excel_path}")
+        raise SystemExit(1)
 
     sheets = ExcelService.list_supported_sheets(excel_path)
     print("Supported sheets:", sheets)

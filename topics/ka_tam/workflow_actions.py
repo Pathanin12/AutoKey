@@ -8,7 +8,10 @@ from constants.routes import (
     ACCOUNT_VAT,
     MENU_ACCOUNT,
     MENU_DAILY_ENTRY,
+    MENU_OTHERS,
+    MENU_OTHERS_CHANGE_COMPANY,
     MENU_PAYMENT_JOURNAL,
+    VENDOR_LOOKUP_KEY,
 )
 
 SAMPLE_VALUES: dict[str, str] = {
@@ -21,6 +24,7 @@ SAMPLE_VALUES: dict[str, str] = {
     "vat_amount": "140.00",
     "cash_credit": "2,080.00",
     "wt_amount": "60.00",
+    "company_name": "โชคธนา (2004)",
 }
 
 def build_workflow_actions() -> list[WorkflowAction]:
@@ -71,18 +75,55 @@ def build_workflow_actions() -> list[WorkflowAction]:
         )
         counter += 1
 
-    def add_pv_row() -> None:
-        add(2, "click", "1. คลิกปุ่ม New", note="ถ้าไม่เจอ template → F2")
-        add(2, "fkey", "2. กด F2 สร้างรายการใหม่", "F2")
-        add(2, "wait", "3. รอฟอร์มเปิด", note="0.8 วินาที")
-        add(2, "type", "4. พิมพ์วันที่ใบสำคัญ (ตอนสร้าง)", sample["pv_date"])
+    def add_flow1_start(phase: int) -> None:
+        add(
+            phase,
+            "tab",
+            "1. Tab → ปุ่ม ค้นหา",
+            note="Tab ×2 (lookup_search.button_tabs)",
+            image_key="company_select",
+        )
+        add(
+            phase,
+            "enter",
+            "2. Enter → เปิดช่องค้นหา",
+            note="แทนคลิกปุ่ม ค้นหา",
+            image_key="company_select",
+        )
+        add(
+            phase,
+            "type",
+            "3. พิมพ์ชื่อบริษัท",
+            sample["company_name"],
+            note="จากฟอร์ม AutoKey",
+            image_key="company_select",
+        )
+        add(
+            phase,
+            "enter",
+            "4. Enter ครั้งที่ 1",
+            note="เลือกรายการ",
+            image_key="company_select",
+        )
+        add(
+            phase,
+            "enter",
+            "5. Enter ครั้งที่ 2",
+            note="ยืนยัน → เข้าเมนูหลัก",
+            image_key="company_select",
+        )
 
-        add(3, "tab", "1. Tab → ช่องวันที่", note="ครั้งที่ 1")
-        add(3, "tab", "2. Tab → ช่องวันที่", note="ครั้งที่ 2")
-        add(3, "type", "3. พิมพ์วันที่ใบสำคัญ", sample["pv_date"])
-        add(3, "tab", "4. Tab → ช่องรายละเอียด", note="ครั้งที่ 1")
-        add(3, "tab", "5. Tab → ช่องรายละเอียด", note="ครั้งที่ 2")
-        add(3, "type", "6. พิมพ์รายละเอียด", sample["description"])
+    def add_pv_row() -> None:
+        add(2, "fkey", "1. กด F2 สร้างรายการใหม่", "F2", image_key="pv_main")
+        add(2, "wait", "2. รอฟอร์มเปิด", note="0.8 วินาที", image_key="pv_main")
+        add(2, "type", "3. พิมพ์วันที่ใบสำคัญ (ตอนสร้าง)", sample["pv_date"], image_key="pv_main")
+
+        add(3, "tab", "1. Tab → ช่องวันที่", note="ครั้งที่ 1", image_key="pv_header")
+        add(3, "tab", "2. Tab → ช่องวันที่", note="ครั้งที่ 2", image_key="pv_header")
+        add(3, "type", "3. พิมพ์วันที่ใบสำคัญ", sample["pv_date"], image_key="pv_header")
+        add(3, "tab", "4. Tab → ช่องรายละเอียด", note="ครั้งที่ 1", image_key="pv_header")
+        add(3, "tab", "5. Tab → ช่องรายละเอียด", note="ครั้งที่ 2", image_key="pv_header")
+        add(3, "type", "6. พิมพ์รายละเอียด", sample["description"], image_key="pv_header")
 
         def grid_row_numbered(
             phase: int,
@@ -93,31 +134,64 @@ def build_workflow_actions() -> list[WorkflowAction]:
             amount_note: str,
             *,
             is_credit: bool = False,
+            image_key: str = "pv_grid",
         ) -> None:
             n = start
-            add(phase, "type", f"{n}. พิมพ์รหัสบัญชี — {account_label}", account_code)
-            add(phase, "tab", f"{n + 1}. Tab → sub-account")
-            add(phase, "tab", f"{n + 2}. Tab → ชื่อผู้ขาย/ผู้รับ")
-            add(phase, "type", f"{n + 3}. พิมพ์ชื่อนิติบุคคล", sample["legal_name"])
-            add(phase, "tab", f"{n + 4}. Tab → ช่องเดบิต")
+            add(phase, "type", f"{n}. พิมพ์รหัสบัญชี — {account_label}", account_code, image_key=image_key)
+            add(phase, "tab", f"{n + 1}. Tab → sub-account", image_key=image_key)
+            add(phase, "tab", f"{n + 2}. Tab → ชื่อผู้ขาย/ผู้รับ", image_key=image_key)
+            add(
+                phase,
+                "fkey",
+                f"{n + 3}. กด {VENDOR_LOOKUP_KEY.upper()} เปิด dialog เลือกข้อมูล",
+                VENDOR_LOOKUP_KEY.upper(),
+                image_key="company_select",
+            )
+            add(
+                phase,
+                "tab",
+                f"{n + 4}. Tab → ปุ่ม ค้นหา",
+                note="Tab ×2 (lookup_search.button_tabs)",
+                image_key="company_select",
+            )
+            add(
+                phase,
+                "enter",
+                f"{n + 5}. Enter → เปิดช่องค้นหา",
+                note="แทนคลิกปุ่ม ค้นหา",
+                image_key="company_select",
+            )
+            add(
+                phase,
+                "type",
+                f"{n + 6}. พิมพ์ชื่อนิติบุคคล",
+                sample["legal_name"],
+                image_key="company_select",
+            )
+            add(
+                phase,
+                "enter",
+                f"{n + 7}. Enter → เลือกรายการ",
+                image_key="company_select",
+            )
+            add(phase, "tab", f"{n + 8}. Tab → ช่องเดบิต", image_key=image_key)
             if is_credit:
-                add(phase, "tab", f"{n + 5}. Tab → ข้ามเดบิต ไปเครดิต")
-                add(phase, "type", f"{n + 6}. {amount_note}", sample[amount_key])
-                add(phase, "enter", f"{n + 7}. Enter → ยืนยันแถว")
+                add(phase, "tab", f"{n + 9}. Tab → ข้ามเดบิต ไปเครดิต", image_key=image_key)
+                add(phase, "type", f"{n + 10}. {amount_note}", sample[amount_key], image_key=image_key)
+                add(phase, "enter", f"{n + 11}. Enter → ยืนยันแถว", image_key=image_key)
             else:
-                add(phase, "type", f"{n + 5}. {amount_note}", sample[amount_key])
-                add(phase, "tab", f"{n + 6}. Tab → ช่องถัดไป")
-                add(phase, "enter", f"{n + 7}. Enter → ยืนยันแถว")
+                add(phase, "type", f"{n + 9}. {amount_note}", sample[amount_key], image_key=image_key)
+                add(phase, "tab", f"{n + 10}. Tab → ช่องถัดไป", image_key=image_key)
+                add(phase, "enter", f"{n + 11}. Enter → ยืนยันแถว", image_key=image_key)
 
         grid_row_numbered(4, 1, ACCOUNT_SERVICE, "ค่าบริการ 5330-05", "service_amount", "พิมพ์ยอดเดบิต srv")
         grid_row_numbered(5, 1, ACCOUNT_VAT, "ภาษีซื้อ 1154-00", "vat_amount", "พิมพ์ยอดเดบิต vat")
 
         add(6, "wait", "1. รอ Dialog ใบกำกับภาษีซื้อ", note="popup หลัง 1154-00", image_key="tax_dialog")
-        add(6, "click", "2. คลิก Dialog โฟกัส", image_key="tax_dialog")
         add(
             6,
             "type",
-            "3. พิมพ์ เลขที่ใบกำกับภาษี",
+            "2. พิมพ์ เลขที่ใบกำกับภาษี",
             sample["invoice_number"],
             note="NRG+ปี+เดือน+ลำดับ",
             image_key="tax_dialog",
@@ -125,18 +199,18 @@ def build_workflow_actions() -> list[WorkflowAction]:
         add(
             6,
             "enter",
-            "4. Enter → Express กรอกช่องอื่นอัตโนมัติ",
+            "3. Enter → Express กรอกช่องอื่นอัตโนมัติ",
             note="cursor ไปเลขผู้เสียภาษี",
             image_key="tax_dialog",
         )
         add(
             6,
             "type",
-            "5. พิมพ์ เลขประจำตัวผู้เสียภาษี",
+            "4. พิมพ์ เลขประจำตัวผู้เสียภาษี",
             sample["tax_payer_id"],
             image_key="tax_dialog",
         )
-        add(6, "click", "6. คลิก ตกลง", note="btn_ok.png หรือ Enter", image_key="tax_dialog")
+        add(6, "enter", "5. Enter → ตกลง ใบกำกับ", note="Enter", image_key="tax_dialog")
 
         add(
             7,
@@ -147,9 +221,10 @@ def build_workflow_actions() -> list[WorkflowAction]:
         )
         add(
             7,
-            "click",
-            "2. คลิก ยกเลิก",
-            note="btn_cancel.png — ไม่กรอก WT",
+            "fkey",
+            "2. กด Esc ยกเลิก",
+            "Esc",
+            note="ไม่กรอก WT",
             image_key="wt_dialog",
         )
 
@@ -163,20 +238,56 @@ def build_workflow_actions() -> list[WorkflowAction]:
             is_credit=True,
         )
 
-        add(9, "click", "1. คลิก Save", note="pv_save.png")
-        add(9, "fkey", "2. กด F10 บันทึก", "F10")
-        add(9, "wait", "3. รอบันทึกเสร็จ", note="1.0 วินาที")
+        add(9, "fkey", "1. กด F10 บันทึก", "F10", image_key="pv_grid")
+        add(
+            9,
+            "wait",
+            "2. รอ Dialog ป้อนรายละเอียดรายการภาษีซื้อ",
+            note="Express กรอกวันที่/ยอด/ชื่อให้แล้ว — ไม่พิมพ์เลขที่",
+            image_key="tax_dialog",
+        )
+        add(
+            9,
+            "tab",
+            "3. Tab → ช่องเลขประจำตัวผู้เสียภาษี",
+            note="Tab ×6 จากช่องเลขที่ (ว่าง)",
+            image_key="tax_dialog",
+        )
+        add(
+            9,
+            "type",
+            "4. พิมพ์ เลขประจำตัวผู้เสียภาษี",
+            sample["tax_payer_id"],
+            image_key="tax_dialog",
+        )
+        add(
+            9,
+            "enter",
+            "5. Enter → ตกลง",
+            note="จบ 1 แถว — แล้วค่อย F2 แถวถัดไป",
+            image_key="tax_dialog",
+        )
+        add(9, "wait", "6. รอกลับหน้า PV", note="0.8 วินาที", image_key="pv_grid")
+
+    # ══════════════════════════════════════════
+    # โฟล์ 1 — เลือกบริษัท (AutoKey ทำให้)
+    # ══════════════════════════════════════════
+    add_section(
+        "▶ โฟล์ 1 — เลือกบริษัท",
+        note="กดเริ่มแล้วทำทันที — ชื่อบริษัทจากฟอร์ม",
+    )
+    add_flow1_start(0)
 
     # ══════════════════════════════════════════
     # เปิด PV (ครั้งเดียวต่อชีต)
     # ══════════════════════════════════════════
-    add_section("▶ เปิดสมุดรายวันจ่าย", note="อยู่หน้าเมนูหลักแล้ว (เลือกบริษัทเองก่อนรัน)")
-    add(1, "key", "1. กด 5. บัญชี", MENU_ACCOUNT, image_key="menu")
-    add(1, "wait", "2. รอเมนูย่อย", note="0.8 วินาที", image_key="menu")
-    add(1, "key", "3. กด 1. ลงประจำวัน", MENU_DAILY_ENTRY, image_key="menu")
-    add(1, "wait", "4. รอเมนูย่อย", note="0.8 วินาที", image_key="menu")
-    add(1, "key", "5. กด 2. สมุดรายวันจ่าย", MENU_PAYMENT_JOURNAL, image_key="menu")
-    add(1, "wait", "6. รอหน้า PV เปิด", note="1.5 วินาที", image_key="menu")
+    add_section("▶ เปิดสมุดรายวันจ่าย", note="หลังโฟล์ 1 — อยู่หน้าเมนูหลัก")
+    add(1, "key", "1. กด 5. บัญชี", MENU_ACCOUNT, image_key="menu_open_pv")
+    add(1, "wait", "2. รอเมนูย่อย", note="0.8 วินาที", image_key="menu_open_pv")
+    add(1, "key", "3. กด 1. ลงประจำวัน", MENU_DAILY_ENTRY, image_key="menu_open_pv")
+    add(1, "wait", "4. รอเมนูย่อย", note="0.8 วินาที", image_key="menu_open_pv")
+    add(1, "key", "5. กด 2. สมุดรายวันจ่าย", MENU_PAYMENT_JOURNAL, image_key="menu_open_pv")
+    add(1, "wait", "6. รอหน้า PV เปิด", note="1.5 วินาที", image_key="menu_open_pv")
 
     # ══════════════════════════════════════════
     # โฟล์ 2 — 1 แถว Excel (ตัวอย่างแถวที่ 1)
@@ -199,9 +310,9 @@ def build_workflow_actions() -> list[WorkflowAction]:
         10,
         "section",
         "✓ จบ AutoKey",
-        note="ครบทุกแถวทุกชีต",
+        note="ครบทุกแถว — ยังอยู่ DB เดิม (8→8 ทำเองเมื่อจะเปลี่ยนฐานข้อมูล)",
         region_step=0,
-        image_key="menu",
+        image_key="pv_grid",
     )
 
     return actions

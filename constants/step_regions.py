@@ -1,7 +1,8 @@
-"""พิกัด highlight ตาม phase — โฟล์แรก/สุดท้าย (step 0/10) ดู constants/flow_model.py"""
+"""พิกัด highlight ตาม phase — อิงจอ Express 1920×1080 (รูป reference มักเป็น 1024×576 ต้อง scale)"""
 
 from __future__ import annotations
 
+from constants.routes import SCREEN_HEIGHT, SCREEN_WIDTH
 from models.screen_region import ScreenRegion
 
 STEP_REGIONS: dict[int, ScreenRegion] = {
@@ -15,9 +16,20 @@ STEP_REGIONS: dict[int, ScreenRegion] = {
     7: ScreenRegion(360, 100, 640, 540, "Dialog ภาษีหัก ณ ที่จ่าย"),
     8: ScreenRegion(48, 392, 920, 72, "ตาราง — บัญชีเงินสด 1111-00"),
     9: ScreenRegion(24, 72, 420, 48, "ปุ่ม Save / บันทึก"),
-    10: ScreenRegion(120, 80, 980, 520, "Dialog เลือกบริษัท — เปลี่ยนบริษัท"),
+    10: ScreenRegion(680, 24, 240, 360, "เมนู 8. อื่นๆ → 8. เปลี่ยนบริษัท"),
 }
 
 
 def get_step_region(step_index: int) -> ScreenRegion | None:
     return STEP_REGIONS.get(step_index)
+
+
+def map_region_to_image(
+    region: ScreenRegion,
+    image_width: int,
+    image_height: int,
+    *,
+    base_width: int = SCREEN_WIDTH,
+    base_height: int = SCREEN_HEIGHT,
+) -> ScreenRegion:
+    return region.scaled(image_width, image_height, base_width, base_height)

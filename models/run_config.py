@@ -15,7 +15,7 @@ class RunConfig:
     topic: str
     excel_path: Path
     pv_date: str
-    description: str
+    description: str = ""
     tax_payer_id: str = ""
     sheet_summaries: list[ExcelSheetSummary] | None = None
 
@@ -25,8 +25,6 @@ class RunConfig:
             errors.append(f"ไม่พบไฟล์ Excel: {self.excel_path}")
         if not self.pv_date.strip():
             errors.append("กรุณากรอกวันที่ใบสำคัญ")
-        if not self.description.strip():
-            errors.append("กรุณากรอกรายละเอียด")
         if self.sheet_summaries is not None and not self.sheet_summaries:
             errors.append("ไม่พบข้อมูลที่รองรับในไฟล์ Excel")
         return errors

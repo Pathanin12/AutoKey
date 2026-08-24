@@ -5,7 +5,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from constants.date_utils import default_work_date
-from constants.routes import DEFAULT_EXCEL_PATH, PROJECT_ROOT, TOPIC_PAYMENT_JOURNAL, UI_TEXT
+from constants.routes import PROJECT_ROOT, TOPIC_PAYMENT_JOURNAL, UI_TEXT
 from constants.version import __version__
 from models.run_config import ExcelSheetSummary, RunConfig
 from models.screen_region import ScreenRegion
@@ -21,7 +21,7 @@ class MainWindow:
     def __init__(self) -> None:
         self.root = tk.Tk()
         self.root.title(f"{UI_TEXT['app_title']} v{__version__}")
-        self.root.geometry("560x520")
+        self.root.geometry("560x540")
         self.root.resizable(False, False)
         self._set_window_icon()
 
@@ -60,7 +60,7 @@ class MainWindow:
 
         defaults = self.automation_service.default_settings
         initial_pv_date = str(defaults.get("pv_date", "")).strip() or default_work_date()
-        self.excel_path = tk.StringVar(value=str(DEFAULT_EXCEL_PATH))
+        self.excel_path = tk.StringVar(value="")
         self.pv_date = tk.StringVar(value=initial_pv_date)
         self.description = tk.StringVar(value="")
         self.tax_payer_id = tk.StringVar(value="")
@@ -95,11 +95,14 @@ class MainWindow:
 
         ttk.Label(form_frame, text=UI_TEXT["description"]).grid(row=4, column=0, sticky="nw")
         ttk.Entry(form_frame, textvariable=self.description, width=48).grid(row=4, column=1, columnspan=2, sticky="ew")
+        ttk.Label(form_frame, text=UI_TEXT["description_hint"], wraplength=500, foreground="#555555").grid(
+            row=5, column=0, columnspan=3, sticky="w", pady=(2, 0)
+        )
 
-        ttk.Label(form_frame, text=UI_TEXT["tax_payer_id"]).grid(row=5, column=0, sticky="nw")
-        ttk.Entry(form_frame, textvariable=self.tax_payer_id, width=48).grid(row=5, column=1, columnspan=2, sticky="ew")
+        ttk.Label(form_frame, text=UI_TEXT["tax_payer_id"]).grid(row=6, column=0, sticky="nw")
+        ttk.Entry(form_frame, textvariable=self.tax_payer_id, width=48).grid(row=6, column=1, columnspan=2, sticky="ew")
         ttk.Label(form_frame, text=UI_TEXT["tax_payer_id_hint"], wraplength=500, foreground="#555555").grid(
-            row=6, column=0, columnspan=3, sticky="w", pady=(2, 0)
+            row=7, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
         form_frame.columnconfigure(1, weight=1)
 
@@ -118,10 +121,7 @@ class MainWindow:
         ttk.Label(status_frame, textvariable=self.progress_text).pack(anchor="w", padx=8, pady=4)
         self.log_box = tk.Text(status_frame, height=12, wrap="word")
         self.log_box.pack(fill="both", expand=True, padx=8, pady=8)
-        welcome = (
-            "เปิด Express อยู่หน้าเมนูหลัก (เลือกบริษัทแล้ว) แล้วกดเริ่ม — AutoKey เปิด PV (5→1→2)\n"
-            + UI_TEXT["cancel_hotkey_hint"].format(hotkey=self.hotkey_label)
-        )
+        welcome = UI_TEXT["welcome_log"] + "\n"
         if self.automation_service.dry_run:
             welcome += "\nโหมดทดสอบ: เปิดรูป Express เป็นพื้นหลัง + กรอบสีทอง (ทดสอบบน Mac ได้)"
         self.log_box.insert("1.0", welcome + "\n")
@@ -147,7 +147,13 @@ class MainWindow:
         self.root.destroy()
 
     def _load_excel(self) -> None:
-        excel_path = Path(self.excel_path.get()).expanduser()
+        raw_path = self.excel_path.get().strip()
+        if not raw_path:
+            self.sheet_summaries = []
+            self.excel_summary.set(UI_TEXT["excel_summary_empty"])
+            return
+
+        excel_path = Path(raw_path).expanduser()
         if not excel_path.exists():
             self.sheet_summaries = []
             self.excel_summary.set(UI_TEXT["excel_summary_empty"])
@@ -166,14 +172,10 @@ class MainWindow:
             return
 
         total_rows = sum(summary.row_count for summary in self.sheet_summaries)
-        summary_lines = [UI_TEXT["excel_sheet_line"].format(sheet=s.name, rows=s.row_count) for s in self.sheet_summaries]
-        summary_text = UI_TEXT["excel_total"].format(rows=total_rows, sheets=len(self.sheet_summaries))
-        self.excel_summary.set(summary_text)
+        self.excel_summary.set(UI_TEXT["excel_total"].format(rows=total_rows))
 
         self._append_log(UI_TEXT["excel_loaded"].format(path=excel_path.name))
-        for line in summary_lines:
-            self._append_log(line.strip())
-        self._append_log(summary_text)
+        self._append_log(UI_TEXT["excel_total"].format(rows=total_rows))
 
     def _choose_excel(self) -> None:
         selected = filedialog.askopenfilename(
@@ -208,10 +210,9 @@ class MainWindow:
             return
 
         confirm_rows = run_config.total_rows
-        confirm_sheets = len(run_config.sheet_names)
         if not messagebox.askyesno(
             UI_TEXT["confirm_title"],
-            f"{UI_TEXT['confirm_message']}\n\nจะทำ {confirm_rows} รายการ จาก {confirm_sheets} ชีต",
+            f"{UI_TEXT['confirm_message']}\n\nจะทำ {confirm_rows} รายการ",
         ):
             return
 
