@@ -9,28 +9,60 @@ except ImportError:  # pragma: no cover - dev on non-runtime env
 
 
 class ImageService:
-    """ส่งคีย์/พิมพ์ข้อความผ่าน pyautogui — ไม่ใช้จับภาพปุ่ม"""
+    """ส่งคีย์/คลิก/จับภาพหน้าจอผ่าน pyautogui — dry_run ข้ามการกดจริงแต่ยังรอเวลาให้ดู flow"""
 
     def __init__(
         self,
         action_delay: float = 0.4,
         type_interval: float = 0.03,
         fail_safe: bool = True,
+        screen_width: int = 1920,
+        screen_height: int = 1080,
+        dry_run: bool = False,
+        dry_run_delay: float = 0.8,
     ) -> None:
         self.action_delay = action_delay
         self.type_interval = type_interval
-        self._ensure_runtime()
-        pyautogui.FAILSAFE = fail_safe
-        pyautogui.PAUSE = action_delay
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.dry_run = dry_run
+        self.dry_run_delay = dry_run_delay
+        if not dry_run:
+            self._ensure_runtime()
+            pyautogui.FAILSAFE = fail_safe
+            pyautogui.PAUSE = action_delay
 
     def _ensure_runtime(self) -> None:
         if pyautogui is None:
             raise RuntimeError("ต้องติดตั้ง pyautogui บน Windows ก่อนรัน automation")
 
     def wait(self, seconds: float | None = None) -> None:
+        if self.dry_run:
+            time.sleep(seconds if seconds is not None else self.dry_run_delay)
+            return
         time.sleep(seconds if seconds is not None else self.action_delay)
 
+    def screenshot(self):
+        self._ensure_runtime()
+        shot = pyautogui.screenshot()
+        image = shot.convert("RGBA")
+        if image.size != (self.screen_width, self.screen_height):
+            image = image.resize((self.screen_width, self.screen_height))
+        return image
+
+    def click_at(self, x: int, y: int) -> None:
+        if self.dry_run:
+            self.wait(0.2)
+            return
+        self._ensure_runtime()
+        pyautogui.click(x, y)
+        self.wait(0.2)
+
     def press(self, *keys: str, presses: int = 1) -> None:
+        if self.dry_run:
+            self.wait(0.15)
+            return
+        self._ensure_runtime()
         if len(keys) > 1:
             for _ in range(presses):
                 pyautogui.hotkey(*keys)
@@ -41,6 +73,10 @@ class ImageService:
             self.wait(0.15)
 
     def type_text(self, text: str, clear_first: bool = True) -> None:
+        if self.dry_run:
+            self.wait(0.2)
+            return
+        self._ensure_runtime()
         if clear_first:
             pyautogui.hotkey("ctrl", "a")
             self.wait(0.1)
@@ -48,6 +84,10 @@ class ImageService:
         self.wait()
 
     def type_thai(self, text: str, clear_first: bool = True) -> None:
+        if self.dry_run:
+            self.wait(0.2)
+            return
+        self._ensure_runtime()
         if clear_first:
             pyautogui.hotkey("ctrl", "a")
             self.wait(0.1)

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from constants.flow_model import FLOW_1_SEARCH_ENTER_COUNT
 from services.image_service import ImageService
 from services.lookup_search_service import LookupSearchSettings, search_and_select
+from services.template_click_service import TemplateClickService
 
 
 @dataclass(frozen=True)
@@ -34,8 +35,10 @@ def select_company_on_dialog(
     image: ImageService,
     company_name: str,
     settings: CompanySwitchSettings,
+    *,
+    template_click: TemplateClickService | None = None,
 ) -> None:
-    """โฟล์แรก — อยู่ dialog เลือกข้อมูลแล้ว: Tab→ค้นหา → พิมพ์ → Enter×2"""
+    """โฟล์แรก — อยู่ dialog เลือกข้อมูลแล้ว: จับภาพปุ่ม ค้นหา → คลิก → พิมพ์ → Enter×2"""
     name = company_name.strip()
     if not name:
         return
@@ -44,4 +47,5 @@ def select_company_on_dialog(
         settings.lookup_search,
         name,
         confirm_enter_count=settings.search_enter_count,
+        template_click=template_click,
     )

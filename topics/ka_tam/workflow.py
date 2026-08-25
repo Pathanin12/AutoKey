@@ -25,6 +25,7 @@ from services.company_switch_service import (
     select_company_on_dialog,
 )
 from services.lookup_search_service import LookupSearchSettings, search_and_select
+from services.template_click_service import TemplateClickService
 from services.tax_reference_service import resolve_tax_payer_id
 
 
@@ -50,6 +51,8 @@ class KaTamWorkflow:
         dry_run: bool = False,
         company_switch_settings: CompanySwitchSettings | None = None,
         lookup_search_settings: LookupSearchSettings | None = None,
+        template_click_service: TemplateClickService | None = None,
+        dry_run_delay: float = 0.8,
     ) -> None:
         self.image = image_service
         self.stop_event = stop_event
@@ -58,8 +61,10 @@ class KaTamWorkflow:
         self.on_step = on_step
         self.on_highlight = on_highlight
         self.dry_run = dry_run
+        self.dry_run_delay = dry_run_delay
         self.company_switch_settings = company_switch_settings
         self.lookup_search_settings = lookup_search_settings or LookupSearchSettings()
+        self.template_click = template_click_service
 
     def run(
         self,
@@ -117,6 +122,8 @@ class KaTamWorkflow:
         self._highlight_step(step_index, step_label, detail)
 
     def _highlight_step(self, step_index: int, step_label: str, detail: str = "") -> None:
+        if self.dry_run:
+            return
         if not self.on_highlight:
             return
         region = get_step_region(step_index)
@@ -133,9 +140,12 @@ class KaTamWorkflow:
             )
         )
 
-    def _simulate(self, seconds: float = 0.35) -> None:
+    def _pause(self, seconds: float | None = None) -> None:
+        delay = self.dry_run_delay if seconds is None else seconds
         if self.dry_run:
-            time.sleep(seconds)
+            time.sleep(delay)
+        else:
+            self.image.wait(seconds)
 
     def _check_stop(self) -> None:
         if self.stop_event.is_set():
@@ -145,70 +155,70 @@ class KaTamWorkflow:
         self.on_status(message)
 
     def _open_payment_journal(self) -> None:
-        if self.dry_run:
-            self._simulate(0.5)
-            return
+        self._status("[dry_run] 5 → 1 → 2 เปิดสมุดรายวันจ่าย" if self.dry_run else "เปิดสมุดรายวันจ่าย")
         self.image.press(MENU_ACCOUNT)
         self.image.wait(0.8)
         self.image.press(MENU_DAILY_ENTRY)
         self.image.wait(0.8)
         self.image.press(MENU_PAYMENT_JOURNAL)
         self.image.wait(1.5)
+        if self.dry_run:
+            self._pause(0.5)
 
     def select_company_flow(self, company_name: str) -> None:
         name = company_name.strip()
         if not name:
             return
-        self._step(STEP_REGION_FLOW_1_START, FLOW_1_LABEL, f"Tab → ค้นหา → {name} → Enter×2")
+        self._step(STEP_REGION_FLOW_1_START, FLOW_1_LABEL, f"จับภาพ ค้นหา → {name}")
         self._status(f"{FLOW_1_LABEL}: {name}")
-        if self.dry_run:
-            self._simulate(0.8)
-            return
         if self.company_switch_settings is None:
             return
-        select_company_on_dialog(self.image, name, self.company_switch_settings)
+        select_company_on_dialog(
+            self.image,
+            name,
+            self.company_switch_settings,
+            template_click=self.template_click,
+        )
+        if self.dry_run:
+            self._pause(0.5)
 
     def return_to_main_menu(self) -> None:
-        if self.dry_run:
-            self._simulate(0.5)
-            return
         if self.company_switch_settings is None:
             return
         count = max(0, self.company_switch_settings.exit_pv_esc_count)
         for _ in range(count):
             self.image.press("esc")
             self.image.wait(0.5)
+        if self.dry_run:
+            self._pause(0.3)
 
     def open_change_company_flow(self) -> None:
         self._step(STEP_REGION_FLOW_1_END, FLOW_1_END_LABEL, "8 → 8 เปลี่ยนบริษัท")
         self._status(f"{FLOW_1_END_LABEL}: กด 8 → 8")
-        if self.dry_run:
-            self._simulate(0.8)
-            return
         if self.company_switch_settings is None:
             return
         self.return_to_main_menu()
         open_change_company_menu(self.image, self.company_switch_settings)
+        if self.dry_run:
+            self._pause(0.5)
 
     def _create_voucher(self, config: RunConfig, row: KaTamRow) -> None:
-        if self.dry_run:
-            self._simulate()
-            return
         self.image.press("f2")
         self.image.wait(0.8)
         if config.pv_date.strip():
             self.image.type_text(config.pv_date.strip(), clear_first=True)
+        if self.dry_run:
+            self._pause()
 
     def _fill_header(self, config: RunConfig, row: KaTamRow) -> None:
-        if self.dry_run:
-            self._simulate()
-            return
         self.image.press("tab", presses=2)
         if config.pv_date.strip():
             self.image.type_text(config.pv_date.strip(), clear_first=True)
         if config.description.strip():
             self.image.press("tab", presses=2)
             self.image.type_thai(config.description.strip(), clear_first=True)
+        if self.dry_run:
+            self._pause()
 
     def _fill_service_line(self, row: KaTamRow) -> None:
         self._enter_grid_row(
@@ -243,14 +253,19 @@ class KaTamWorkflow:
         credit: float | None = None,
     ) -> None:
         if self.dry_run:
-            self._simulate()
-            return
+            self._status(f"[dry_run] F8 ค้นหา vendor: {vendor_name}")
         self.image.type_text(account_code, clear_first=True)
         self.image.press("tab")
         self.image.press("tab")
         self.image.press(VENDOR_LOOKUP_KEY)
         self.image.wait(0.5)
-        search_and_select(self.image, self.lookup_search_settings, vendor_name, confirm_enter_count=1)
+        search_and_select(
+            self.image,
+            self.lookup_search_settings,
+            vendor_name,
+            confirm_enter_count=1,
+            template_click=self.template_click,
+        )
         self.image.press("tab")
         if debit is not None and debit > 0:
             self.image.type_text(self._format_amount(debit), clear_first=True)
@@ -259,6 +274,8 @@ class KaTamWorkflow:
             self.image.press("tab")
             self.image.type_text(self._format_amount(credit), clear_first=True)
         self.image.press("enter")
+        if self.dry_run:
+            self._pause()
 
     def _fill_tax_invoice_dialog(self, config: RunConfig, row: KaTamRow) -> None:
         tax_payer_id = resolve_tax_payer_id(row.tax_id, config.tax_payer_id)
@@ -267,9 +284,6 @@ class KaTamWorkflow:
             "กรอกใบกำกับภาษีซื้อ",
             f"เลขที่ {row.tax_invoice_number} / เลขผู้เสียภาษี {tax_payer_id or '-'}",
         )
-        if self.dry_run:
-            self._simulate(0.5)
-            return
         self.image.wait(0.8)
         self.image.type_text(row.tax_invoice_number, clear_first=True)
         self.image.press("enter")
@@ -277,6 +291,8 @@ class KaTamWorkflow:
             self.image.type_text(tax_payer_id, clear_first=True)
         self.image.press("enter")
         self._dismiss_auto_wt_dialog()
+        if self.dry_run:
+            self._pause(0.5)
 
     def _dismiss_auto_wt_dialog(self) -> None:
         self._step(
@@ -284,11 +300,10 @@ class KaTamWorkflow:
             "ปิด Dialog ภาษีหัก ณ ที่จ่าย",
             "กด Esc — เด้งอัตโนมัติหลัง ตกลง ใบกำกับ",
         )
-        if self.dry_run:
-            self._simulate(0.3)
-            return
         self.image.wait(0.5)
         self.image.press("esc")
+        if self.dry_run:
+            self._pause(0.3)
 
     def _fill_input_tax_summary_after_save(self, config: RunConfig, row: KaTamRow) -> None:
         """หลัง F10 — dialog ป้อนรายละเอียดรายการภาษีซื้อ (Express กรอกยอด/ชื่อให้แล้ว)"""
@@ -298,25 +313,22 @@ class KaTamWorkflow:
             "ยืนยันภาษีซื้อหลัง F10",
             f"เลขผู้เสียภาษี {tax_payer_id or '-'}",
         )
-        if self.dry_run:
-            self._simulate(0.5)
-            return
         self.image.wait(1.0)
-        # ไม่พิมพ์เลขที่ใบกำกับ — Tab ไปช่องเลขผู้เสียภาษี
         self.image.press("tab", presses=6)
         if tax_payer_id:
             self.image.type_text(tax_payer_id, clear_first=True)
         self.image.press("enter")
         self.image.wait(0.8)
+        if self.dry_run:
+            self._pause(0.5)
 
     def _save_voucher(self, config: RunConfig, row: KaTamRow) -> None:
-        if self.dry_run:
-            self._simulate()
-            return
         self.image.press("f10")
         self.image.wait(1.0)
         if row.has_vat:
             self._fill_input_tax_summary_after_save(config, row)
+        if self.dry_run:
+            self._pause()
 
     @staticmethod
     def _format_amount(value: float) -> str:

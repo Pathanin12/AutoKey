@@ -6,13 +6,17 @@ from typing import Callable
 
 import yaml
 
-from constants.routes import CONFIG_PATH, TOPIC_LABEL
+from constants.routes import CONFIG_PATH, SCREEN_HEIGHT, SCREEN_WIDTH, TOPIC_LABEL
+from constants.template_actions import DEFAULT_TEMPLATE_CLICK_ACTIONS
 from models.run_config import RunConfig
+from models.template_click_settings import TemplateClickAction, TemplateClickSettings
+from models.template_target import TemplateTarget
 from models.window_focus_settings import WindowFocusSettings
 from services.company_switch_service import CompanySwitchSettings
 from services.excel_service import ExcelService
 from services.image_service import ImageService
 from services.lookup_search_service import LookupSearchSettings
+from services.template_click_service import TemplateClickService
 from services.window_focus_service import focus_express_window
 from topics.ka_tam.workflow import KaTamWorkflow
 
@@ -45,6 +49,44 @@ class AutomationService:
     @property
     def dry_run(self) -> bool:
         return bool(self.automation_settings.get("dry_run", False))
+
+    @property
+    def screen_settings(self) -> dict:
+        return self.config.get("screen", {})
+
+    @property
+    def template_click_settings(self) -> TemplateClickSettings:
+        raw = self.config.get("template_click", {})
+        actions_raw = raw.get("actions") or {}
+        if actions_raw:
+            actions = tuple(self._parse_template_click_action(action_id, item) for action_id, item in actions_raw.items())
+        else:
+            actions = DEFAULT_TEMPLATE_CLICK_ACTIONS
+        return TemplateClickSettings(
+            enabled=bool(raw.get("enabled", True)),
+            fallback_to_keyboard=bool(raw.get("fallback_to_keyboard", True)),
+            dry_run_reference=str(raw.get("dry_run_reference", "assets/reference/2.png")),
+            actions=actions,
+        )
+
+    def _parse_template_click_action(self, action_id: str, item: dict) -> TemplateClickAction:
+        region = item.get("search_region")
+        search_region = tuple(int(value) for value in region) if region else None
+        target = TemplateTarget(
+            step_id=str(action_id),
+            label=str(item.get("label", action_id)),
+            template_file=str(item["template_file"]),
+            match_threshold=float(item.get("match_threshold", 0.88)),
+            crop_x=int(item.get("crop_x", 0)),
+            crop_y=int(item.get("crop_y", 0)),
+            crop_width=int(item["crop_width"]) if item.get("crop_width") is not None else None,
+            crop_height=int(item["crop_height"]) if item.get("crop_height") is not None else None,
+        )
+        return TemplateClickAction(
+            action_id=str(action_id),
+            target=target,
+            search_region=search_region,  # type: ignore[arg-type]
+        )
 
     @property
     def lookup_search_settings(self) -> LookupSearchSettings:
@@ -84,10 +126,30 @@ class AutomationService:
 
     def create_image_service(self) -> ImageService:
         settings = self.automation_settings
+        screen = self.screen_settings
         return ImageService(
             action_delay=float(settings.get("action_delay", 0.4)),
             type_interval=float(settings.get("type_interval", 0.03)),
             fail_safe=bool(settings.get("fail_safe", True)),
+            screen_width=int(screen.get("width", SCREEN_WIDTH)),
+            screen_height=int(screen.get("height", SCREEN_HEIGHT)),
+            dry_run=self.dry_run,
+            dry_run_delay=float(settings.get("dry_run_step_delay", 0.8)),
+        )
+
+    def create_template_click_service(
+        self,
+        image: ImageService,
+        *,
+        on_status: Callable[[str], None],
+        on_highlight: Callable[[object], None] | None = None,
+    ) -> TemplateClickService:
+        return TemplateClickService(
+            image,
+            self.template_click_settings,
+            dry_run=self.dry_run,
+            on_status=on_status,
+            on_highlight=on_highlight,
         )
 
     def request_stop(self) -> None:
@@ -133,6 +195,11 @@ class AutomationService:
                     self._check_stop()
 
                 image = self.create_image_service()
+                template_click = self.create_template_click_service(
+                    image,
+                    on_status=on_status,
+                    on_highlight=on_highlight,
+                )
                 workflow = KaTamWorkflow(
                     image_service=image,
                     stop_event=self._stop_event,
@@ -141,8 +208,10 @@ class AutomationService:
                     on_step=on_step,
                     on_highlight=on_highlight,
                     dry_run=self.dry_run,
+                    dry_run_delay=float(self.automation_settings.get("dry_run_step_delay", 0.8)),
                     company_switch_settings=self.company_switch_settings,
                     lookup_search_settings=self.lookup_search_settings,
+                    template_click_service=template_click,
                 )
 
                 total_rows = sum(summary.row_count for summary in sheet_summaries)

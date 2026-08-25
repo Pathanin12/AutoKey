@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import sys
 import threading
 from typing import Callable
 
@@ -81,7 +82,8 @@ class HotkeyService:
         return format_hotkey_hint(self.hotkeys)
 
     def start_listening(self, on_cancel: Callable[[], None]) -> None:
-        if keyboard is None:
+        if keyboard is None or sys.platform == "darwin":
+            # macOS: ใช้ Tk shortcut อย่างเดียว — pynput GlobalHotKeys ทำให้ crash ได้
             return
 
         self.stop_listening()
@@ -125,7 +127,7 @@ class HotkeyService:
         if key == "esc":
             key_token = "<esc>"
         elif key.startswith("f") and key[1:].isdigit():
-            key_token = key
+            key_token = f"<{key}>"
         elif len(key) == 1:
             key_token = key
         else:

@@ -41,20 +41,29 @@ class MainWindow:
             base_height=int(screen_settings.get("height", 1080)),
         )
         self.demo_background: DemoBackground | None = None
-        demo_image = ui_settings.get("demo_reference_image", "")
-        if demo_image and self.automation_service.dry_run:
-            demo_path = Path(demo_image)
-            if not demo_path.is_absolute():
-                from constants.routes import PROJECT_ROOT
-
-                demo_path = PROJECT_ROOT / demo_path
-            if demo_path.exists():
-                self.demo_background = DemoBackground(
-                    self.root,
-                    demo_path,
-                    base_width=int(screen_settings.get("width", 1920)),
-                    base_height=int(screen_settings.get("height", 1080)),
-                )
+        demo_path: Path | None = None
+        if self.automation_service.dry_run:
+            ref = self.automation_service.template_click_settings.dry_run_reference
+            candidate = Path(ref)
+            if not candidate.is_absolute():
+                candidate = PROJECT_ROOT / candidate
+            if candidate.exists():
+                demo_path = candidate
+        if demo_path is None:
+            demo_image = ui_settings.get("demo_reference_image", "")
+            if demo_image:
+                candidate = Path(demo_image)
+                if not candidate.is_absolute():
+                    candidate = PROJECT_ROOT / candidate
+                if candidate.exists():
+                    demo_path = candidate
+        if demo_path is not None:
+            self.demo_background = DemoBackground(
+                self.root,
+                demo_path,
+                base_width=int(screen_settings.get("width", 1920)),
+                base_height=int(screen_settings.get("height", 1080)),
+            )
         self.is_running = False
         self._total_rows = 0
 
@@ -123,7 +132,10 @@ class MainWindow:
         self.log_box.pack(fill="both", expand=True, padx=8, pady=8)
         welcome = UI_TEXT["welcome_log"] + "\n"
         if self.automation_service.dry_run:
-            welcome += "\nโหมดทดสอบ: เปิดรูป Express เป็นพื้นหลัง + กรอบสีทอง (ทดสอบบน Mac ได้)"
+            welcome += (
+                "\nโหมดทดสอบบน Mac: รัน flow จริง + จับภาพปุ่มจากรูป reference "
+                "+ กรอบสีทองบนตำแหน่งที่เจอ (ไม่กด Express จริง)"
+            )
         self.log_box.insert("1.0", welcome + "\n")
 
     def _bind_shortcuts(self) -> None:
@@ -227,7 +239,7 @@ class MainWindow:
         if self.hide_on_start:
             self.root.withdraw()
         if self.demo_background is not None:
-            self.demo_background.show()
+            self.demo_background.show_sync()
 
         self.automation_service.run_async(
             run_config=run_config,
@@ -279,9 +291,13 @@ class MainWindow:
         self.status_overlay.update(step_index, step_label, detail, progress)
 
     def _set_highlight(self, region: ScreenRegion) -> None:
-        if self.show_region_highlight:
-            mapper = self.demo_background if self.demo_background is not None else None
-            self.region_highlight.show(region, mapper=mapper)
+        if not self.show_region_highlight:
+            return
+        if self.demo_background is not None and self.demo_background.is_ready:
+            self.demo_background.highlight(region)
+            return
+        mapper = self.demo_background if self.demo_background is not None else None
+        self.region_highlight.show(region, mapper=mapper)
 
     def _on_finished(self, success: bool, message: str) -> None:
         def update() -> None:

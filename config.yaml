@@ -8,6 +8,7 @@ automation:
   type_interval: 0.03
   fail_safe: true
   dry_run: true
+  dry_run_step_delay: 0.8
 
 ui:
   hide_on_start: true
@@ -30,6 +31,22 @@ lookup_search:
   button_tabs: 2
   field_tabs: 0
   confirm_enter_count: 1
+
+template_click:
+  enabled: true
+  fallback_to_keyboard: true
+  dry_run_reference: "assets/reference/2.png"
+  actions:
+    lookup_search:
+      label: ปุ่ม ค้นหา
+      template_file: btn_search.png
+      match_threshold: 0.88
+      search_region: [580, 520, 990, 670]
+    lookup_ok:
+      label: ปุ่ม ตกลง
+      template_file: btn_ok.png
+      match_threshold: 0.88
+      search_region: [580, 520, 990, 670]
 
 # โฟล์สุดท้าย — หลังจบ PV: Esc → 8→8 (ไม่ค้นหา)
 company_switch:
