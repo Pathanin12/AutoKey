@@ -6,11 +6,3 @@ __pycache__/
 *.log
 dist/
 build/
-
-# ตัวจำลอง — ไม่ commit (ใช้ทดสอบ local เท่านั้น)
-tools/visual_click_test.py
-ui/visual_click_test_window.py
-config/template_test.yaml
-constants/template_catalog.py
-models/template_test_scene.py
-services/template_test_layout_service.py

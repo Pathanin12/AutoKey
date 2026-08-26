@@ -8,12 +8,9 @@ from constants.date_utils import default_work_date
 from constants.routes import PROJECT_ROOT, TOPIC_PAYMENT_JOURNAL, UI_TEXT
 from constants.version import __version__
 from models.run_config import ExcelSheetSummary, RunConfig
-from models.screen_region import ScreenRegion
 from services.automation_service import AutomationService
 from services.excel_service import ExcelService
 from services.hotkey_service import HotkeyService
-from ui.demo_background import DemoBackground
-from ui.region_highlight import RegionHighlight
 from ui.status_overlay import StatusOverlay
 
 
@@ -29,41 +26,10 @@ class MainWindow:
         ui_settings = self.automation_service.ui_settings
         self.hide_on_start = bool(ui_settings.get("hide_on_start", True))
         self.show_status_overlay = bool(ui_settings.get("show_status_overlay", True))
-        self.show_region_highlight = bool(ui_settings.get("show_region_highlight", True))
         cancel_hotkeys = ui_settings.get("cancel_hotkeys") or ui_settings.get("cancel_hotkey", "esc")
         self.hotkey_service = HotkeyService(cancel_hotkeys)
         self.hotkey_label = self.hotkey_service.display_label
         self.status_overlay = StatusOverlay(self.root)
-        screen_settings = self.automation_service.config.get("screen", {})
-        self.region_highlight = RegionHighlight(
-            self.root,
-            base_width=int(screen_settings.get("width", 1920)),
-            base_height=int(screen_settings.get("height", 1080)),
-        )
-        self.demo_background: DemoBackground | None = None
-        demo_path: Path | None = None
-        if self.automation_service.dry_run:
-            ref = self.automation_service.template_click_settings.dry_run_reference
-            candidate = Path(ref)
-            if not candidate.is_absolute():
-                candidate = PROJECT_ROOT / candidate
-            if candidate.exists():
-                demo_path = candidate
-        if demo_path is None:
-            demo_image = ui_settings.get("demo_reference_image", "")
-            if demo_image:
-                candidate = Path(demo_image)
-                if not candidate.is_absolute():
-                    candidate = PROJECT_ROOT / candidate
-                if candidate.exists():
-                    demo_path = candidate
-        if demo_path is not None:
-            self.demo_background = DemoBackground(
-                self.root,
-                demo_path,
-                base_width=int(screen_settings.get("width", 1920)),
-                base_height=int(screen_settings.get("height", 1080)),
-            )
         self.is_running = False
         self._total_rows = 0
 
@@ -130,12 +96,9 @@ class MainWindow:
         ttk.Label(status_frame, textvariable=self.progress_text).pack(anchor="w", padx=8, pady=4)
         self.log_box = tk.Text(status_frame, height=12, wrap="word")
         self.log_box.pack(fill="both", expand=True, padx=8, pady=8)
-        welcome = UI_TEXT["welcome_log"] + "\n"
+        welcome = UI_TEXT["welcome_log"]
         if self.automation_service.dry_run:
-            welcome += (
-                "\nโหมดทดสอบบน Mac: รัน flow จริง + จับภาพปุ่มจากรูป reference "
-                "+ กรอบสีทองบนตำแหน่งที่เจอ (ไม่กด Express จริง)"
-            )
+            welcome += "\nโหมดทดสอบ (dry_run): ไม่กด Express จริง — ใช้ดู flow บน Mac เท่านั้น"
         self.log_box.insert("1.0", welcome + "\n")
 
     def _bind_shortcuts(self) -> None:
@@ -238,15 +201,12 @@ class MainWindow:
             )
         if self.hide_on_start:
             self.root.withdraw()
-        if self.demo_background is not None:
-            self.demo_background.show_sync()
 
         self.automation_service.run_async(
             run_config=run_config,
             on_status=self._set_status,
             on_progress=self._set_progress,
             on_step=self._set_step,
-            on_highlight=self._set_highlight,
             on_finished=self._on_finished,
         )
 
@@ -270,10 +230,6 @@ class MainWindow:
         self.hotkey_service.stop_listening()
         if self.show_status_overlay:
             self.status_overlay.hide()
-        if self.show_region_highlight:
-            self.region_highlight.hide()
-        if self.demo_background is not None:
-            self.demo_background.hide()
 
     def _set_status(self, message: str) -> None:
         self.root.after(0, lambda: self._append_log(message))
@@ -289,15 +245,6 @@ class MainWindow:
             return
         progress = self.progress_text.get()
         self.status_overlay.update(step_index, step_label, detail, progress)
-
-    def _set_highlight(self, region: ScreenRegion) -> None:
-        if not self.show_region_highlight:
-            return
-        if self.demo_background is not None and self.demo_background.is_ready:
-            self.demo_background.highlight(region)
-            return
-        mapper = self.demo_background if self.demo_background is not None else None
-        self.region_highlight.show(region, mapper=mapper)
 
     def _on_finished(self, success: bool, message: str) -> None:
         def update() -> None:

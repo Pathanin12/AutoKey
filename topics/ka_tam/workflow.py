@@ -4,8 +4,7 @@ import threading
 import time
 from typing import Callable
 
-from constants.flow_model import FLOW_1_END_LABEL, FLOW_1_LABEL, STEP_REGION_FLOW_1_END, STEP_REGION_FLOW_1_START
-from constants.step_regions import get_step_region
+from constants.flow_model import FLOW_1_END_LABEL, FLOW_1_LABEL
 from constants.routes import (
     ACCOUNT_CASH,
     ACCOUNT_SERVICE,
@@ -17,7 +16,6 @@ from constants.routes import (
 )
 from models.ka_tam_row import KaTamRow
 from models.run_config import RunConfig
-from models.screen_region import ScreenRegion
 from services.image_service import ImageService
 from services.company_switch_service import (
     CompanySwitchSettings,
@@ -47,7 +45,6 @@ class KaTamWorkflow:
         on_status: Callable[[str], None],
         on_progress: Callable[[int, int], None],
         on_step: Callable[[int, str, str], None] | None = None,
-        on_highlight: Callable[[ScreenRegion], None] | None = None,
         dry_run: bool = False,
         company_switch_settings: CompanySwitchSettings | None = None,
         lookup_search_settings: LookupSearchSettings | None = None,
@@ -59,7 +56,6 @@ class KaTamWorkflow:
         self.on_status = on_status
         self.on_progress = on_progress
         self.on_step = on_step
-        self.on_highlight = on_highlight
         self.dry_run = dry_run
         self.dry_run_delay = dry_run_delay
         self.company_switch_settings = company_switch_settings
@@ -119,26 +115,6 @@ class KaTamWorkflow:
         self._status(step_label if not detail else f"{step_label} — {detail}")
         if self.on_step:
             self.on_step(step_index, step_label, detail)
-        self._highlight_step(step_index, step_label, detail)
-
-    def _highlight_step(self, step_index: int, step_label: str, detail: str = "") -> None:
-        if self.dry_run:
-            return
-        if not self.on_highlight:
-            return
-        region = get_step_region(step_index)
-        if region is None:
-            return
-        label = step_label if not detail else f"{step_label} — {detail}"
-        self.on_highlight(
-            ScreenRegion(
-                x=region.x,
-                y=region.y,
-                width=region.width,
-                height=region.height,
-                label=label,
-            )
-        )
 
     def _pause(self, seconds: float | None = None) -> None:
         delay = self.dry_run_delay if seconds is None else seconds
@@ -169,7 +145,7 @@ class KaTamWorkflow:
         name = company_name.strip()
         if not name:
             return
-        self._step(STEP_REGION_FLOW_1_START, FLOW_1_LABEL, f"จับภาพ ค้นหา → {name}")
+        self._step(1, FLOW_1_LABEL, f"จับภาพ ค้นหา → {name}")
         self._status(f"{FLOW_1_LABEL}: {name}")
         if self.company_switch_settings is None:
             return
@@ -193,7 +169,7 @@ class KaTamWorkflow:
             self._pause(0.3)
 
     def open_change_company_flow(self) -> None:
-        self._step(STEP_REGION_FLOW_1_END, FLOW_1_END_LABEL, "8 → 8 เปลี่ยนบริษัท")
+        self._step(10, FLOW_1_END_LABEL, "8 → 8 เปลี่ยนบริษัท")
         self._status(f"{FLOW_1_END_LABEL}: กด 8 → 8")
         if self.company_switch_settings is None:
             return

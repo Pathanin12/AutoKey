@@ -142,14 +142,12 @@ class AutomationService:
         image: ImageService,
         *,
         on_status: Callable[[str], None],
-        on_highlight: Callable[[object], None] | None = None,
     ) -> TemplateClickService:
         return TemplateClickService(
             image,
             self.template_click_settings,
             dry_run=self.dry_run,
             on_status=on_status,
-            on_highlight=on_highlight,
         )
 
     def request_stop(self) -> None:
@@ -168,7 +166,6 @@ class AutomationService:
         on_progress: Callable[[int, int], None],
         on_finished: Callable[[bool, str], None],
         on_step: Callable[[int, str, str], None] | None = None,
-        on_highlight: Callable[[object], None] | None = None,
     ) -> None:
         if self.is_running():
             on_finished(False, "ระบบกำลังทำงานอยู่")
@@ -198,7 +195,6 @@ class AutomationService:
                 template_click = self.create_template_click_service(
                     image,
                     on_status=on_status,
-                    on_highlight=on_highlight,
                 )
                 workflow = KaTamWorkflow(
                     image_service=image,
@@ -206,7 +202,6 @@ class AutomationService:
                     on_status=on_status,
                     on_progress=on_progress,
                     on_step=on_step,
-                    on_highlight=on_highlight,
                     dry_run=self.dry_run,
                     dry_run_delay=float(self.automation_settings.get("dry_run_step_delay", 0.8)),
                     company_switch_settings=self.company_switch_settings,

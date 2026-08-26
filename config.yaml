@@ -13,8 +13,6 @@ automation:
 ui:
   hide_on_start: true
   show_status_overlay: true
-  show_region_highlight: true
-  demo_reference_image: "assets/reference/12.png"
   cancel_hotkeys:
     - "control+f9"
     - "esc"
@@ -48,7 +46,6 @@ template_click:
       match_threshold: 0.88
       search_region: [580, 520, 990, 670]
 
-# โฟล์สุดท้าย — หลังจบ PV: Esc → 8→8 (ไม่ค้นหา)
 company_switch:
   menu_others: "8"
   submenu_keys: ["8"]
