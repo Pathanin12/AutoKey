@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+
+from models.ka_tam_row import KaTamRow
 
 
 @dataclass
@@ -18,6 +20,7 @@ class RunConfig:
     description: str = ""
     tax_payer_id: str = ""
     sheet_summaries: list[ExcelSheetSummary] | None = None
+    sheet_rows: dict[str, list[KaTamRow]] = field(default_factory=dict)
 
     def validate(self) -> list[str]:
         errors: list[str] = []

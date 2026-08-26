@@ -7,6 +7,7 @@ from tkinter import filedialog, messagebox, ttk
 from constants.date_utils import default_work_date
 from constants.routes import TOPIC_PAYMENT_JOURNAL, UI_TEXT
 from constants.version import __version__
+from models.ka_tam_row import KaTamRow
 from models.run_config import ExcelSheetSummary, RunConfig
 from services.automation_service import AutomationService
 from services.excel_service import ExcelService
@@ -41,6 +42,7 @@ class MainWindow:
         self.progress_text = tk.StringVar(value="0 / 0")
         self.excel_summary = tk.StringVar(value=UI_TEXT["excel_summary_empty"])
         self.sheet_summaries: list[ExcelSheetSummary] = []
+        self.sheet_rows: dict[str, list[KaTamRow]] = {}
 
         self._build_ui()
         self._bind_shortcuts()
@@ -140,19 +142,22 @@ class MainWindow:
         raw_path = self.excel_path.get().strip()
         if not raw_path:
             self.sheet_summaries = []
+            self.sheet_rows = {}
             self.excel_summary.set(UI_TEXT["excel_summary_empty"])
             return
 
         excel_path = Path(raw_path).expanduser()
         if not excel_path.exists():
             self.sheet_summaries = []
+            self.sheet_rows = {}
             self.excel_summary.set(UI_TEXT["excel_summary_empty"])
             return
 
         try:
-            self.sheet_summaries = ExcelService.load_sheet_summaries(excel_path)
+            self.sheet_summaries, self.sheet_rows = ExcelService.load_workbook(excel_path)
         except Exception as exc:
             self.sheet_summaries = []
+            self.sheet_rows = {}
             self.excel_summary.set(str(exc))
             return
 
@@ -193,6 +198,7 @@ class MainWindow:
             description=self.description.get().strip(),
             tax_payer_id=self.tax_payer_id.get().strip(),
             sheet_summaries=self.sheet_summaries,
+            sheet_rows=self.sheet_rows,
         )
         errors = run_config.validate()
         if errors:
@@ -208,6 +214,7 @@ class MainWindow:
 
         self.is_running = True
         self._total_rows = confirm_rows
+        self._append_log(UI_TEXT["starting"])
         self._append_log(UI_TEXT["cancel_hotkey_hint"].format(hotkey=self.hotkey_label))
         self.hotkey_service.start_listening(self._stop)
         if self.hide_on_start:

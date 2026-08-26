@@ -63,6 +63,7 @@ UI_TEXT = {
         "ต้องการเริ่ม Auto หรือไม่?"
     ),
     "stop_requested": "ส่งคำสั่งหยุด...",
+    "starting": "กำลังเริ่ม — โฟกัส Express...",
     "excel_loaded": "โหลดไฟล์: {path}",
     "excel_sheet_line": "  • {sheet}: {rows} รายการ",
     "excel_total": "พบ {rows} รายการ",

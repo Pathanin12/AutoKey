@@ -59,14 +59,14 @@ class ImageService:
             self.wait(0.15)
 
     def type_text(self, text: str, clear_first: bool = True) -> None:
-        self._ensure_runtime()
-        if clear_first:
-            pyautogui.hotkey("ctrl", "a")
-            self.wait(0.1)
-        pyautogui.typewrite(text, interval=self.type_interval)
-        self.wait()
+        self._paste_text(text, clear_first=clear_first)
 
     def type_thai(self, text: str, clear_first: bool = True) -> None:
+        self._paste_text(text, clear_first=clear_first)
+
+    def _paste_text(self, text: str, clear_first: bool = True) -> None:
+        if not text:
+            return
         self._ensure_runtime()
         if clear_first:
             pyautogui.hotkey("ctrl", "a")
@@ -75,7 +75,8 @@ class ImageService:
             import pyperclip
 
             pyperclip.copy(text)
+            time.sleep(0.05)
             pyautogui.hotkey("ctrl", "v")
         except ImportError:
             pyautogui.typewrite(text, interval=self.type_interval)
-        self.wait()
+        self.wait(0.15)

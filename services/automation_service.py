@@ -6,7 +6,7 @@ from typing import Callable
 
 import yaml
 
-from constants.routes import CONFIG_PATH, SCREEN_HEIGHT, SCREEN_WIDTH, TOPIC_LABEL
+from constants.routes import CONFIG_PATH, SCREEN_HEIGHT, SCREEN_WIDTH, TOPIC_LABEL, UI_TEXT
 from constants.template_actions import DEFAULT_TEMPLATE_CLICK_ACTIONS
 from models.run_config import RunConfig
 from models.template_click_settings import TemplateClickAction, TemplateClickSettings
@@ -172,12 +172,17 @@ class AutomationService:
 
         def worker() -> None:
             try:
+                on_status(UI_TEXT["starting"])
                 sheet_summaries = run_config.sheet_summaries or ExcelService.load_sheet_summaries(
                     run_config.excel_path
                 )
                 if not sheet_summaries:
                     on_finished(False, "ไม่พบข้อมูลในไฟล์ Excel")
                     return
+
+                cached_rows = run_config.sheet_rows
+                total_rows = sum(summary.row_count for summary in sheet_summaries)
+                on_status(f"ทำรายการ: {total_rows} แถว")
 
                 focus_express_window(self.window_focus_settings, on_status=on_status)
                 self._check_stop()
@@ -198,13 +203,13 @@ class AutomationService:
                     template_click_service=template_click,
                 )
 
-                total_rows = sum(summary.row_count for summary in sheet_summaries)
                 processed_rows = 0
 
                 for sheet_index, summary in enumerate(sheet_summaries):
                     self._check_stop()
-                    on_status(f"ทำรายการ: {summary.row_count} แถว")
-                    rows = ExcelService.load_ka_tam_rows(run_config.excel_path, summary.name)
+                    rows = cached_rows.get(summary.name) if cached_rows else None
+                    if rows is None:
+                        rows = ExcelService.load_ka_tam_rows(run_config.excel_path, summary.name)
                     if not rows:
                         continue
 

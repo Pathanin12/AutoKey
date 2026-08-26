@@ -52,6 +52,6 @@ company_switch:
 window_focus:
   enabled: true
   title_contains: "Express"
-  prepare_seconds: 0.3
-  wait_after_focus_seconds: 0.5
+  prepare_seconds: 0.1
+  wait_after_focus_seconds: 0.15
   required: true

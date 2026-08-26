@@ -114,9 +114,26 @@ def _parse_row(
 
 class ExcelService:
     @staticmethod
-    def load_ka_tam_rows(excel_path: Path, sheet_name: str) -> list[KaTamRow]:
+    def load_workbook(excel_path: Path) -> tuple[list[ExcelSheetSummary], dict[str, list[KaTamRow]]]:
+        from topics.ka_tam.sheet_configs import SHEET_COLUMN_MAPS
+
+        workbook = pd.ExcelFile(excel_path)
+        supported = [name for name in workbook.sheet_names if name in SHEET_COLUMN_MAPS]
+        summaries: list[ExcelSheetSummary] = []
+        rows_by_sheet: dict[str, list[KaTamRow]] = {}
+
+        for sheet_name in supported:
+            dataframe = pd.read_excel(workbook, sheet_name=sheet_name, header=None)
+            rows = ExcelService._rows_from_dataframe(dataframe, sheet_name)
+            if rows:
+                summaries.append(ExcelSheetSummary(name=sheet_name, row_count=len(rows)))
+                rows_by_sheet[sheet_name] = rows
+
+        return summaries, rows_by_sheet
+
+    @staticmethod
+    def _rows_from_dataframe(dataframe: pd.DataFrame, sheet_name: str) -> list[KaTamRow]:
         column_map = get_sheet_column_map(sheet_name)
-        dataframe = pd.read_excel(excel_path, sheet_name=sheet_name, header=None)
         rows: list[KaTamRow] = []
 
         for index in range(column_map.data_start_row, len(dataframe)):
@@ -128,6 +145,11 @@ class ExcelService:
         return rows
 
     @staticmethod
+    def load_ka_tam_rows(excel_path: Path, sheet_name: str) -> list[KaTamRow]:
+        dataframe = pd.read_excel(excel_path, sheet_name=sheet_name, header=None)
+        return ExcelService._rows_from_dataframe(dataframe, sheet_name)
+
+    @staticmethod
     def list_supported_sheets(excel_path: Path) -> list[str]:
         from topics.ka_tam.sheet_configs import SHEET_COLUMN_MAPS
 
@@ -136,9 +158,5 @@ class ExcelService:
 
     @staticmethod
     def load_sheet_summaries(excel_path: Path) -> list[ExcelSheetSummary]:
-        summaries: list[ExcelSheetSummary] = []
-        for sheet_name in ExcelService.list_supported_sheets(excel_path):
-            rows = ExcelService.load_ka_tam_rows(excel_path, sheet_name)
-            if rows:
-                summaries.append(ExcelSheetSummary(name=sheet_name, row_count=len(rows)))
+        summaries, _ = ExcelService.load_workbook(excel_path)
         return summaries
