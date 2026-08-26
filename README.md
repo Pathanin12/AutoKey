@@ -26,28 +26,15 @@ GitHub Actions: `.github/workflows/build-windows.yml`
 
 ## ติดตั้ง (พัฒนา)
 
-### Mac — ดู UI / ทดสอบ flow (dry_run)
-
-```bash
-brew install python@3.13 python-tk@3.13
-cd AutoKey
-./run.sh
-```
-
-### Windows — รัน Auto จริง
-
 ```bash
 cd AutoKey
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\activate   # Windows
 pip install -r requirements.txt
-```
-
-ตั้ง `automation.dry_run: false` ใน `config.yaml` แล้วรัน:
-
-```bash
 python main.py
 ```
+
+AutoKey รันบน **Windows + Express Accounting** เท่านั้น — กดเริ่มแล้วจะโฟกัส Express, ส่งคีย์ และจับภาพหน้าจอจริง
 
 ## ใช้งาน
 
@@ -63,10 +50,9 @@ AutoKey/
 ├── config.yaml
 ├── services/          # automation, excel, template click, window focus
 ├── topics/ka_tam/     # PV workflow
-├── ui/                # main window + status overlay
+├── ui/                # main window
 ├── assets/
 │   ├── icon/
-│   ├── reference/     # รูปอ้างอิง dry_run บน Mac
 │   └── templates/     # btn_search.png, btn_ok.png
 └── AutoKey.spec
 ```

@@ -47,10 +47,6 @@ class AutomationService:
         return self.config.get("ui", {})
 
     @property
-    def dry_run(self) -> bool:
-        return bool(self.automation_settings.get("dry_run", False))
-
-    @property
     def screen_settings(self) -> dict:
         return self.config.get("screen", {})
 
@@ -65,7 +61,6 @@ class AutomationService:
         return TemplateClickSettings(
             enabled=bool(raw.get("enabled", True)),
             fallback_to_keyboard=bool(raw.get("fallback_to_keyboard", True)),
-            dry_run_reference=str(raw.get("dry_run_reference", "assets/reference/2.png")),
             actions=actions,
         )
 
@@ -133,8 +128,6 @@ class AutomationService:
             fail_safe=bool(settings.get("fail_safe", True)),
             screen_width=int(screen.get("width", SCREEN_WIDTH)),
             screen_height=int(screen.get("height", SCREEN_HEIGHT)),
-            dry_run=self.dry_run,
-            dry_run_delay=float(settings.get("dry_run_step_delay", 0.8)),
         )
 
     def create_template_click_service(
@@ -146,7 +139,6 @@ class AutomationService:
         return TemplateClickService(
             image,
             self.template_click_settings,
-            dry_run=self.dry_run,
             on_status=on_status,
         )
 
@@ -187,9 +179,8 @@ class AutomationService:
                     on_finished(False, "ไม่พบข้อมูลในไฟล์ Excel")
                     return
 
-                if not self.dry_run:
-                    focus_express_window(self.window_focus_settings, on_status=on_status)
-                    self._check_stop()
+                focus_express_window(self.window_focus_settings, on_status=on_status)
+                self._check_stop()
 
                 image = self.create_image_service()
                 template_click = self.create_template_click_service(
@@ -202,8 +193,6 @@ class AutomationService:
                     on_status=on_status,
                     on_progress=on_progress,
                     on_step=on_step,
-                    dry_run=self.dry_run,
-                    dry_run_delay=float(self.automation_settings.get("dry_run_step_delay", 0.8)),
                     company_switch_settings=self.company_switch_settings,
                     lookup_search_settings=self.lookup_search_settings,
                     template_click_service=template_click,
@@ -232,11 +221,10 @@ class AutomationService:
                     processed_rows += len(rows)
 
                 self._check_stop()
-                mode = " (โหมดทดสอบ)" if self.dry_run else ""
                 if self._stop_event.is_set():
                     on_finished(False, "หยุดโดยผู้ใช้")
                 else:
-                    on_finished(True, f"เสร็จสิ้น {processed_rows} รายการ ({TOPIC_LABEL}){mode}")
+                    on_finished(True, f"เสร็จสิ้น {processed_rows} รายการ ({TOPIC_LABEL})")
             except InterruptedError:
                 on_finished(False, "หยุดโดยผู้ใช้")
             except Exception as exc:  # pragma: no cover

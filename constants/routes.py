@@ -1,9 +1,16 @@
+import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+def _resolve_project_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path.cwd()))
+    return Path(__file__).resolve().parent.parent
+
+
+PROJECT_ROOT = _resolve_project_root()
 ASSETS_DIR = PROJECT_ROOT / "assets"
 TEMPLATES_DIR = ASSETS_DIR / "templates"
-REFERENCE_DIR = ASSETS_DIR / "reference"
 CONFIG_PATH = PROJECT_ROOT / "config.yaml"
 
 SCREEN_WIDTH = 1920
@@ -41,6 +48,9 @@ UI_TEXT = {
     "window_hidden": "ซ่อนหน้าต่างแล้ว — กำลังทำงาน...",
     "window_restored": "แสดงหน้าต่างอีกครั้ง",
     "status_frame": "สถานะ",
+    "copy_log": "คัดลอก log",
+    "select_all_log": "เลือกทั้งหมด",
+    "copy_all_log": "คัดลอกทั้งหมด",
     "welcome_log": (
         "Express อยู่ dialog เลือกข้อมูล → กดเริ่ม\n"
         "กด Ctrl+F9 หรือ Esc เพื่อยกเลิกขณะทำงาน"

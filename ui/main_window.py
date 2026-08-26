@@ -5,13 +5,13 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from constants.date_utils import default_work_date
-from constants.routes import PROJECT_ROOT, TOPIC_PAYMENT_JOURNAL, UI_TEXT
+from constants.routes import TOPIC_PAYMENT_JOURNAL, UI_TEXT
 from constants.version import __version__
 from models.run_config import ExcelSheetSummary, RunConfig
 from services.automation_service import AutomationService
 from services.excel_service import ExcelService
 from services.hotkey_service import HotkeyService
-from ui.status_overlay import StatusOverlay
+from ui.app_icon import apply_window_icon, load_title_photo
 
 
 class MainWindow:
@@ -24,12 +24,10 @@ class MainWindow:
 
         self.automation_service = AutomationService()
         ui_settings = self.automation_service.ui_settings
-        self.hide_on_start = bool(ui_settings.get("hide_on_start", True))
-        self.show_status_overlay = bool(ui_settings.get("show_status_overlay", True))
+        self.hide_on_start = bool(ui_settings.get("hide_on_start", False))
         cancel_hotkeys = ui_settings.get("cancel_hotkeys") or ui_settings.get("cancel_hotkey", "esc")
         self.hotkey_service = HotkeyService(cancel_hotkeys)
         self.hotkey_label = self.hotkey_service.display_label
-        self.status_overlay = StatusOverlay(self.root)
         self.is_running = False
         self._total_rows = 0
 
@@ -50,6 +48,17 @@ class MainWindow:
 
     def _build_ui(self) -> None:
         padding = {"padx": 12, "pady": 6}
+
+        header = ttk.Frame(self.root)
+        header.pack(fill="x", padx=12, pady=(10, 0))
+        self._title_icon = load_title_photo(44)
+        if self._title_icon is not None:
+            ttk.Label(header, image=self._title_icon).pack(side="left", padx=(0, 8))
+        ttk.Label(
+            header,
+            text=f"{UI_TEXT['app_title']} v{__version__}",
+            font=("Tahoma", 12, "bold"),
+        ).pack(side="left")
 
         form_frame = ttk.LabelFrame(self.root, text=UI_TEXT["settings_frame"])
         form_frame.pack(fill="x", **padding)
@@ -94,11 +103,24 @@ class MainWindow:
         status_frame = ttk.LabelFrame(self.root, text=UI_TEXT["status_frame"])
         status_frame.pack(fill="both", expand=True, **padding)
         ttk.Label(status_frame, textvariable=self.progress_text).pack(anchor="w", padx=8, pady=4)
-        self.log_box = tk.Text(status_frame, height=12, wrap="word")
-        self.log_box.pack(fill="both", expand=True, padx=8, pady=8)
+
+        log_toolbar = ttk.Frame(status_frame)
+        log_toolbar.pack(fill="x", padx=8, pady=(0, 4))
+        ttk.Button(log_toolbar, text=UI_TEXT["copy_log"], command=self._copy_all_log).pack(side="right")
+
+        log_container = ttk.Frame(status_frame)
+        log_container.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        log_container.rowconfigure(0, weight=1)
+        log_container.columnconfigure(0, weight=1)
+
+        self.log_box = tk.Text(log_container, height=12, wrap="word", exportselection=True)
+        log_scroll = ttk.Scrollbar(log_container, orient="vertical", command=self.log_box.yview)
+        self.log_box.configure(yscrollcommand=log_scroll.set)
+        self.log_box.grid(row=0, column=0, sticky="nsew")
+        log_scroll.grid(row=0, column=1, sticky="ns")
+        self._setup_log_box_bindings()
+
         welcome = UI_TEXT["welcome_log"]
-        if self.automation_service.dry_run:
-            welcome += "\nโหมดทดสอบ (dry_run): ไม่กด Express จริง — ใช้ดู flow บน Mac เท่านั้น"
         self.log_box.insert("1.0", welcome + "\n")
 
     def _bind_shortcuts(self) -> None:
@@ -106,14 +128,7 @@ class MainWindow:
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _set_window_icon(self) -> None:
-        icon_png = PROJECT_ROOT / "assets" / "icon" / "app_icon.png"
-        if not icon_png.exists():
-            return
-        try:
-            self._icon_image = tk.PhotoImage(file=str(icon_png))
-            self.root.iconphoto(True, self._icon_image)
-        except tk.TclError:
-            pass
+        apply_window_icon(self.root)
 
     def _on_close(self) -> None:
         if self.is_running:
@@ -195,10 +210,6 @@ class MainWindow:
         self._total_rows = confirm_rows
         self._append_log(UI_TEXT["cancel_hotkey_hint"].format(hotkey=self.hotkey_label))
         self.hotkey_service.start_listening(self._stop)
-        if self.show_status_overlay:
-            self.status_overlay.show(
-                UI_TEXT["cancel_hotkey_hint"].format(hotkey=self.hotkey_label)
-            )
         if self.hide_on_start:
             self.root.withdraw()
 
@@ -228,8 +239,6 @@ class MainWindow:
     def _cleanup_run(self) -> None:
         self.is_running = False
         self.hotkey_service.stop_listening()
-        if self.show_status_overlay:
-            self.status_overlay.hide()
 
     def _set_status(self, message: str) -> None:
         self.root.after(0, lambda: self._append_log(message))
@@ -237,14 +246,10 @@ class MainWindow:
     def _set_progress(self, current: int, total: int) -> None:
         progress = f"{current} / {total}"
         self.root.after(0, lambda: self.progress_text.set(progress))
-        if self.show_status_overlay:
-            self.status_overlay.update(0, "กำลังทำรายการ", progress=progress)
 
     def _set_step(self, step_index: int, step_label: str, detail: str) -> None:
-        if not self.show_status_overlay:
-            return
-        progress = self.progress_text.get()
-        self.status_overlay.update(step_index, step_label, detail, progress)
+        del step_index, step_label, detail
+        # ขั้นตอน log แล้วใน _set_status จาก workflow._step — ไม่เขียนซ้ำ
 
     def _on_finished(self, success: bool, message: str) -> None:
         def update() -> None:
@@ -263,6 +268,90 @@ class MainWindow:
         self.log_box.insert("end", message + "\n")
         self.log_box.see("end")
         self.status_text.set(message)
+
+    def _setup_log_box_bindings(self) -> None:
+        self.log_box.bind("<KeyPress>", self._on_log_key, add="+")
+        for sequence in (
+            "<Command-c>",
+            "<Control-c>",
+            "<Command-C>",
+            "<Control-C>",
+        ):
+            self.log_box.bind(sequence, self._copy_log_selection, add="+")
+        for sequence in (
+            "<Command-a>",
+            "<Control-a>",
+            "<Command-A>",
+            "<Control-A>",
+        ):
+            self.log_box.bind(sequence, self._select_all_log, add="+")
+
+        menu = tk.Menu(self.log_box, tearoff=0)
+        menu.add_command(label=UI_TEXT["copy_log"], command=self._copy_log_selection)
+        menu.add_command(label=UI_TEXT["select_all_log"], command=self._select_all_log)
+        menu.add_command(label=UI_TEXT["copy_all_log"], command=self._copy_all_log)
+
+        def show_menu(event: tk.Event) -> str:
+            self.log_box.focus_set()
+            try:
+                menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                menu.grab_release()
+            return "break"
+
+        self.log_box.bind("<Button-2>", show_menu, add="+")
+        self.log_box.bind("<Button-3>", show_menu, add="+")
+        self.log_box.bind("<Control-Button-1>", show_menu, add="+")
+
+    def _on_log_key(self, event: tk.Event) -> str | None:
+        if event.keysym in (
+            "Left",
+            "Right",
+            "Up",
+            "Down",
+            "Home",
+            "End",
+            "Prior",
+            "Next",
+            "Shift_L",
+            "Shift_R",
+            "Control_L",
+            "Control_R",
+            "Meta_L",
+            "Meta_R",
+            "Alt_L",
+            "Alt_R",
+        ):
+            return None
+        if event.state & 0x1:
+            return None
+        if len(event.keysym) == 1 and event.char and event.char.isprintable():
+            return "break"
+        if event.keysym in ("BackSpace", "Delete", "Return", "KP_Enter", "Tab"):
+            return "break"
+        return None
+
+    def _copy_log_selection(self, _event: tk.Event | None = None) -> str:
+        try:
+            text = self.log_box.get(tk.SEL_FIRST, tk.SEL_LAST)
+        except tk.TclError:
+            return "break"
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        return "break"
+
+    def _select_all_log(self, _event: tk.Event | None = None) -> str:
+        self.log_box.tag_add(tk.SEL, "1.0", "end-1c")
+        self.log_box.mark_set(tk.INSERT, "1.0")
+        self.log_box.see(tk.INSERT)
+        return "break"
+
+    def _copy_all_log(self) -> None:
+        text = self.log_box.get("1.0", "end-1c")
+        if not text.strip():
+            return
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
 
     def run(self) -> None:
         self.root.mainloop()

@@ -7,12 +7,9 @@ automation:
   action_delay: 0.4
   type_interval: 0.03
   fail_safe: true
-  dry_run: true
-  dry_run_step_delay: 0.8
 
 ui:
-  hide_on_start: true
-  show_status_overlay: true
+  hide_on_start: false
   cancel_hotkeys:
     - "control+f9"
     - "esc"
@@ -33,7 +30,6 @@ lookup_search:
 template_click:
   enabled: true
   fallback_to_keyboard: true
-  dry_run_reference: "assets/reference/2.png"
   actions:
     lookup_search:
       label: ปุ่ม ค้นหา
