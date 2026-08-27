@@ -127,14 +127,49 @@ def _read_selected_row_text(
     settings: LookupSearchSettings,
     query: str,
 ) -> str:
+    selected = _copy_grid_name(image, settings, query)
+    if _looks_like_search_field(selected, query):
+        return ""
+    return selected
+
+
+def _looks_like_search_field(selected: str, query: str) -> bool:
+    if not selected:
+        return True
+    return names_match(query, selected, 1.0)
+
+
+def _copy_grid_name(
+    image: ImageService,
+    settings: LookupSearchSettings,
+    query: str,
+) -> str:
     if settings.grid_focus_tabs > 0:
         image.press("tab", presses=settings.grid_focus_tabs)
         image.wait(0.08)
-    image.copy_selection()
-    selected = read_text().strip()
-    if names_match(query, selected, 1.0):
+
+    selected = _copy_clipboard_text(image)
+    if not _looks_like_search_field(selected, query):
+        return selected
+
+    for _ in range(3):
         image.press("tab")
         image.wait(0.08)
-        image.copy_selection()
-        selected = read_text().strip()
+        selected = _copy_clipboard_text(image)
+        if not _looks_like_search_field(selected, query):
+            return selected
+
+    image.press("down")
+    image.wait(0.08)
+    image.press("up")
+    image.wait(0.08)
+    selected = _copy_clipboard_text(image)
+    if not _looks_like_search_field(selected, query):
+        return selected
+
     return selected
+
+
+def _copy_clipboard_text(image: ImageService) -> str:
+    image.copy_selection()
+    return read_text().strip()
