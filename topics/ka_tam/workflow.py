@@ -4,6 +4,7 @@ import threading
 from typing import Callable
 
 from constants.flow_model import FLOW_1_END_LABEL, FLOW_1_LABEL
+from constants.date_utils import format_express_pv_date
 from constants.routes import (
     ACCOUNT_CASH,
     ACCOUNT_SERVICE,
@@ -210,13 +211,14 @@ class KaTamWorkflow:
     def _create_voucher(self, config: RunConfig) -> None:
         """Alt+A เปิดไฟล์ใหม่ → Enter → วันที่ → Enter → รายละเอียด → Enter"""
         self.image.press(*PV_NEW_FILE_KEYS)
-        self.image.wait(0.2)
+        self.image.wait(0.3)
         self.image.press("enter")
-        self.image.wait(0.15)
+        self.image.wait(0.4)
 
-        pv_date = config.pv_date.strip()
+        pv_date = format_express_pv_date(config.pv_date)
         if pv_date:
-            self.image.type_text(pv_date, clear_first=True)
+            self.image.type_keys(pv_date, clear_first=True)
+            self.image.wait(0.2)
         self.image.press("enter")
         self.image.wait(0.15)
 

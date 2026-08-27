@@ -76,6 +76,17 @@ class ImageService:
     def type_thai(self, text: str, clear_first: bool = True) -> None:
         self._paste_text(text, clear_first=clear_first)
 
+    def type_keys(self, text: str, *, clear_first: bool = False) -> None:
+        """พิมพ์ทีละตัว — เหมาะกับช่องวันที่ที่มี input mask"""
+        if not text:
+            return
+        self._ensure_runtime()
+        if clear_first:
+            pyautogui.hotkey("ctrl", "a")
+            time.sleep(0.04)
+        pyautogui.typewrite(text, interval=self.type_interval)
+        self.wait(0.05)
+
     def _paste_text(self, text: str, clear_first: bool = True) -> None:
         if not text:
             return
