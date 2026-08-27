@@ -169,15 +169,15 @@ class KaTamWorkflow:
         self.image.press("f2")
         self.image.wait(0.15)
         if config.pv_date.strip():
-            self.image.type_text(config.pv_date.strip(), clear_first=True)
+            self.image.type_text(config.pv_date.strip(), clear_first=True, field="วันที่ PV")
 
     def _fill_header(self, config: RunConfig, row: KaTamRow) -> None:
         self.image.press("tab", presses=2)
         if config.pv_date.strip():
-            self.image.type_text(config.pv_date.strip(), clear_first=True)
+            self.image.type_text(config.pv_date.strip(), clear_first=True, field="วันที่ PV (หัวเรื่อง)")
         if config.description.strip():
             self.image.press("tab", presses=2)
-            self.image.type_thai(config.description.strip(), clear_first=True)
+            self.image.type_thai(config.description.strip(), clear_first=True, field="รายละเอียด")
 
     def _fill_service_line(self, row: KaTamRow) -> None:
         self._enter_grid_row(
@@ -211,7 +211,7 @@ class KaTamWorkflow:
         debit: float | None = None,
         credit: float | None = None,
     ) -> None:
-        self.image.type_text(account_code, clear_first=False)
+        self.image.type_text(account_code, clear_first=False, field="เลขบัญชี")
         self.image.press("tab")
         self.image.press("tab")
         self.image.press(VENDOR_LOOKUP_KEY)
@@ -225,11 +225,11 @@ class KaTamWorkflow:
         )
         self.image.press("tab")
         if debit is not None and debit > 0:
-            self.image.type_text(self._format_amount(debit), clear_first=True)
+            self.image.type_text(self._format_amount(debit), clear_first=True, field="ยอดเดบิต")
             self.image.press("tab")
         elif credit is not None and credit > 0:
             self.image.press("tab")
-            self.image.type_text(self._format_amount(credit), clear_first=True)
+            self.image.type_text(self._format_amount(credit), clear_first=True, field="ยอดเครดิต")
         self.image.press("enter")
 
     def _fill_tax_invoice_dialog(self, config: RunConfig, row: KaTamRow) -> None:
@@ -240,10 +240,10 @@ class KaTamWorkflow:
             f"เลขที่ {row.tax_invoice_number} / เลขผู้เสียภาษี {tax_payer_id or '-'}",
         )
         self.image.wait(0.8)
-        self.image.type_text(row.tax_invoice_number, clear_first=True)
+        self.image.type_text(row.tax_invoice_number, clear_first=True, field="เลขที่ใบกำกับ")
         self.image.press("enter")
         if tax_payer_id:
-            self.image.type_text(tax_payer_id, clear_first=True)
+            self.image.type_text(tax_payer_id, clear_first=True, field="เลขผู้เสียภาษี (ใบกำกับ)")
         self.image.press("enter")
         self._dismiss_auto_wt_dialog()
 
@@ -267,7 +267,7 @@ class KaTamWorkflow:
         self.image.wait(1.0)
         self.image.press("tab", presses=6)
         if tax_payer_id:
-            self.image.type_text(tax_payer_id, clear_first=True)
+            self.image.type_text(tax_payer_id, clear_first=True, field="เลขผู้เสียภาษี (หลัง F10)")
         self.image.press("enter")
         self.image.wait(0.8)
 

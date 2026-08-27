@@ -122,7 +122,10 @@ class AutomationService:
             required=bool(raw.get("required", True)),
         )
 
-    def create_image_service(self) -> ImageService:
+    def create_image_service(
+        self,
+        on_log: Callable[[str], None] | None = None,
+    ) -> ImageService:
         settings = self.automation_settings
         screen = self.screen_settings
         return ImageService(
@@ -131,6 +134,7 @@ class AutomationService:
             fail_safe=bool(settings.get("fail_safe", True)),
             screen_width=int(screen.get("width", SCREEN_WIDTH)),
             screen_height=int(screen.get("height", SCREEN_HEIGHT)),
+            on_log=on_log,
         )
 
     def create_template_click_service(
@@ -187,7 +191,7 @@ class AutomationService:
                 total_rows = sum(summary.row_count for summary in sheet_summaries)
                 on_status(f"ทำรายการ: {total_rows} แถว")
 
-                image = self.create_image_service()
+                image = self.create_image_service(on_log=on_status)
                 self._warmup_automation(image, on_status=on_status)
                 self._check_stop()
 
