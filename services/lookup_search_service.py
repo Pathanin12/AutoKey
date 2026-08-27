@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Callable
 
 from services.image_service import ImageService
 from services.lookup_match_service import names_match
+from services.lookup_ocr_service import LookupOcrSettings, read_highlighted_vendor_name
 from services.lookup_selection_read_service import read_selected_row_text
 
 if TYPE_CHECKING:
@@ -24,10 +25,26 @@ class LookupSearchSettings:
     template_retries: int = 4
     template_retry_delay: float = 0.15
     verify_selection: bool = True
+    verify_method: str = "ocr"
     post_search_wait: float = 0.4
     selection_name_subitems: tuple[int, ...] = (1, 0, 2, 3)
     selection_match_threshold: float = 0.85
     express_title_contains: str = "Express"
+    selection_ocr_grid_region: tuple[int, int, int, int] = (520, 380, 980, 580)
+    selection_ocr_name_x: tuple[int, int] = (640, 970)
+    selection_ocr_row_height: int = 22
+    selection_ocr_lang: str = "tha+eng"
+    tesseract_cmd: str = ""
+
+    @property
+    def ocr_settings(self) -> LookupOcrSettings:
+        return LookupOcrSettings(
+            grid_region=self.selection_ocr_grid_region,
+            name_x=self.selection_ocr_name_x,
+            row_height=self.selection_ocr_row_height,
+            lang=self.selection_ocr_lang,
+            tesseract_cmd=self.tesseract_cmd,
+        )
 
 
 def activate_search_button(
@@ -95,11 +112,7 @@ def _verify_lookup_selection(
     *,
     on_status: Callable[[str], None] | None = None,
 ) -> None:
-    del image
-    selected = read_selected_row_text(
-        name_subitems=settings.selection_name_subitems,
-        express_title_contains=settings.express_title_contains,
-    )
+    selected = _read_verified_selection_text(image, settings)
     if selected and _looks_like_search_field(selected, query):
         selected = ""
 
@@ -110,6 +123,20 @@ def _verify_lookup_selection(
     if on_status:
         on_status(message)
     raise LookupSelectionMismatchError(message)
+
+
+def _read_verified_selection_text(image: ImageService, settings: LookupSearchSettings) -> str:
+    method = settings.verify_method.strip().lower() or "ocr"
+    if method in {"ocr", "ocr_then_uia"}:
+        text = read_highlighted_vendor_name(image, settings.ocr_settings)
+        if text:
+            return text
+    if method in {"uia", "ocr_then_uia"}:
+        return read_selected_row_text(
+            name_subitems=settings.selection_name_subitems,
+            express_title_contains=settings.express_title_contains,
+        )
+    return ""
 
 
 def _looks_like_search_field(selected: str, query: str) -> bool:

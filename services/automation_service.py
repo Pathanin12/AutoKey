@@ -93,14 +93,36 @@ class AutomationService:
             template_retries=int(raw.get("template_retries", 4)),
             template_retry_delay=float(raw.get("template_retry_delay", 0.15)),
             verify_selection=bool(raw.get("verify_selection", True)),
-            post_search_wait=float(raw.get("post_search_wait", 0.25)),
+            verify_method=str(raw.get("verify_method", "ocr")),
+            post_search_wait=float(raw.get("post_search_wait", 0.4)),
             selection_name_subitems=self._parse_selection_name_subitems(raw.get("selection_name_subitems")),
             selection_match_threshold=float(raw.get("selection_match_threshold", 0.85)),
             express_title_contains=str(
                 raw.get("express_title_contains")
                 or self.config.get("window_focus", {}).get("title_contains", "Express")
             ),
+            selection_ocr_grid_region=self._parse_region(raw.get("selection_ocr_grid_region"), (520, 380, 980, 580)),
+            selection_ocr_name_x=self._parse_pair(raw.get("selection_ocr_name_x"), (640, 970)),
+            selection_ocr_row_height=int(raw.get("selection_ocr_row_height", 22)),
+            selection_ocr_lang=str(raw.get("selection_ocr_lang", "tha+eng")),
+            tesseract_cmd=str(raw.get("tesseract_cmd", "")),
         )
+
+    def _parse_region(self, raw_value, default: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+        if not raw_value:
+            return default
+        values = tuple(int(item) for item in raw_value)
+        if len(values) != 4:
+            return default
+        return values  # type: ignore[return-value]
+
+    def _parse_pair(self, raw_value, default: tuple[int, int]) -> tuple[int, int]:
+        if not raw_value:
+            return default
+        values = tuple(int(item) for item in raw_value)
+        if len(values) != 2:
+            return default
+        return values  # type: ignore[return-value]
 
     def _parse_selection_name_subitems(self, raw_value) -> tuple[int, ...]:
         if raw_value is None:
@@ -278,6 +300,14 @@ class AutomationService:
         import numpy  # noqa: F401
 
         image.screenshot()
+        if self.lookup_search_settings.verify_selection and self.lookup_search_settings.verify_method == "ocr":
+            from services.tesseract_runtime_service import is_tesseract_ready
+
+            if not is_tesseract_ready(self.lookup_search_settings.tesseract_cmd):
+                raise RuntimeError(
+                    "ไม่พบ Tesseract OCR ในโปรแกรม — ใช้ AutoKey.exe จาก GitHub Actions หรือ build ใหม่"
+                )
+
         if not self.template_click_settings.enabled:
             return
 

@@ -6,3 +6,7 @@ __pycache__/
 *.log
 dist/
 build/
+assets/tesseract/*.exe
+assets/tesseract/*.dll
+assets/tesseract/tessdata/*.traineddata
+!assets/tesseract/.gitkeep

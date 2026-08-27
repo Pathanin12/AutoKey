@@ -29,6 +29,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-build.txt
 
+      - name: Bundle Tesseract OCR (tha + eng)
+        shell: pwsh
+        run: |
+          choco install tesseract -y --no-progress
+          $src = "C:\Program Files\Tesseract-OCR"
+          $dest = "assets/tesseract"
+          New-Item -ItemType Directory -Force -Path "$dest/tessdata" | Out-Null
+          Copy-Item "$src\tesseract.exe" $dest
+          Copy-Item "$src\*.dll" $dest
+          if (Test-Path "$src\tessdata\eng.traineddata") {
+            Copy-Item "$src\tessdata\eng.traineddata" "$dest\tessdata\"
+          }
+          $thaUrl = "https://github.com/tesseract-ocr/tessdata/raw/main/tha.traineddata"
+          Invoke-WebRequest -Uri $thaUrl -OutFile "$dest\tessdata\tha.traineddata"
+
       - name: Read version
         id: version
         shell: pwsh
