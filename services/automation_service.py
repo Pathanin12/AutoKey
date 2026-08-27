@@ -9,6 +9,7 @@ import yaml
 from constants.routes import CONFIG_PATH, SCREEN_HEIGHT, SCREEN_WIDTH, TOPIC_LABEL, UI_TEXT
 from constants.template_actions import DEFAULT_TEMPLATE_CLICK_ACTIONS
 from models.run_config import RunConfig
+from models.run_failure import RunFailureError
 from models.template_click_settings import TemplateClickAction, TemplateClickSettings
 from models.template_target import TemplateTarget
 from models.window_focus_settings import WindowFocusSettings
@@ -89,10 +90,14 @@ class AutomationService:
         return LookupSearchSettings(
             button_tabs=int(raw.get("button_tabs", 2)),
             field_tabs=int(raw.get("field_tabs", 0)),
-            confirm_enter_count=int(raw.get("confirm_enter_count", 1)),
+            confirm_enter_count=int(raw.get("confirm_enter_count", 2)),
             dialog_wait=float(raw.get("dialog_wait", 0.35)),
             template_retries=int(raw.get("template_retries", 4)),
             template_retry_delay=float(raw.get("template_retry_delay", 0.15)),
+            verify_selection=bool(raw.get("verify_selection", True)),
+            post_search_wait=float(raw.get("post_search_wait", 0.25)),
+            grid_focus_tabs=int(raw.get("grid_focus_tabs", 1)),
+            selection_match_threshold=float(raw.get("selection_match_threshold", 0.85)),
         )
 
     @property
@@ -122,11 +127,7 @@ class AutomationService:
             required=bool(raw.get("required", True)),
         )
 
-    def create_image_service(
-        self,
-        on_log: Callable[[str], None] | None = None,
-    ) -> ImageService:
-        del on_log
+    def create_image_service(self) -> ImageService:
         settings = self.automation_settings
         screen = self.screen_settings
         return ImageService(
@@ -235,7 +236,12 @@ class AutomationService:
                                 f"{processed_rows + current} / {total_rows} — {rows[current - 1].legal_name}",
                             )
 
-                    workflow.run(run_config, rows, progress_callback=progress_callback)
+                    try:
+                        workflow.run(run_config, rows, progress_callback=progress_callback)
+                    except RunFailureError as exc:
+                        failure = exc.with_completed_offset(processed_rows)
+                        on_finished(False, failure.format_summary())
+                        return
                     processed_rows += len(rows)
 
                 self._check_stop()

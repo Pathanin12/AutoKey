@@ -45,6 +45,11 @@ class ImageService:
             image = image.resize((self.screen_width, self.screen_height))
         return image
 
+    def copy_selection(self) -> None:
+        self._ensure_runtime()
+        pyautogui.hotkey("ctrl", "c")
+        self.wait(0.1)
+
     def click_at(self, x: int, y: int) -> None:
         self._ensure_runtime()
         pyautogui.click(x, y)

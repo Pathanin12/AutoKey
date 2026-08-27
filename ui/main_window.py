@@ -27,7 +27,8 @@ class MainWindow:
         ui_settings = self.automation_service.ui_settings
         self.hide_on_start = bool(ui_settings.get("hide_on_start", False))
         self.clear_log_on_start = bool(ui_settings.get("clear_log_on_start", True))
-        self.log_max_lines = max(50, int(ui_settings.get("log_max_lines", 300)))
+        raw_log_max = ui_settings.get("log_max_lines", 0)
+        self.log_max_lines = max(0, int(raw_log_max if raw_log_max is not None else 0))
         self.verbose_log = bool(ui_settings.get("verbose_log", False))
         cancel_hotkeys = ui_settings.get("cancel_hotkeys") or ui_settings.get("cancel_hotkey", "esc")
         self.hotkey_service = HotkeyService(cancel_hotkeys)
@@ -118,7 +119,16 @@ class MainWindow:
         log_container.rowconfigure(0, weight=1)
         log_container.columnconfigure(0, weight=1)
 
-        self.log_box = tk.Text(log_container, height=12, wrap="word", exportselection=True)
+        self.log_box = tk.Text(
+            log_container,
+            height=12,
+            wrap="word",
+            exportselection=True,
+            bg="#ffffff",
+            fg="#000000",
+            insertwidth=0,
+            cursor="arrow",
+        )
         log_scroll = ttk.Scrollbar(log_container, orient="vertical", command=self.log_box.yview)
         self.log_box.configure(yscrollcommand=log_scroll.set)
         self.log_box.grid(row=0, column=0, sticky="nsew")
@@ -126,7 +136,8 @@ class MainWindow:
         self._setup_log_box_bindings()
 
         welcome = UI_TEXT["welcome_log"]
-        self.log_box.insert("1.0", welcome + "\n")
+        self._write_log(welcome + "\n", trim=False)
+        self._set_log_readonly(True)
 
     def _bind_shortcuts(self) -> None:
         self.hotkey_service.bind_tk_shortcuts(self.root, self._stop)
@@ -246,7 +257,9 @@ class MainWindow:
             self.root.attributes("-topmost", True)
             self.root.after(200, lambda: self.root.attributes("-topmost", False))
             self.root.focus_force()
-        self._append_log(UI_TEXT["window_restored"])
+            self._append_log(UI_TEXT["window_restored"])
+        self.log_box.see("end")
+        self.root.update_idletasks()
 
     def _cleanup_run(self) -> None:
         self.is_running = False
@@ -268,32 +281,49 @@ class MainWindow:
             self._cleanup_run()
             self._restore_window()
             self.status_text.set(message)
-            self._append_log(message)
+            self._append_log(message, trim=success)
             if success:
                 messagebox.showinfo("AutoKey", message)
             else:
-                messagebox.showerror("AutoKey", message)
+                messagebox.showerror("AutoKey — หยุดทำงาน", message)
 
         self.root.after(0, update)
 
-    def _append_log(self, message: str) -> None:
-        self.log_box.insert("end", message + "\n")
-        self._trim_log()
+    def _set_log_readonly(self, readonly: bool) -> None:
+        self.log_box.config(state=tk.DISABLED if readonly else tk.NORMAL)
+
+    def _write_log(self, text: str, *, trim: bool = True) -> None:
+        was_disabled = str(self.log_box.cget("state")) == tk.DISABLED
+        if was_disabled:
+            self._set_log_readonly(False)
+        self.log_box.insert("end", text)
+        if trim:
+            self._trim_log()
         self.log_box.see("end")
+        if was_disabled or self.is_running:
+            self._set_log_readonly(True)
+
+    def _append_log(self, message: str, *, trim: bool = True) -> None:
+        self._write_log(message + "\n", trim=trim)
         self.status_text.set(message)
 
     def _clear_log(self) -> None:
+        self._set_log_readonly(False)
         self.log_box.delete("1.0", "end")
+        self._set_log_readonly(True)
 
     def _trim_log(self) -> None:
+        if self.is_running or self.log_max_lines <= 0:
+            return
         line_count = int(self.log_box.index("end-1c").split(".")[0])
         if line_count <= self.log_max_lines:
             return
         overflow = line_count - self.log_max_lines
+        self._set_log_readonly(False)
         self.log_box.delete("1.0", f"{overflow + 1}.0")
+        self._set_log_readonly(True)
 
     def _setup_log_box_bindings(self) -> None:
-        self.log_box.bind("<KeyPress>", self._on_log_key, add="+")
         for sequence in (
             "<Command-c>",
             "<Control-c>",
@@ -326,55 +356,46 @@ class MainWindow:
         self.log_box.bind("<Button-3>", show_menu, add="+")
         self.log_box.bind("<Control-Button-1>", show_menu, add="+")
 
-    def _on_log_key(self, event: tk.Event) -> str | None:
-        if event.keysym in (
-            "Left",
-            "Right",
-            "Up",
-            "Down",
-            "Home",
-            "End",
-            "Prior",
-            "Next",
-            "Shift_L",
-            "Shift_R",
-            "Control_L",
-            "Control_R",
-            "Meta_L",
-            "Meta_R",
-            "Alt_L",
-            "Alt_R",
-        ):
-            return None
-        if event.state & 0x1:
-            return None
-        if len(event.keysym) == 1 and event.char and event.char.isprintable():
-            return "break"
-        if event.keysym in ("BackSpace", "Delete", "Return", "KP_Enter", "Tab"):
-            return "break"
-        return None
+    def _with_log_edit(self, callback):
+        was_disabled = str(self.log_box.cget("state")) == tk.DISABLED
+        if was_disabled:
+            self._set_log_readonly(False)
+        try:
+            return callback()
+        finally:
+            if was_disabled or self.is_running:
+                self._set_log_readonly(True)
 
     def _copy_log_selection(self, _event: tk.Event | None = None) -> str:
-        try:
-            text = self.log_box.get(tk.SEL_FIRST, tk.SEL_LAST)
-        except tk.TclError:
+        def copy() -> str:
+            try:
+                text = self.log_box.get(tk.SEL_FIRST, tk.SEL_LAST)
+            except tk.TclError:
+                return "break"
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text)
             return "break"
-        self.root.clipboard_clear()
-        self.root.clipboard_append(text)
-        return "break"
+
+        return self._with_log_edit(copy)
 
     def _select_all_log(self, _event: tk.Event | None = None) -> str:
-        self.log_box.tag_add(tk.SEL, "1.0", "end-1c")
-        self.log_box.mark_set(tk.INSERT, "1.0")
-        self.log_box.see(tk.INSERT)
-        return "break"
+        def select_all() -> str:
+            self.log_box.tag_add(tk.SEL, "1.0", "end-1c")
+            self.log_box.mark_set(tk.INSERT, "1.0")
+            self.log_box.see(tk.INSERT)
+            return "break"
+
+        return self._with_log_edit(select_all)
 
     def _copy_all_log(self) -> None:
-        text = self.log_box.get("1.0", "end-1c")
-        if not text.strip():
-            return
-        self.root.clipboard_clear()
-        self.root.clipboard_append(text)
+        def copy_all() -> None:
+            text = self.log_box.get("1.0", "end-1c")
+            if not text.strip():
+                return
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text)
+
+        self._with_log_edit(copy_all)
 
     def run(self) -> None:
         self.root.mainloop()

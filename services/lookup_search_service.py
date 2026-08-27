@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
+from services.clipboard_service import read_text
 from services.image_service import ImageService
+from services.lookup_match_service import names_match
 
 if TYPE_CHECKING:
     from services.template_click_service import TemplateClickService
+
+
+class LookupSelectionMismatchError(RuntimeError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -17,10 +23,14 @@ class LookupSearchSettings:
 
     button_tabs: int = 2
     field_tabs: int = 0
-    confirm_enter_count: int = 1
+    confirm_enter_count: int = 2
     dialog_wait: float = 0.35
     template_retries: int = 4
     template_retry_delay: float = 0.15
+    verify_selection: bool = True
+    post_search_wait: float = 0.25
+    grid_focus_tabs: int = 1
+    selection_match_threshold: float = 0.85
 
 
 def activate_search_button(
@@ -71,14 +81,60 @@ def search_and_select(
     *,
     confirm_enter_count: int | None = None,
     template_click: TemplateClickService | None = None,
+    on_status: Callable[[str], None] | None = None,
 ) -> None:
     name = query.strip()
     if not name:
         return
+
     activate_search_button(image, settings, template_click=template_click)
     image.type_thai(name, clear_first=True)
     image.wait(0.15)
+
     presses = max(1, confirm_enter_count if confirm_enter_count is not None else settings.confirm_enter_count)
-    for _ in range(presses):
+    if settings.verify_selection:
+        image.press("enter")
+        image.wait(settings.post_search_wait)
+        _verify_lookup_selection(image, settings, name, on_status=on_status)
+        select_presses = max(1, presses - 1)
+    else:
+        select_presses = presses
+
+    for _ in range(select_presses):
         image.press("enter")
         image.wait(0.15)
+
+
+def _verify_lookup_selection(
+    image: ImageService,
+    settings: LookupSearchSettings,
+    query: str,
+    *,
+    on_status: Callable[[str], None] | None = None,
+) -> None:
+    selected = _read_selected_row_text(image, settings, query)
+    if names_match(query, selected, settings.selection_match_threshold):
+        return
+
+    message = f"ค้นหา vendor ไม่ตรง — ต้องการ: {query} / ได้: {selected or '(ว่าง)'}"
+    if on_status:
+        on_status(message)
+    raise LookupSelectionMismatchError(message)
+
+
+def _read_selected_row_text(
+    image: ImageService,
+    settings: LookupSearchSettings,
+    query: str,
+) -> str:
+    if settings.grid_focus_tabs > 0:
+        image.press("tab", presses=settings.grid_focus_tabs)
+        image.wait(0.08)
+    image.copy_selection()
+    selected = read_text().strip()
+    if names_match(query, selected, 1.0):
+        image.press("tab")
+        image.wait(0.08)
+        image.copy_selection()
+        selected = read_text().strip()
+    return selected

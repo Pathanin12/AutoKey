@@ -21,7 +21,12 @@ from services.company_switch_service import (
     open_change_company_menu,
     select_company_on_dialog,
 )
-from services.lookup_search_service import LookupSearchSettings, search_and_select
+from models.run_failure import RunFailureError
+from services.lookup_search_service import (
+    LookupSearchSettings,
+    LookupSelectionMismatchError,
+    search_and_select,
+)
 from services.template_click_service import TemplateClickService
 from services.tax_reference_service import resolve_tax_payer_id
 
@@ -70,48 +75,60 @@ class KaTamWorkflow:
         self._open_payment_journal()
 
         total = len(rows)
+        completed_count = 0
         for index, row in enumerate(rows, start=1):
             self._check_stop()
             report_progress(index, total)
             row_detail = f"แถว {row.row_number}: {row.legal_name}"
             self._status(f"[{index}/{total}] {row_detail}")
 
-            self._check_stop()
-            self._step(self.STEP_NEW_VOUCHER, "สร้างรายการใหม่", row_detail)
-            self._create_voucher(config, row)
+            try:
+                self._check_stop()
+                self._step(self.STEP_NEW_VOUCHER, "สร้างรายการใหม่", row_detail)
+                self._create_voucher(config, row)
 
-            self._check_stop()
-            self._step(self.STEP_HEADER, "กรอกหัวเรื่อง", row_detail)
-            self._fill_header(config, row)
+                self._check_stop()
+                self._step(self.STEP_HEADER, "กรอกหัวเรื่อง", row_detail)
+                self._fill_header(config, row)
 
-            self._check_stop()
-            self._step(
-                self.STEP_SERVICE,
-                "กรอกบัญชีค่าบริการ",
-                f"{ACCOUNT_SERVICE} เดบิต {self._format_amount(row.service_amount)}",
-            )
-            self._fill_service_line(row)
-
-            if row.has_vat:
                 self._check_stop()
                 self._step(
-                    self.STEP_VAT,
-                    "กรอกบัญชีภาษีซื้อ",
-                    f"{ACCOUNT_VAT} เดบิต {self._format_amount(row.vat_amount)}",
+                    self.STEP_SERVICE,
+                    "กรอกบัญชีค่าบริการ",
+                    f"{ACCOUNT_SERVICE} เดบิต {self._format_amount(row.service_amount)}",
                 )
-                self._fill_vat_line(config, row)
+                self._fill_service_line(row)
 
-            self._check_stop()
-            self._step(
-                self.STEP_CASH,
-                "กรอกบัญชีเงินสด",
-                f"{ACCOUNT_CASH} เครดิต {self._format_amount(row.credit_amount - row.wt_amount if row.has_wt else row.credit_amount)}",
-            )
-            self._fill_cash_line(row)
+                if row.has_vat:
+                    self._check_stop()
+                    self._step(
+                        self.STEP_VAT,
+                        "กรอกบัญชีภาษีซื้อ",
+                        f"{ACCOUNT_VAT} เดบิต {self._format_amount(row.vat_amount)}",
+                    )
+                    self._fill_vat_line(config, row)
 
-            self._check_stop()
-            self._step(self.STEP_SAVE, "บันทึกรายการ", row_detail)
-            self._save_voucher(config, row)
+                self._check_stop()
+                self._step(
+                    self.STEP_CASH,
+                    "กรอกบัญชีเงินสด",
+                    f"{ACCOUNT_CASH} เครดิต {self._format_amount(row.credit_amount - row.wt_amount if row.has_wt else row.credit_amount)}",
+                )
+                self._fill_cash_line(row)
+
+                self._check_stop()
+                self._step(self.STEP_SAVE, "บันทึกรายการ", row_detail)
+                self._save_voucher(config, row)
+            except LookupSelectionMismatchError as exc:
+                raise RunFailureError(
+                    message=str(exc),
+                    completed_count=completed_count,
+                    failed_no=row.sequence,
+                    failed_name=row.legal_name,
+                    sheet_name=row.sheet_name,
+                ) from exc
+
+            completed_count += 1
             self._status(f"✓ [{index}/{total}] {row.legal_name}")
 
     def _step(self, step_index: int, step_label: str, detail: str = "") -> None:
@@ -225,6 +242,7 @@ class KaTamWorkflow:
             vendor_name,
             confirm_enter_count=1,
             template_click=self.template_click,
+            on_status=self.on_status,
         )
         self.image.press("tab")
         if debit is not None and debit > 0:

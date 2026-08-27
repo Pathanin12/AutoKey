@@ -99,3 +99,60 @@ def _put_clipboard_format(
         raise RuntimeError("ตั้งค่า clipboard ไม่ได้")
 
     pending_handles.append(handle)
+
+
+def read_text() -> str:
+    if sys.platform == "win32":
+        return _read_windows_clipboard()
+    import pyperclip
+
+    return pyperclip.paste()
+
+
+def _read_windows_clipboard() -> str:
+    from ctypes import wintypes
+
+    user32 = ctypes.windll.user32
+    kernel32 = ctypes.windll.kernel32
+
+    user32.OpenClipboard.argtypes = [wintypes.HWND]
+    user32.OpenClipboard.restype = wintypes.BOOL
+    user32.GetClipboardData.argtypes = [wintypes.UINT]
+    user32.GetClipboardData.restype = wintypes.HANDLE
+    user32.IsClipboardFormatAvailable.argtypes = [wintypes.UINT]
+    user32.IsClipboardFormatAvailable.restype = wintypes.BOOL
+    user32.CloseClipboard.restype = wintypes.BOOL
+
+    kernel32.GlobalLock.argtypes = [wintypes.HGLOBAL]
+    kernel32.GlobalLock.restype = wintypes.LPVOID
+    kernel32.GlobalUnlock.argtypes = [wintypes.HGLOBAL]
+    kernel32.GlobalUnlock.restype = wintypes.BOOL
+
+    if not user32.OpenClipboard(None):
+        return ""
+
+    try:
+        if user32.IsClipboardFormatAvailable(CF_UNICODETEXT):
+            handle = user32.GetClipboardData(CF_UNICODETEXT)
+            if handle:
+                locked = kernel32.GlobalLock(handle)
+                if locked:
+                    try:
+                        return ctypes.wstring_at(locked)
+                    finally:
+                        kernel32.GlobalUnlock(handle)
+
+        if user32.IsClipboardFormatAvailable(CF_TEXT):
+            handle = user32.GetClipboardData(CF_TEXT)
+            if handle:
+                locked = kernel32.GlobalLock(handle)
+                if locked:
+                    try:
+                        raw = ctypes.string_at(locked)
+                        return raw.decode(THAI_ANSI_ENCODING, errors="replace").rstrip("\x00")
+                    finally:
+                        kernel32.GlobalUnlock(handle)
+    finally:
+        user32.CloseClipboard()
+
+    return ""
