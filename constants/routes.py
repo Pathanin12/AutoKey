@@ -21,6 +21,7 @@ TOPIC_LABEL = "สมุดรายวันจ่าย"
 
 ACCOUNT_SERVICE = "5330-05"
 ACCOUNT_VAT = "1154-00"
+ACCOUNT_WT = "2132-02"
 ACCOUNT_CASH = "1111-00"
 
 # เส้นทางเมนู 5 > 1 > 2 — คลิกจับภาพ (Express ไม่มีคีย์ลัด)

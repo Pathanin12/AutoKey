@@ -6,12 +6,11 @@ from typing import Callable
 from constants.flow_model import FLOW_1_END_LABEL, FLOW_1_LABEL
 from constants.date_utils import format_express_pv_date
 from constants.routes import (
-    ACCOUNT_CASH,
     ACCOUNT_SERVICE,
     ACCOUNT_VAT,
+    ACCOUNT_WT,
     MENU_PAYMENT_JOURNAL_PATH,
     PV_NEW_FILE_KEYS,
-    VENDOR_LOOKUP_KEY,
 )
 from models.ka_tam_row import KaTamRow
 from models.run_config import RunConfig
@@ -40,8 +39,7 @@ class KaTamWorkflow:
     STEP_VAT = 5
     STEP_TAX_INVOICE = 6
     STEP_WT = 7
-    STEP_CASH = 8
-    STEP_SAVE = 9
+    STEP_FINISH = 8
 
     def __init__(
         self,
@@ -88,37 +86,15 @@ class KaTamWorkflow:
 
             try:
                 self._check_stop()
+                if index > 1:
+                    self._lookup_and_open_pv(row.legal_name)
+
+                self._check_stop()
                 self._step(self.STEP_NEW_VOUCHER, "สร้างรายการใหม่", row_detail)
                 self._create_voucher(config)
 
                 self._check_stop()
-                self._step(
-                    self.STEP_SERVICE,
-                    "กรอกบัญชีค่าบริการ",
-                    f"{ACCOUNT_SERVICE} เดบิต {self._format_amount(row.service_amount)}",
-                )
-                self._fill_service_line(row)
-
-                if row.has_vat:
-                    self._check_stop()
-                    self._step(
-                        self.STEP_VAT,
-                        "กรอกบัญชีภาษีซื้อ",
-                        f"{ACCOUNT_VAT} เดบิต {self._format_amount(row.vat_amount)}",
-                    )
-                    self._fill_vat_line(config, row)
-
-                self._check_stop()
-                self._step(
-                    self.STEP_CASH,
-                    "กรอกบัญชีเงินสด",
-                    f"{ACCOUNT_CASH} เครดิต {self._format_amount(row.credit_amount - row.wt_amount if row.has_wt else row.credit_amount)}",
-                )
-                self._fill_cash_line(row)
-
-                self._check_stop()
-                self._step(self.STEP_SAVE, "บันทึกรายการ", row_detail)
-                self._save_voucher(config, row)
+                self._fill_pv_lines(config, row, prepare_next=index < total)
             except LookupSelectionMismatchError as exc:
                 raise RunFailureError(
                     message=str(exc),
@@ -228,104 +204,81 @@ class KaTamWorkflow:
         self.image.press("enter")
         self.image.wait(0.15)
 
-    def _fill_service_line(self, row: KaTamRow) -> None:
-        self._enter_grid_row(
-            account_code=ACCOUNT_SERVICE,
-            vendor_name=row.legal_name,
-            debit=row.service_amount,
-        )
+    def _lookup_and_open_pv(self, legal_name: str) -> None:
+        name = legal_name.strip()
+        if not name:
+            raise RuntimeError("ไม่พบชื่อสำหรับค้นหาในแถวถัดไป")
 
-    def _fill_vat_line(self, config: RunConfig, row: KaTamRow) -> None:
-        self._enter_grid_row(
-            account_code=ACCOUNT_VAT,
-            vendor_name=row.legal_name,
-            debit=row.vat_amount,
-        )
-        self._fill_tax_invoice_dialog(config, row)
-
-    def _fill_cash_line(self, row: KaTamRow) -> None:
-        credit_amount = row.credit_amount
-        if row.has_wt:
-            credit_amount = round(row.credit_amount - row.wt_amount, 2)
-        self._enter_grid_row(
-            account_code=ACCOUNT_CASH,
-            vendor_name=row.legal_name,
-            credit=credit_amount,
-        )
-
-    def _enter_grid_row(
-        self,
-        account_code: str,
-        vendor_name: str,
-        debit: float | None = None,
-        credit: float | None = None,
-    ) -> None:
-        self.image.type_text(account_code, clear_first=False)
-        self.image.press("tab")
-        self.image.press("tab")
-        self.image.press(VENDOR_LOOKUP_KEY)
-        self.image.wait(0.1)
+        self._status(f"ค้นหาบริษัทถัดไป: {name}")
         search_and_select(
             self.image,
             self.lookup_search_settings,
-            vendor_name,
-            confirm_enter_count=1,
+            name,
             template_click=self.template_click,
             on_status=self.on_status,
         )
-        self.image.press("tab")
-        if debit is not None and debit > 0:
-            self.image.type_text(self._format_amount(debit), clear_first=True)
-            self.image.press("tab")
-        elif credit is not None and credit > 0:
-            self.image.press("tab")
-            self.image.type_text(self._format_amount(credit), clear_first=True)
+        self.open_payment_journal_only()
+
+    def _fill_pv_lines(self, config: RunConfig, row: KaTamRow, *, prepare_next: bool) -> None:
+        self._step(
+            self.STEP_SERVICE,
+            "กรอกบัญชีค่าบริการ",
+            f"{ACCOUNT_SERVICE} → srv {self._format_amount(row.service_amount)}",
+        )
+        self.image.type_text(ACCOUNT_SERVICE, clear_first=False)
+        self.image.press("enter", presses=2)
+        self.image.type_text(self._format_amount(row.service_amount), clear_first=True)
         self.image.press("enter")
 
-    def _fill_tax_invoice_dialog(self, config: RunConfig, row: KaTamRow) -> None:
+        self._step(
+            self.STEP_VAT,
+            "กรอกบัญชีภาษีซื้อ",
+            f"{ACCOUNT_VAT} → vat {self._format_amount(row.vat_amount)}",
+        )
+        self.image.type_text(ACCOUNT_VAT, clear_first=False)
+        self.image.press("enter", presses=2)
+        self.image.type_text(self._format_amount(row.vat_amount), clear_first=True)
+        self.image.press("enter")
+
+        self._step(
+            self.STEP_WT,
+            "กรอกบัญชีภาษีหัก ณ ที่จ่าย",
+            f"{ACCOUNT_WT} → wt {self._format_amount(row.wt_amount)}",
+        )
+        self.image.type_text(ACCOUNT_WT, clear_first=False)
+        self.image.press("enter", presses=3)
+        self.image.type_text(self._format_amount(row.wt_amount), clear_first=True)
+        self.image.press("enter", presses=5)
+
+        self._fill_tax_invoice_via_f2_f9(config, row)
+
+        if prepare_next:
+            self._step(self.STEP_FINISH, "กลับ dialog เลือกข้อมูล", "Shift+F11 → Tab → Enter")
+            self.image.press("shift", "f11")
+            self.image.wait(0.3)
+            self.image.press("tab")
+            self.image.press("enter")
+            self.image.wait(0.4)
+
+    def _fill_tax_invoice_via_f2_f9(self, config: RunConfig, row: KaTamRow) -> None:
         tax_payer_id = resolve_tax_payer_id(row.tax_id, config.tax_payer_id)
+        invoice_number = row.tax_invoice_number
         self._step(
             self.STEP_TAX_INVOICE,
             "กรอกใบกำกับภาษีซื้อ",
-            f"เลขที่ {row.tax_invoice_number} / เลขผู้เสียภาษี {tax_payer_id or '-'}",
+            f"F2 → F9 → {invoice_number} / {tax_payer_id or '-'}",
         )
+        self.image.press("f2")
+        self.image.press("f9")
         self.image.wait(0.8)
-        self.image.type_text(row.tax_invoice_number, clear_first=True)
-        self.image.press("enter")
+        if invoice_number:
+            self.image.type_text(invoice_number, clear_first=True)
+        self.image.press("enter", presses=13)
         if tax_payer_id:
             self.image.type_text(tax_payer_id, clear_first=True)
-        self.image.press("enter")
-        self._dismiss_auto_wt_dialog()
-
-    def _dismiss_auto_wt_dialog(self) -> None:
-        self._step(
-            self.STEP_WT,
-            "ปิด Dialog ภาษีหัก ณ ที่จ่าย",
-            "กด Esc — เด้งอัตโนมัติหลัง ตกลง ใบกำกับ",
-        )
-        self.image.wait(0.5)
+        self.image.press("enter", presses=3)
         self.image.press("esc")
-
-    def _fill_input_tax_summary_after_save(self, config: RunConfig, row: KaTamRow) -> None:
-        """หลัง F10 — dialog ป้อนรายละเอียดรายการภาษีซื้อ (Express กรอกยอด/ชื่อให้แล้ว)"""
-        tax_payer_id = resolve_tax_payer_id(row.tax_id, config.tax_payer_id)
-        self._step(
-            self.STEP_SAVE,
-            "ยืนยันภาษีซื้อหลัง F10",
-            f"เลขผู้เสียภาษี {tax_payer_id or '-'}",
-        )
-        self.image.wait(1.0)
-        self.image.press("tab", presses=6)
-        if tax_payer_id:
-            self.image.type_text(tax_payer_id, clear_first=True)
-        self.image.press("enter")
-        self.image.wait(0.8)
-
-    def _save_voucher(self, config: RunConfig, row: KaTamRow) -> None:
-        self.image.press("f10")
-        self.image.wait(1.0)
-        if row.has_vat:
-            self._fill_input_tax_summary_after_save(config, row)
+        self.image.wait(0.3)
 
     @staticmethod
     def _format_amount(value: float) -> str:

@@ -20,6 +20,7 @@ ui:
 accounts:
   service: "5330-05"
   vat: "1154-00"
+  wt: "2132-02"
   cash: "1111-00"
 
 defaults:
