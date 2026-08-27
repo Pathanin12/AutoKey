@@ -88,17 +88,23 @@ class AutomationService:
     def lookup_search_settings(self) -> LookupSearchSettings:
         raw = self.config.get("lookup_search", {})
         return LookupSearchSettings(
-            button_tabs=int(raw.get("button_tabs", 2)),
-            field_tabs=int(raw.get("field_tabs", 0)),
             confirm_enter_count=int(raw.get("confirm_enter_count", 2)),
             dialog_wait=float(raw.get("dialog_wait", 0.35)),
             template_retries=int(raw.get("template_retries", 4)),
             template_retry_delay=float(raw.get("template_retry_delay", 0.15)),
             verify_selection=bool(raw.get("verify_selection", True)),
             post_search_wait=float(raw.get("post_search_wait", 0.25)),
-            grid_focus_tabs=int(raw.get("grid_focus_tabs", 1)),
+            selection_name_subitems=self._parse_selection_name_subitems(raw.get("selection_name_subitems")),
             selection_match_threshold=float(raw.get("selection_match_threshold", 0.85)),
         )
+
+    def _parse_selection_name_subitems(self, raw_value) -> tuple[int, ...]:
+        if raw_value is None:
+            return (1, 0, 2, 3)
+        if isinstance(raw_value, (list, tuple)):
+            values = [int(item) for item in raw_value]
+            return tuple(values) if values else (1, 0, 2, 3)
+        return (int(raw_value),)
 
     @property
     def company_switch_settings(self) -> CompanySwitchSettings:

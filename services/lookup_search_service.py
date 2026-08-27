@@ -1,13 +1,13 @@
-"""เปิดช่องค้นหาใน dialog เลือกข้อมูล — จับภาพปุ่ม ค้นหา แล้วคลิก (fallback เป็น Tab+Enter)"""
+"""เปิดช่องค้นหาใน dialog เลือกข้อมูล — จับภาพปุ่ม ค้นหา แล้วคลิกเท่านั้น (ไม่ใช้ Tab)"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable
 
-from services.clipboard_service import read_text
 from services.image_service import ImageService
 from services.lookup_match_service import names_match
+from services.lookup_selection_read_service import read_selected_row_text
 
 if TYPE_CHECKING:
     from services.template_click_service import TemplateClickService
@@ -19,17 +19,13 @@ class LookupSelectionMismatchError(RuntimeError):
 
 @dataclass(frozen=True)
 class LookupSearchSettings:
-    """Tab ไปปุ่ม ค้นหา แล้ว Enter — ใช้เมื่อจับภาพไม่ได้"""
-
-    button_tabs: int = 2
-    field_tabs: int = 0
     confirm_enter_count: int = 2
     dialog_wait: float = 0.35
     template_retries: int = 4
     template_retry_delay: float = 0.15
     verify_selection: bool = True
     post_search_wait: float = 0.25
-    grid_focus_tabs: int = 1
+    selection_name_subitems: tuple[int, ...] = (1, 0, 2, 3)
     selection_match_threshold: float = 0.85
 
 
@@ -42,36 +38,22 @@ def activate_search_button(
     if settings.dialog_wait > 0:
         image.wait(settings.dialog_wait)
 
-    if template_click is not None and template_click.enabled:
-        from services.template_click_service import TemplateNotFoundError
+    if template_click is None or not template_click.enabled:
+        raise RuntimeError("ต้องเปิด template_click และจับภาพปุ่ม ค้นหา")
 
-        last_error: TemplateNotFoundError | None = None
-        attempts = max(1, settings.template_retries)
-        for attempt in range(attempts):
-            try:
-                template_click.click("lookup_search")
-                image.wait(0.1)
-                if settings.field_tabs > 0:
-                    image.press("tab", presses=settings.field_tabs)
-                    image.wait(0.1)
-                return
-            except TemplateNotFoundError as exc:
-                last_error = exc
-                if attempt + 1 < attempts:
-                    image.wait(settings.template_retry_delay)
-                    continue
-                if not template_click.settings.fallback_to_keyboard:
-                    raise
-        del last_error
+    from services.template_click_service import TemplateNotFoundError
 
-    if settings.button_tabs > 0:
-        image.press("tab", presses=settings.button_tabs)
-        image.wait(0.1)
-    image.press("enter")
-    image.wait(0.15)
-    if settings.field_tabs > 0:
-        image.press("tab", presses=settings.field_tabs)
-        image.wait(0.1)
+    attempts = max(1, settings.template_retries)
+    for attempt in range(attempts):
+        try:
+            template_click.click("lookup_search")
+            image.wait(0.1)
+            return
+        except TemplateNotFoundError:
+            if attempt + 1 < attempts:
+                image.wait(settings.template_retry_delay)
+                continue
+            raise
 
 
 def search_and_select(
@@ -112,7 +94,11 @@ def _verify_lookup_selection(
     *,
     on_status: Callable[[str], None] | None = None,
 ) -> None:
-    selected = _read_selected_row_text(image, settings, query)
+    del image
+    selected = read_selected_row_text(name_subitems=settings.selection_name_subitems)
+    if selected and _looks_like_search_field(selected, query):
+        selected = ""
+
     if names_match(query, selected, settings.selection_match_threshold):
         return
 
@@ -122,54 +108,7 @@ def _verify_lookup_selection(
     raise LookupSelectionMismatchError(message)
 
 
-def _read_selected_row_text(
-    image: ImageService,
-    settings: LookupSearchSettings,
-    query: str,
-) -> str:
-    selected = _copy_grid_name(image, settings, query)
-    if _looks_like_search_field(selected, query):
-        return ""
-    return selected
-
-
 def _looks_like_search_field(selected: str, query: str) -> bool:
     if not selected:
         return True
     return names_match(query, selected, 1.0)
-
-
-def _copy_grid_name(
-    image: ImageService,
-    settings: LookupSearchSettings,
-    query: str,
-) -> str:
-    if settings.grid_focus_tabs > 0:
-        image.press("tab", presses=settings.grid_focus_tabs)
-        image.wait(0.08)
-
-    selected = _copy_clipboard_text(image)
-    if not _looks_like_search_field(selected, query):
-        return selected
-
-    for _ in range(3):
-        image.press("tab")
-        image.wait(0.08)
-        selected = _copy_clipboard_text(image)
-        if not _looks_like_search_field(selected, query):
-            return selected
-
-    image.press("down")
-    image.wait(0.08)
-    image.press("up")
-    image.wait(0.08)
-    selected = _copy_clipboard_text(image)
-    if not _looks_like_search_field(selected, query):
-        return selected
-
-    return selected
-
-
-def _copy_clipboard_text(image: ImageService) -> str:
-    image.copy_selection()
-    return read_text().strip()
