@@ -1,70 +1,291 @@
-"""อ่านชื่อแถวที่เลือกใน dialog เลือกข้อมูล Express — grid ไม่ copy ลง clipboard ได้"""
+"""อ่านชื่อแถวที่เลือกในหน้าจอ Express — ฟอร์ม F8 อยู่ในโปรแกรม Express ไม่ใช่หน้าต่างแยกเสมอไป"""
 
 from __future__ import annotations
 
 import sys
 
+_AUTOKEY_TITLE_NEEDLE = "autokey"
 
-def read_selected_row_text(*, name_subitems: tuple[int, ...] = (1, 0, 2, 3)) -> str:
+
+def read_selected_row_text(
+    *,
+    name_subitems: tuple[int, ...] = (1, 0, 2, 3),
+    express_title_contains: str = "Express",
+) -> str:
     if sys.platform != "win32":
         return ""
 
-    target = _get_target_window()
+    express_hwnd = _find_express_window_hwnd(express_title_contains)
+    if not express_hwnd:
+        return ""
 
-    for hwnd in _find_listview_handles(target):
+    readers = (
+        lambda: _read_via_uiautomation(express_title_contains, name_subitems),
+        lambda: _read_via_uiautomation_hwnd(express_hwnd, name_subitems),
+        lambda: _read_via_listview(express_hwnd, name_subitems),
+        lambda: _read_via_focused_control(express_hwnd),
+    )
+    for read in readers:
+        text = read().strip()
+        if text:
+            return text
+    return ""
+
+
+def _find_express_window_hwnd(express_title_contains: str) -> int | None:
+    express_hwnd = _find_window_by_title_contains(express_title_contains)
+    if express_hwnd:
+        return express_hwnd
+
+    import ctypes
+
+    foreground = int(ctypes.windll.user32.GetForegroundWindow())
+    if foreground and not _is_autokey_window(foreground):
+        return foreground
+
+    return None
+
+
+def _is_autokey_window(hwnd: int) -> bool:
+    title = _get_window_title(hwnd).casefold()
+    return _AUTOKEY_TITLE_NEEDLE in title
+
+
+def _find_window_by_title_contains(title_contains: str) -> int | None:
+    if not title_contains.strip():
+        return None
+
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.windll.user32
+    matches: list[int] = []
+    needle = title_contains.casefold()
+
+    EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    @EnumWindowsProc
+    def callback(hwnd, _lparam):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        title = _get_window_title(int(hwnd))
+        if needle in title.casefold():
+            matches.append(int(hwnd))
+        return True
+
+    user32.EnumWindows(callback, 0)
+    return matches[0] if matches else None
+
+
+def _get_window_title(hwnd: int) -> str:
+    import ctypes
+
+    user32 = ctypes.windll.user32
+    length = user32.GetWindowTextLengthW(hwnd)
+    if length <= 0:
+        return ""
+    buffer = ctypes.create_unicode_buffer(length + 1)
+    user32.GetWindowTextW(hwnd, buffer, length + 1)
+    return buffer.value
+
+
+def _get_class_name(hwnd: int) -> str:
+    import ctypes
+
+    user32 = ctypes.windll.user32
+    buffer = ctypes.create_unicode_buffer(256)
+    user32.GetClassNameW(hwnd, buffer, 256)
+    return buffer.value
+
+
+def _read_via_uiautomation(express_title_contains: str, name_subitems: tuple[int, ...]) -> str:
+    try:
+        import uiautomation as auto
+    except ImportError:
+        return ""
+
+    express = auto.WindowControl(searchDepth=2, SubName=express_title_contains)
+    if not express.Exists(maxSearchSeconds=0.3):
+        return ""
+
+    return _uia_collect_selected_text(express, name_subitems)
+
+
+def _read_via_uiautomation_hwnd(express_hwnd: int, name_subitems: tuple[int, ...]) -> str:
+    try:
+        import uiautomation as auto
+    except ImportError:
+        return ""
+
+    root = auto.ControlFromHandle(express_hwnd)
+    if root is None or not root.Exists(maxSearchSeconds=0.2):
+        return ""
+
+    return _uia_collect_selected_text(root, name_subitems)
+
+
+def _uia_collect_selected_text(root, name_subitems: tuple[int, ...]) -> str:
+    for reader in (
+        lambda: _uia_selected_from_patterns(root, name_subitems),
+        lambda: _uia_selected_from_lists(root),
+        lambda: _uia_selected_from_grid(root, name_subitems),
+        lambda: _uia_walk_selected(root, name_subitems),
+    ):
+        text = reader().strip()
+        if text:
+            return text
+    return ""
+
+
+def _uia_selected_from_patterns(root, name_subitems: tuple[int, ...]) -> str:
+    import uiautomation as auto
+
+    for control, _depth in auto.WalkControl(root, includeTop=True, maxDepth=35):
+        for reader in (
+            lambda: _uia_selection_item(control, name_subitems),
+            lambda: _uia_selection_container(control, name_subitems),
+        ):
+            text = reader().strip()
+            if text:
+                return text
+    return ""
+
+
+def _uia_selection_item(control, name_subitems: tuple[int, ...]) -> str:
+    pattern = control.GetSelectionItemPattern()
+    if pattern is None or not pattern.IsSelected:
+        return ""
+    return _uia_control_text(control, name_subitems)
+
+
+def _uia_selection_container(control, name_subitems: tuple[int, ...]) -> str:
+    pattern = control.GetSelectionPattern()
+    if pattern is None:
+        return ""
+    for item in pattern.GetSelection():
+        text = _uia_control_text(item, name_subitems)
+        if text:
+            return text
+    return ""
+
+
+def _uia_selected_from_lists(root) -> str:
+    import uiautomation as auto
+
+    list_control = root.ListControl(searchDepth=25)
+    if not list_control.Exists(maxSearchSeconds=0.1):
+        return ""
+    pattern = list_control.GetSelectionPattern()
+    if pattern is None:
+        return ""
+    for item in pattern.GetSelection():
+        text = (item.Name or "").strip()
+        if text:
+            return text
+    return ""
+
+
+def _uia_selected_from_grid(root, name_subitems: tuple[int, ...]) -> str:
+    import uiautomation as auto
+
+    for finder in (root.DataGridControl, root.TableControl, root.TreeControl):
+        control = finder(searchDepth=25)
+        if not control.Exists(maxSearchSeconds=0.1):
+            continue
+        for row in control.GetChildren():
+            if not (_uia_is_selected(row) or row.HasKeyboardFocus):
+                continue
+            text = _uia_control_text(row, name_subitems)
+            if text:
+                return text
+    return ""
+
+
+def _uia_walk_selected(root, name_subitems: tuple[int, ...]) -> str:
+    import uiautomation as auto
+
+    for control, _depth in auto.WalkControl(root, includeTop=True, maxDepth=35):
+        if not (_uia_is_selected(control) or control.HasKeyboardFocus):
+            continue
+        text = _uia_control_text(control, name_subitems)
+        if text:
+            return text
+    return ""
+
+
+def _uia_is_selected(control) -> bool:
+    try:
+        pattern = control.GetSelectionItemPattern()
+        return pattern is not None and pattern.IsSelected
+    except Exception:
+        return False
+
+
+def _uia_control_text(control, name_subitems: tuple[int, ...]) -> str:
+    children = control.GetChildren()
+    if children:
+        for subitem in name_subitems:
+            if 0 <= subitem < len(children):
+                text = _uia_leaf_text(children[subitem])
+                if text:
+                    return text
+        for child in children:
+            text = _uia_leaf_text(child)
+            if text:
+                return text
+
+    return _uia_leaf_text(control)
+
+
+def _uia_leaf_text(control) -> str:
+    name = (control.Name or "").strip()
+    if name:
+        return name
+    try:
+        value_pattern = control.GetValuePattern()
+        if value_pattern is not None:
+            value = (value_pattern.Value or "").strip()
+            if value:
+                return value
+    except Exception:
+        pass
+    return ""
+
+
+def _read_via_listview(express_hwnd: int, name_subitems: tuple[int, ...]) -> str:
+    for hwnd in _find_child_class_handles(express_hwnd, "SysListView32"):
         selected_index = _listview_selected_index(hwnd)
         if selected_index < 0:
-            continue
+            selected_index = 0
         for subitem in name_subitems:
             text = _listview_subitem_text(hwnd, selected_index, subitem)
             if text:
                 return text
-
-    focused = _read_focused_control_text()
-    if focused:
-        return focused
-
-    for hwnd in _find_edit_handles(target):
-        text = _read_window_text(hwnd)
-        if text:
-            return text
-
     return ""
 
 
-def _get_target_window() -> int:
-    import ctypes
-
-    user32 = ctypes.windll.user32
-    return int(user32.GetForegroundWindow())
-
-
-def _read_focused_control_text() -> str:
+def _read_via_focused_control(express_hwnd: int) -> str:
     import ctypes
 
     user32 = ctypes.windll.user32
     kernel32 = ctypes.windll.kernel32
 
-    foreground = user32.GetForegroundWindow()
-    if not foreground:
-        return ""
-
-    foreground_thread = user32.GetWindowThreadProcessId(foreground, None)
+    target_thread = user32.GetWindowThreadProcessId(express_hwnd, None)
     current_thread = kernel32.GetCurrentThreadId()
     attached = False
     try:
-        if foreground_thread and foreground_thread != current_thread:
-            user32.AttachThreadInput(current_thread, foreground_thread, True)
+        if target_thread and target_thread != current_thread:
+            user32.AttachThreadInput(current_thread, target_thread, True)
             attached = True
-        focused = user32.GetFocus()
+        focused = int(user32.GetFocus())
     finally:
         if attached:
-            user32.AttachThreadInput(current_thread, foreground_thread, False)
+            user32.AttachThreadInput(current_thread, target_thread, False)
 
     if not focused:
         return ""
 
-    return _read_window_text(int(focused))
+    return _read_window_text(focused)
 
 
 def _read_window_text(hwnd: int) -> str:
@@ -97,14 +318,6 @@ def _read_window_text(hwnd: int) -> str:
     return ""
 
 
-def _find_listview_handles(parent: int) -> list[int]:
-    return _find_child_class_handles(parent, "SysListView32")
-
-
-def _find_edit_handles(parent: int) -> list[int]:
-    return _find_child_class_handles(parent, "Edit")
-
-
 def _find_child_class_handles(parent: int, class_name: str) -> list[int]:
     if not parent:
         return []
@@ -119,9 +332,7 @@ def _find_child_class_handles(parent: int, class_name: str) -> list[int]:
 
     @EnumChildProc
     def callback(hwnd, _lparam):
-        class_buffer = ctypes.create_unicode_buffer(256)
-        user32.GetClassNameW(hwnd, class_buffer, 256)
-        if class_buffer.value == class_name:
+        if _get_class_name(int(hwnd)) == class_name:
             handles.append(int(hwnd))
         handles.extend(_find_child_class_handles(int(hwnd), class_name))
         return True

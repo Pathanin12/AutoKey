@@ -24,9 +24,10 @@ class LookupSearchSettings:
     template_retries: int = 4
     template_retry_delay: float = 0.15
     verify_selection: bool = True
-    post_search_wait: float = 0.25
+    post_search_wait: float = 0.4
     selection_name_subitems: tuple[int, ...] = (1, 0, 2, 3)
     selection_match_threshold: float = 0.85
+    express_title_contains: str = "Express"
 
 
 def activate_search_button(
@@ -95,7 +96,10 @@ def _verify_lookup_selection(
     on_status: Callable[[str], None] | None = None,
 ) -> None:
     del image
-    selected = read_selected_row_text(name_subitems=settings.selection_name_subitems)
+    selected = read_selected_row_text(
+        name_subitems=settings.selection_name_subitems,
+        express_title_contains=settings.express_title_contains,
+    )
     if selected and _looks_like_search_field(selected, query):
         selected = ""
 

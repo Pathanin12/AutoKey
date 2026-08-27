@@ -96,6 +96,10 @@ class AutomationService:
             post_search_wait=float(raw.get("post_search_wait", 0.25)),
             selection_name_subitems=self._parse_selection_name_subitems(raw.get("selection_name_subitems")),
             selection_match_threshold=float(raw.get("selection_match_threshold", 0.85)),
+            express_title_contains=str(
+                raw.get("express_title_contains")
+                or self.config.get("window_focus", {}).get("title_contains", "Express")
+            ),
         )
 
     def _parse_selection_name_subitems(self, raw_value) -> tuple[int, ...]:
