@@ -20,13 +20,16 @@ def read_selected_row_text(
         return ""
 
     readers = (
-        lambda: _read_via_uiautomation(express_title_contains, name_subitems),
-        lambda: _read_via_uiautomation_hwnd(express_hwnd, name_subitems),
         lambda: _read_via_listview(express_hwnd, name_subitems),
         lambda: _read_via_focused_control(express_hwnd),
+        lambda: _read_via_uiautomation(express_title_contains, name_subitems),
+        lambda: _read_via_uiautomation_hwnd(express_hwnd, name_subitems),
     )
     for read in readers:
-        text = read().strip()
+        try:
+            text = read().strip()
+        except Exception:
+            continue
         if text:
             return text
     return ""
@@ -126,44 +129,14 @@ def _read_via_uiautomation_hwnd(express_hwnd: int, name_subitems: tuple[int, ...
 
 def _uia_collect_selected_text(root, name_subitems: tuple[int, ...]) -> str:
     for reader in (
-        lambda: _uia_selected_from_patterns(root, name_subitems),
         lambda: _uia_selected_from_lists(root),
         lambda: _uia_selected_from_grid(root, name_subitems),
         lambda: _uia_walk_selected(root, name_subitems),
     ):
-        text = reader().strip()
-        if text:
-            return text
-    return ""
-
-
-def _uia_selected_from_patterns(root, name_subitems: tuple[int, ...]) -> str:
-    import uiautomation as auto
-
-    for control, _depth in auto.WalkControl(root, includeTop=True, maxDepth=35):
-        for reader in (
-            lambda: _uia_selection_item(control, name_subitems),
-            lambda: _uia_selection_container(control, name_subitems),
-        ):
+        try:
             text = reader().strip()
-            if text:
-                return text
-    return ""
-
-
-def _uia_selection_item(control, name_subitems: tuple[int, ...]) -> str:
-    pattern = control.GetSelectionItemPattern()
-    if pattern is None or not pattern.IsSelected:
-        return ""
-    return _uia_control_text(control, name_subitems)
-
-
-def _uia_selection_container(control, name_subitems: tuple[int, ...]) -> str:
-    pattern = control.GetSelectionPattern()
-    if pattern is None:
-        return ""
-    for item in pattern.GetSelection():
-        text = _uia_control_text(item, name_subitems)
+        except Exception:
+            continue
         if text:
             return text
     return ""
@@ -175,10 +148,17 @@ def _uia_selected_from_lists(root) -> str:
     list_control = root.ListControl(searchDepth=25)
     if not list_control.Exists(maxSearchSeconds=0.1):
         return ""
-    pattern = list_control.GetSelectionPattern()
+
+    pattern = _get_selection_pattern(list_control)
     if pattern is None:
         return ""
-    for item in pattern.GetSelection():
+
+    try:
+        items = pattern.GetSelection()
+    except Exception:
+        return ""
+
+    for item in items:
         text = (item.Name or "").strip()
         if text:
             return text
@@ -186,14 +166,15 @@ def _uia_selected_from_lists(root) -> str:
 
 
 def _uia_selected_from_grid(root, name_subitems: tuple[int, ...]) -> str:
-    import uiautomation as auto
-
-    for finder in (root.DataGridControl, root.TableControl, root.TreeControl):
+    for finder_name in ("DataGridControl", "TableControl", "TreeControl"):
+        finder = getattr(root, finder_name, None)
+        if finder is None:
+            continue
         control = finder(searchDepth=25)
         if not control.Exists(maxSearchSeconds=0.1):
             continue
         for row in control.GetChildren():
-            if not (_uia_is_selected(row) or row.HasKeyboardFocus):
+            if not (_uia_is_selected(row) or _uia_has_focus(row)):
                 continue
             text = _uia_control_text(row, name_subitems)
             if text:
@@ -204,8 +185,20 @@ def _uia_selected_from_grid(root, name_subitems: tuple[int, ...]) -> str:
 def _uia_walk_selected(root, name_subitems: tuple[int, ...]) -> str:
     import uiautomation as auto
 
-    for control, _depth in auto.WalkControl(root, includeTop=True, maxDepth=35):
-        if not (_uia_is_selected(control) or control.HasKeyboardFocus):
+    selectable_types = {
+        auto.ControlType.ListItemControl,
+        auto.ControlType.DataItemControl,
+        auto.ControlType.TreeItemControl,
+        auto.ControlType.CustomControl,
+    }
+
+    for control, _depth in auto.WalkControl(root, includeTop=False, maxDepth=35):
+        try:
+            if control.ControlType not in selectable_types:
+                continue
+        except Exception:
+            continue
+        if not (_uia_is_selected(control) or _uia_has_focus(control)):
             continue
         text = _uia_control_text(control, name_subitems)
         if text:
@@ -213,16 +206,77 @@ def _uia_walk_selected(root, name_subitems: tuple[int, ...]) -> str:
     return ""
 
 
-def _uia_is_selected(control) -> bool:
+def _uia_has_focus(control) -> bool:
     try:
-        pattern = control.GetSelectionItemPattern()
-        return pattern is not None and pattern.IsSelected
+        return bool(control.HasKeyboardFocus)
     except Exception:
         return False
 
 
+def _uia_is_selected(control) -> bool:
+    pattern = _get_selection_item_pattern(control)
+    if pattern is None:
+        return False
+    try:
+        return bool(pattern.IsSelected)
+    except Exception:
+        return False
+
+
+def _get_selection_item_pattern(control):
+    import uiautomation as auto
+
+    try:
+        getter = getattr(control, "GetSelectionItemPattern", None)
+        if callable(getter):
+            return getter()
+    except Exception:
+        pass
+
+    try:
+        return control.GetPattern(auto.PatternId.SelectionItemPattern)
+    except Exception:
+        return None
+
+
+def _get_selection_pattern(control):
+    import uiautomation as auto
+
+    try:
+        getter = getattr(control, "GetSelectionPattern", None)
+        if callable(getter):
+            return getter()
+    except Exception:
+        pass
+
+    try:
+        return control.GetPattern(auto.PatternId.SelectionPattern)
+    except Exception:
+        return None
+
+
+def _get_value_pattern(control):
+    import uiautomation as auto
+
+    try:
+        getter = getattr(control, "GetValuePattern", None)
+        if callable(getter):
+            return getter()
+    except Exception:
+        pass
+
+    try:
+        return control.GetPattern(auto.PatternId.ValuePattern)
+    except Exception:
+        return None
+
+
 def _uia_control_text(control, name_subitems: tuple[int, ...]) -> str:
-    children = control.GetChildren()
+    try:
+        children = control.GetChildren()
+    except Exception:
+        children = []
+
     if children:
         for subitem in name_subitems:
             if 0 <= subitem < len(children):
@@ -238,18 +292,20 @@ def _uia_control_text(control, name_subitems: tuple[int, ...]) -> str:
 
 
 def _uia_leaf_text(control) -> str:
-    name = (control.Name or "").strip()
+    try:
+        name = (control.Name or "").strip()
+    except Exception:
+        name = ""
     if name:
         return name
+
+    value_pattern = _get_value_pattern(control)
+    if value_pattern is None:
+        return ""
     try:
-        value_pattern = control.GetValuePattern()
-        if value_pattern is not None:
-            value = (value_pattern.Value or "").strip()
-            if value:
-                return value
+        return (value_pattern.Value or "").strip()
     except Exception:
-        pass
-    return ""
+        return ""
 
 
 def _read_via_listview(express_hwnd: int, name_subitems: tuple[int, ...]) -> str:
