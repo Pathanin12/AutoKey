@@ -8,9 +8,7 @@ from constants.routes import (
     ACCOUNT_CASH,
     ACCOUNT_SERVICE,
     ACCOUNT_VAT,
-    MENU_ACCOUNT,
-    MENU_DAILY_ENTRY,
-    MENU_PAYMENT_JOURNAL,
+    MENU_PAYMENT_JOURNAL_PATH,
     VENDOR_LOOKUP_KEY,
 )
 from models.ka_tam_row import KaTamRow
@@ -28,6 +26,7 @@ from services.lookup_search_service import (
     search_and_select,
 )
 from services.template_click_service import TemplateClickService
+from services.menu_navigation_service import open_payment_journal_menu
 from services.tax_reference_service import resolve_tax_payer_id
 
 
@@ -69,10 +68,13 @@ class KaTamWorkflow:
         config: RunConfig,
         rows: list[KaTamRow],
         progress_callback: Callable[[int, int], None] | None = None,
+        *,
+        open_payment_journal: bool = False,
     ) -> None:
         report_progress = progress_callback or self.on_progress
-        self._step(self.STEP_OPEN_MENU, "เปิดเมนูสมุดรายวันจ่าย", "5 > 1 > 2")
-        self._open_payment_journal()
+        if open_payment_journal:
+            self._step(self.STEP_OPEN_MENU, "เปิดเมนูสมุดรายวันจ่าย", MENU_PAYMENT_JOURNAL_PATH)
+            self._open_payment_journal()
 
         total = len(rows)
         completed_count = 0
@@ -147,12 +149,35 @@ class KaTamWorkflow:
         self.on_status(message)
 
     def _open_payment_journal(self) -> None:
-        self.image.press(MENU_ACCOUNT)
-        self.image.wait(0.15)
-        self.image.press(MENU_DAILY_ENTRY)
-        self.image.wait(0.15)
-        self.image.press(MENU_PAYMENT_JOURNAL)
-        self.image.wait(0.25)
+        if self.template_click is None:
+            raise RuntimeError("ต้องเปิด template_click และจับภาพเมนู 5-1-2")
+
+        open_payment_journal_menu(
+            self.image,
+            self.template_click,
+            on_status=self.on_status,
+            template_retries=self.lookup_search_settings.template_retries,
+            template_retry_delay=self.lookup_search_settings.template_retry_delay,
+        )
+
+    def open_payment_journal_after_lookup(self, query: str) -> None:
+        name = query.strip()
+        if not name:
+            raise RuntimeError("ไม่พบชื่อสำหรับค้นหาใน dialog เลือกข้อมูล")
+
+        self._status(f"ค้นหาใน dialog: {name}")
+        search_and_select(
+            self.image,
+            self.lookup_search_settings,
+            name,
+            template_click=self.template_click,
+            on_status=self.on_status,
+        )
+        self.open_payment_journal_only()
+
+    def open_payment_journal_only(self) -> None:
+        self._step(self.STEP_OPEN_MENU, "เปิดเมนูสมุดรายวันจ่าย", MENU_PAYMENT_JOURNAL_PATH)
+        self._open_payment_journal()
 
     def select_company_flow(self, company_name: str) -> None:
         name = company_name.strip()

@@ -23,9 +23,11 @@ ACCOUNT_SERVICE = "5330-05"
 ACCOUNT_VAT = "1154-00"
 ACCOUNT_CASH = "1111-00"
 
-MENU_ACCOUNT = "5"
-MENU_DAILY_ENTRY = "1"
-MENU_PAYMENT_JOURNAL = "2"
+# เส้นทางเมนู 5 > 1 > 2 — คลิกจับภาพ (Express ไม่มีคีย์ลัด)
+MENU_ACCOUNT_LABEL = "5.บัญชี"
+MENU_DAILY_ENTRY_LABEL = "1.ลงประจำวัน"
+MENU_PAYMENT_JOURNAL_LABEL = "2.สมุดรายวันจ่าย"
+MENU_PAYMENT_JOURNAL_PATH = "5 > 1 > 2"
 MENU_OTHERS = "8"
 MENU_OTHERS_CHANGE_COMPANY = "8"
 VENDOR_LOOKUP_KEY = "f8"
@@ -53,6 +55,7 @@ UI_TEXT = {
     "copy_all_log": "คัดลอกทั้งหมด",
     "welcome_log": (
         "Express อยู่ dialog เลือกข้อมูล → กดเริ่ม\n"
+        "AutoKey: ค้นหา + verify → 5 > 1 > 2 → ทำ PV ทุกแถว\n"
         "กด Ctrl+F9 หรือ Esc เพื่อยกเลิกขณะทำงาน"
     ),
     "ready": "พร้อมทำงาน",

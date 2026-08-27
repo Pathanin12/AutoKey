@@ -8,7 +8,8 @@ import yaml
 
 from constants.routes import CONFIG_PATH, SCREEN_HEIGHT, SCREEN_WIDTH, TOPIC_LABEL, UI_TEXT
 from constants.template_actions import DEFAULT_TEMPLATE_CLICK_ACTIONS
-from models.run_config import RunConfig
+from models.ka_tam_row import KaTamRow
+from models.run_config import ExcelSheetSummary, RunConfig
 from models.run_failure import RunFailureError
 from models.template_click_settings import TemplateClickAction, TemplateClickSettings
 from models.template_target import TemplateTarget
@@ -16,7 +17,7 @@ from models.window_focus_settings import WindowFocusSettings
 from services.company_switch_service import CompanySwitchSettings
 from services.excel_service import ExcelService
 from services.image_service import ImageService
-from services.lookup_search_service import LookupSearchSettings
+from services.lookup_search_service import LookupSearchSettings, LookupSelectionMismatchError
 from services.template_click_service import TemplateClickService
 from services.window_focus_service import focus_express_window
 from topics.ka_tam.workflow import KaTamWorkflow
@@ -249,6 +250,18 @@ class AutomationService:
                     template_click_service=template_click,
                 )
 
+                first_lookup_name = self._first_lookup_name(run_config, sheet_summaries, cached_rows)
+                try:
+                    if first_lookup_name:
+                        workflow.open_payment_journal_after_lookup(first_lookup_name)
+                    else:
+                        workflow.open_payment_journal_only()
+                except LookupSelectionMismatchError as exc:
+                    on_finished(False, str(exc))
+                    return
+
+                self._check_stop()
+
                 processed_rows = 0
 
                 for sheet_index, summary in enumerate(sheet_summaries):
@@ -269,7 +282,12 @@ class AutomationService:
                             )
 
                     try:
-                        workflow.run(run_config, rows, progress_callback=progress_callback)
+                        workflow.run(
+                            run_config,
+                            rows,
+                            progress_callback=progress_callback,
+                            open_payment_journal=False,
+                        )
                     except RunFailureError as exc:
                         failure = exc.with_completed_offset(processed_rows)
                         on_finished(False, failure.format_summary())
@@ -314,11 +332,31 @@ class AutomationService:
         try:
             from services.template_match_service import load_step_template
 
-            action = self.template_click_settings.get_action("lookup_search")
-            load_step_template(action.target)
+            for action_id in (
+                "lookup_search",
+                "menu_account",
+                "menu_daily_entry",
+                "menu_payment_journal",
+            ):
+                action = self.template_click_settings.get_action(action_id)
+                load_step_template(action.target)
         except Exception:
             return
 
     def _check_stop(self) -> None:
         if self._stop_event.is_set():
             raise InterruptedError("หยุดโดยผู้ใช้")
+
+    def _first_lookup_name(
+        self,
+        run_config: RunConfig,
+        sheet_summaries: list[ExcelSheetSummary],
+        cached_rows: dict[str, list[KaTamRow]] | None,
+    ) -> str:
+        for summary in sheet_summaries:
+            rows = cached_rows.get(summary.name) if cached_rows else None
+            if rows is None:
+                rows = ExcelService.load_ka_tam_rows(run_config.excel_path, summary.name)
+            if rows:
+                return rows[0].legal_name.strip()
+        return ""

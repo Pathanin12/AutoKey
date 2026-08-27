@@ -54,6 +54,21 @@ template_click:
       template_file: btn_ok.png
       match_threshold: 0.88
       search_region: [580, 520, 990, 670]
+    menu_account:
+      label: 5.บัญชี
+      template_file: menu_account.png
+      match_threshold: 0.88
+      search_region: [80, 0, 980, 90]
+    menu_daily_entry:
+      label: 1.ลงประจำวัน
+      template_file: menu_daily_entry.png
+      match_threshold: 0.88
+      search_region: [80, 40, 720, 480]
+    menu_payment_journal:
+      label: 2.สมุดรายวันจ่าย
+      template_file: menu_payment_journal.png
+      match_threshold: 0.88
+      search_region: [280, 40, 980, 560]
 
 company_switch:
   menu_others: "8"
