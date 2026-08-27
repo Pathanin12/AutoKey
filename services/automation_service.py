@@ -126,6 +126,7 @@ class AutomationService:
         self,
         on_log: Callable[[str], None] | None = None,
     ) -> ImageService:
+        del on_log
         settings = self.automation_settings
         screen = self.screen_settings
         return ImageService(
@@ -134,7 +135,6 @@ class AutomationService:
             fail_safe=bool(settings.get("fail_safe", True)),
             screen_width=int(screen.get("width", SCREEN_WIDTH)),
             screen_height=int(screen.get("height", SCREEN_HEIGHT)),
-            on_log=on_log,
         )
 
     def create_template_click_service(
@@ -165,6 +165,7 @@ class AutomationService:
         on_progress: Callable[[int, int], None],
         on_finished: Callable[[bool, str], None],
         on_step: Callable[[int, str, str], None] | None = None,
+        verbose_log: bool = False,
     ) -> None:
         if self.is_running():
             on_finished(False, "ระบบกำลังทำงานอยู่")
@@ -189,7 +190,7 @@ class AutomationService:
 
                 cached_rows = run_config.sheet_rows
 
-                image = self.create_image_service(on_log=on_status)
+                image = self.create_image_service()
                 self._warmup_automation(image, on_status=on_status)
                 self._check_stop()
 
@@ -209,6 +210,7 @@ class AutomationService:
                     on_status=on_status,
                     on_progress=on_progress,
                     on_step=on_step,
+                    verbose_log=verbose_log,
                     company_switch_settings=self.company_switch_settings,
                     lookup_search_settings=self.lookup_search_settings,
                     template_click_service=template_click,

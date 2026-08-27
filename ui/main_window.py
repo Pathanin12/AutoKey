@@ -26,6 +26,9 @@ class MainWindow:
         self.automation_service = AutomationService()
         ui_settings = self.automation_service.ui_settings
         self.hide_on_start = bool(ui_settings.get("hide_on_start", False))
+        self.clear_log_on_start = bool(ui_settings.get("clear_log_on_start", True))
+        self.log_max_lines = max(50, int(ui_settings.get("log_max_lines", 300)))
+        self.verbose_log = bool(ui_settings.get("verbose_log", False))
         cancel_hotkeys = ui_settings.get("cancel_hotkeys") or ui_settings.get("cancel_hotkey", "esc")
         self.hotkey_service = HotkeyService(cancel_hotkeys)
         self.hotkey_label = self.hotkey_service.display_label
@@ -214,6 +217,8 @@ class MainWindow:
 
         self.is_running = True
         self._total_rows = confirm_rows
+        if self.clear_log_on_start:
+            self._clear_log()
         self._append_log(UI_TEXT["cancel_hotkey_hint"].format(hotkey=self.hotkey_label))
         self.hotkey_service.start_listening(self._stop)
         if self.hide_on_start:
@@ -225,6 +230,7 @@ class MainWindow:
             on_progress=self._set_progress,
             on_step=self._set_step,
             on_finished=self._on_finished,
+            verbose_log=self.verbose_log,
         )
 
     def _stop(self) -> None:
@@ -272,8 +278,19 @@ class MainWindow:
 
     def _append_log(self, message: str) -> None:
         self.log_box.insert("end", message + "\n")
+        self._trim_log()
         self.log_box.see("end")
         self.status_text.set(message)
+
+    def _clear_log(self) -> None:
+        self.log_box.delete("1.0", "end")
+
+    def _trim_log(self) -> None:
+        line_count = int(self.log_box.index("end-1c").split(".")[0])
+        if line_count <= self.log_max_lines:
+            return
+        overflow = line_count - self.log_max_lines
+        self.log_box.delete("1.0", f"{overflow + 1}.0")
 
     def _setup_log_box_bindings(self) -> None:
         self.log_box.bind("<KeyPress>", self._on_log_key, add="+")

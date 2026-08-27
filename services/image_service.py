@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import sys
 import time
-from typing import Callable
 
 try:
     import pyautogui
 except ImportError:  # pragma: no cover - dev on non-runtime env
     pyautogui = None
 
-from constants.routes import UI_TEXT
 from services.clipboard_service import copy_text
 
 
@@ -23,13 +21,11 @@ class ImageService:
         fail_safe: bool = True,
         screen_width: int = 1920,
         screen_height: int = 1080,
-        on_log: Callable[[str], None] | None = None,
     ) -> None:
         self.action_delay = action_delay
         self.type_interval = type_interval
         self.screen_width = screen_width
         self.screen_height = screen_height
-        self.on_log = on_log
         self._ensure_runtime()
         pyautogui.FAILSAFE = fail_safe
         pyautogui.PAUSE = 0
@@ -64,18 +60,16 @@ class ImageService:
         pyautogui.press(keys[0], presses=presses, interval=0.03)
         self.wait(0.03)
 
-    def type_text(self, text: str, clear_first: bool = True, *, field: str = "ข้อความ") -> None:
-        self._paste_text(text, clear_first=clear_first, field=field)
+    def type_text(self, text: str, clear_first: bool = True) -> None:
+        self._paste_text(text, clear_first=clear_first)
 
-    def type_thai(self, text: str, clear_first: bool = True, *, field: str = "ข้อความไทย") -> None:
-        self._paste_text(text, clear_first=clear_first, field=field)
+    def type_thai(self, text: str, clear_first: bool = True) -> None:
+        self._paste_text(text, clear_first=clear_first)
 
-    def _paste_text(self, text: str, clear_first: bool = True, *, field: str = "ข้อความ") -> None:
+    def _paste_text(self, text: str, clear_first: bool = True) -> None:
         if not text:
             return
         self._ensure_runtime()
-        if self.on_log:
-            self.on_log(UI_TEXT["paste_log"].format(field=field, text=text))
         if clear_first:
             pyautogui.hotkey("ctrl", "a")
             time.sleep(0.04)

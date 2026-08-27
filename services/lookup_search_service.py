@@ -76,7 +76,7 @@ def search_and_select(
     if not name:
         return
     activate_search_button(image, settings, template_click=template_click)
-    image.type_thai(name, clear_first=True, field="ค้นหา vendor")
+    image.type_thai(name, clear_first=True)
     image.wait(0.15)
     presses = max(1, confirm_enter_count if confirm_enter_count is not None else settings.confirm_enter_count)
     for _ in range(presses):
