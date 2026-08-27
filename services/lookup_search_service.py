@@ -31,7 +31,7 @@ class LookupSearchSettings:
     selection_match_threshold: float = 0.85
     express_title_contains: str = "Express"
     selection_ocr_grid_region: tuple[int, int, int, int] = (520, 380, 980, 580)
-    selection_ocr_name_x: tuple[int, int] = (640, 970)
+    selection_ocr_name_x: tuple[int, int] = (530, 780)
     selection_ocr_row_height: int = 22
     selection_ocr_lang: str = "tha"
     tesseract_cmd: str = ""

@@ -17,6 +17,13 @@ def thai_only(value: str) -> str:
     return "".join(ch for ch in value if "\u0E00" <= ch <= "\u0E7F")
 
 
+def last_token(value: str) -> str:
+    parts = value.split()
+    if not parts:
+        return normalize_name(value)
+    return normalize_name(parts[-1])
+
+
 def name_similarity(expected: str, actual: str) -> float:
     expected_norm = normalize_name(expected)
     actual_norm = normalize_name(actual)
@@ -37,4 +44,14 @@ def name_similarity(expected: str, actual: str) -> float:
 
 
 def names_match(expected: str, actual: str, threshold: float = 0.85) -> bool:
-    return name_similarity(expected, actual) >= threshold
+    if name_similarity(expected, actual) < threshold:
+        return False
+
+    expected_last = last_token(expected)
+    actual_last = last_token(actual)
+    if len(expected_last) >= 2 and len(actual_last) >= 2:
+        tail_ratio = SequenceMatcher(None, expected_last, actual_last).ratio()
+        if tail_ratio < 0.95:
+            return False
+
+    return True

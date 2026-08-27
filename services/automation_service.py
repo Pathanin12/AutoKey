@@ -102,7 +102,7 @@ class AutomationService:
                 or self.config.get("window_focus", {}).get("title_contains", "Express")
             ),
             selection_ocr_grid_region=self._parse_region(raw.get("selection_ocr_grid_region"), (520, 380, 980, 580)),
-            selection_ocr_name_x=self._parse_pair(raw.get("selection_ocr_name_x"), (640, 970)),
+            selection_ocr_name_x=self._parse_pair(raw.get("selection_ocr_name_x"), (530, 780)),
             selection_ocr_row_height=int(raw.get("selection_ocr_row_height", 22)),
             selection_ocr_lang=str(raw.get("selection_ocr_lang", "tha")),
             tesseract_cmd=str(raw.get("tesseract_cmd", "")),
