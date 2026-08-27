@@ -33,7 +33,7 @@ class LookupSearchSettings:
     selection_ocr_grid_region: tuple[int, int, int, int] = (520, 380, 980, 580)
     selection_ocr_name_x: tuple[int, int] = (640, 970)
     selection_ocr_row_height: int = 22
-    selection_ocr_lang: str = "tha+eng"
+    selection_ocr_lang: str = "tha"
     tesseract_cmd: str = ""
 
     @property
@@ -112,7 +112,7 @@ def _verify_lookup_selection(
     *,
     on_status: Callable[[str], None] | None = None,
 ) -> None:
-    selected = _read_verified_selection_text(image, settings)
+    selected = _read_verified_selection_text(image, settings, query)
     if selected and _looks_like_search_field(selected, query):
         selected = ""
 
@@ -125,10 +125,14 @@ def _verify_lookup_selection(
     raise LookupSelectionMismatchError(message)
 
 
-def _read_verified_selection_text(image: ImageService, settings: LookupSearchSettings) -> str:
+def _read_verified_selection_text(
+    image: ImageService,
+    settings: LookupSearchSettings,
+    query: str,
+) -> str:
     method = settings.verify_method.strip().lower() or "ocr"
     if method in {"ocr", "ocr_then_uia"}:
-        text = read_highlighted_vendor_name(image, settings.ocr_settings)
+        text = read_highlighted_vendor_name(image, settings.ocr_settings, expected=query)
         if text:
             return text
     if method in {"uia", "ocr_then_uia"}:
