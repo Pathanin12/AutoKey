@@ -188,12 +188,13 @@ class AutomationService:
                     return
 
                 cached_rows = run_config.sheet_rows
-                total_rows = sum(summary.row_count for summary in sheet_summaries)
-                on_status(f"ทำรายการ: {total_rows} แถว")
 
                 image = self.create_image_service(on_log=on_status)
                 self._warmup_automation(image, on_status=on_status)
                 self._check_stop()
+
+                total_rows = sum(summary.row_count for summary in sheet_summaries)
+                on_status(f"ทำรายการ: {total_rows} แถว")
 
                 focus_express_window(self.window_focus_settings, on_status=on_status)
                 self._check_stop()

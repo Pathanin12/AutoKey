@@ -4,13 +4,14 @@ import sys
 
 
 def copy_text(text: str) -> None:
-    if sys.platform == "win32":
+    try:
+        import pyperclip
+
+        pyperclip.copy(text)
+    except Exception:
+        if sys.platform != "win32":
+            raise
         _copy_windows_unicode(text)
-        return
-
-    import pyperclip
-
-    pyperclip.copy(text)
 
 
 def _copy_windows_unicode(text: str) -> None:
@@ -22,12 +23,22 @@ def _copy_windows_unicode(text: str) -> None:
 
     user32 = ctypes.windll.user32
     kernel32 = ctypes.windll.kernel32
+
+    user32.OpenClipboard.argtypes = [wintypes.HWND]
+    user32.OpenClipboard.restype = wintypes.BOOL
+    user32.EmptyClipboard.restype = wintypes.BOOL
+    user32.SetClipboardData.argtypes = [wintypes.UINT, wintypes.HANDLE]
+    user32.SetClipboardData.restype = wintypes.HANDLE
+    user32.CloseClipboard.restype = wintypes.BOOL
+
     kernel32.GlobalAlloc.argtypes = [wintypes.UINT, ctypes.c_size_t]
     kernel32.GlobalAlloc.restype = wintypes.HGLOBAL
     kernel32.GlobalLock.argtypes = [wintypes.HGLOBAL]
-    kernel32.GlobalLock.restype = ctypes.c_void_p
+    kernel32.GlobalLock.restype = wintypes.LPVOID
     kernel32.GlobalUnlock.argtypes = [wintypes.HGLOBAL]
     kernel32.GlobalUnlock.restype = wintypes.BOOL
+    kernel32.GlobalFree.argtypes = [wintypes.HGLOBAL]
+    kernel32.GlobalFree.restype = wintypes.HGLOBAL
 
     if not user32.OpenClipboard(None):
         raise RuntimeError("เปิด clipboard ไม่ได้")
@@ -41,10 +52,12 @@ def _copy_windows_unicode(text: str) -> None:
             raise RuntimeError("จอง memory สำหรับ clipboard ไม่ได้")
         locked = kernel32.GlobalLock(handle)
         if not locked:
+            kernel32.GlobalFree(handle)
             raise RuntimeError("ล็อก memory สำหรับ clipboard ไม่ได้")
         ctypes.memmove(locked, encoded, len(encoded))
         kernel32.GlobalUnlock(handle)
         if not user32.SetClipboardData(CF_UNICODETEXT, handle):
+            kernel32.GlobalFree(handle)
             raise RuntimeError("ตั้งค่า clipboard ไม่ได้")
         handle = None
     finally:

@@ -214,7 +214,6 @@ class MainWindow:
 
         self.is_running = True
         self._total_rows = confirm_rows
-        self._append_log(UI_TEXT["starting"])
         self._append_log(UI_TEXT["cancel_hotkey_hint"].format(hotkey=self.hotkey_label))
         self.hotkey_service.start_listening(self._stop)
         if self.hide_on_start:
