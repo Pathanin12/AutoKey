@@ -55,6 +55,11 @@ class ImageService:
         pyautogui.click(x, y)
         self.wait(0.03)
 
+    def move_to(self, x: int, y: int) -> None:
+        self._ensure_runtime()
+        pyautogui.moveTo(x, y)
+        self.wait(0.03)
+
     def press(self, *keys: str, presses: int = 1) -> None:
         self._ensure_runtime()
         if len(keys) > 1:

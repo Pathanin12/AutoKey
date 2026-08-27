@@ -43,7 +43,7 @@ MENU_PAYMENT_JOURNAL_TARGET = TemplateTarget(
     step_id="menu_payment_journal",
     label="2.สมุดรายวันจ่าย",
     template_file="menu_payment_journal.png",
-    match_threshold=0.88,
+    match_threshold=0.80,
 )
 
 DEFAULT_TEMPLATE_CLICK_ACTIONS: tuple[TemplateClickAction, ...] = (

@@ -67,8 +67,8 @@ template_click:
     menu_payment_journal:
       label: 2.สมุดรายวันจ่าย
       template_file: menu_payment_journal.png
-      match_threshold: 0.88
-      search_region: [280, 40, 980, 560]
+      match_threshold: 0.80
+      search_region: [520, 35, 980, 140]
 
 company_switch:
   menu_others: "8"
