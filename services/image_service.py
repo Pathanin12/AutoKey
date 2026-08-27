@@ -80,6 +80,6 @@ class ImageService:
             pyautogui.hotkey("ctrl", "a")
             time.sleep(0.04)
         copy_text(text)
-        time.sleep(0.06 if sys.platform == "win32" else 0.04)
+        time.sleep(0.1 if sys.platform == "win32" else 0.04)
         pyautogui.hotkey("ctrl", "v")
         self.wait(0.05)

@@ -1,25 +1,27 @@
 from __future__ import annotations
 
+import ctypes
 import sys
+
+CF_TEXT = 1
+CF_UNICODETEXT = 13
+GMEM_MOVEABLE = 0x0002
+THAI_ANSI_ENCODING = "cp874"
 
 
 def copy_text(text: str) -> None:
-    try:
-        import pyperclip
+    if sys.platform == "win32":
+        _copy_windows_express(text)
+        return
 
-        pyperclip.copy(text)
-    except Exception:
-        if sys.platform != "win32":
-            raise
-        _copy_windows_unicode(text)
+    import pyperclip
+
+    pyperclip.copy(text)
 
 
-def _copy_windows_unicode(text: str) -> None:
-    import ctypes
+def _copy_windows_express(text: str) -> None:
+    """Express Accounting อ่าน CF_TEXT (TIS-620/cp874) — ใส่ทั้ง ANSI และ Unicode"""
     from ctypes import wintypes
-
-    CF_UNICODETEXT = 13
-    GMEM_MOVEABLE = 0x0002
 
     user32 = ctypes.windll.user32
     kernel32 = ctypes.windll.kernel32
@@ -43,24 +45,57 @@ def _copy_windows_unicode(text: str) -> None:
     if not user32.OpenClipboard(None):
         raise RuntimeError("เปิด clipboard ไม่ได้")
 
-    handle = None
+    pending_handles: list[wintypes.HGLOBAL] = []
     try:
         user32.EmptyClipboard()
-        encoded = text.encode("utf-16-le") + b"\x00\x00"
-        handle = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(encoded))
-        if not handle:
-            raise RuntimeError("จอง memory สำหรับ clipboard ไม่ได้")
-        locked = kernel32.GlobalLock(handle)
-        if not locked:
+
+        unicode_bytes = text.encode("utf-16-le") + b"\x00\x00"
+        _put_clipboard_format(
+            user32,
+            kernel32,
+            CF_UNICODETEXT,
+            unicode_bytes,
+            pending_handles,
+        )
+
+        ansi_bytes = text.encode(THAI_ANSI_ENCODING, errors="replace") + b"\x00"
+        _put_clipboard_format(
+            user32,
+            kernel32,
+            CF_TEXT,
+            ansi_bytes,
+            pending_handles,
+        )
+        pending_handles.clear()
+    except Exception:
+        for handle in pending_handles:
             kernel32.GlobalFree(handle)
-            raise RuntimeError("ล็อก memory สำหรับ clipboard ไม่ได้")
-        ctypes.memmove(locked, encoded, len(encoded))
-        kernel32.GlobalUnlock(handle)
-        if not user32.SetClipboardData(CF_UNICODETEXT, handle):
-            kernel32.GlobalFree(handle)
-            raise RuntimeError("ตั้งค่า clipboard ไม่ได้")
-        handle = None
+        raise
     finally:
-        if handle is not None:
-            kernel32.GlobalFree(handle)
         user32.CloseClipboard()
+
+
+def _put_clipboard_format(
+    user32,
+    kernel32,
+    format_id: int,
+    data: bytes,
+    pending_handles: list,
+) -> None:
+    handle = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(data))
+    if not handle:
+        raise RuntimeError("จอง memory สำหรับ clipboard ไม่ได้")
+
+    locked = kernel32.GlobalLock(handle)
+    if not locked:
+        kernel32.GlobalFree(handle)
+        raise RuntimeError("ล็อก memory สำหรับ clipboard ไม่ได้")
+
+    ctypes.memmove(locked, data, len(data))
+    kernel32.GlobalUnlock(handle)
+
+    if not user32.SetClipboardData(format_id, handle):
+        kernel32.GlobalFree(handle)
+        raise RuntimeError("ตั้งค่า clipboard ไม่ได้")
+
+    pending_handles.append(handle)
