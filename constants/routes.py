@@ -28,6 +28,7 @@ MENU_ACCOUNT_LABEL = "5.บัญชี"
 MENU_DAILY_ENTRY_LABEL = "1.ลงประจำวัน"
 MENU_PAYMENT_JOURNAL_LABEL = "2.สมุดรายวันจ่าย"
 MENU_PAYMENT_JOURNAL_PATH = "5 > 1 > 2"
+PV_NEW_FILE_KEYS = ("alt", "a")
 MENU_OTHERS = "8"
 MENU_OTHERS_CHANGE_COMPANY = "8"
 VENDOR_LOOKUP_KEY = "f8"
@@ -41,7 +42,7 @@ UI_TEXT = {
     "pv_date": "วันที่ใบสำคัญ",
     "pv_date_hint": "ค่าเริ่มต้นเป็นวันที่ทำการ (วันนี้) — แก้ได้ก่อนกดเริ่ม",
     "description": "รายละเอียด",
-    "description_hint": "ใช้เหมือนกันทุกแถวในรอบนั้น — พิมพ์ในช่องรายละเอียดหลัง F2",
+    "description_hint": "ใช้เหมือนกันทุกแถวในรอบนั้น — พิมพ์ในช่องรายละเอียดหลัง Alt+A",
     "tax_payer_id": "เลขผู้เสียภาษี",
     "tax_payer_id_hint": "อ่านจากคอลัมน์ TAX ID ใน Excel ทุกแถว — ช่องนี้ใช้เมื่อแถวใดใน Excel ว่าง",
     "start": "เริ่มทำงาน",

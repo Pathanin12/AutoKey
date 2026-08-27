@@ -9,6 +9,7 @@ from constants.routes import (
     ACCOUNT_SERVICE,
     ACCOUNT_VAT,
     MENU_PAYMENT_JOURNAL_PATH,
+    PV_NEW_FILE_KEYS,
     VENDOR_LOOKUP_KEY,
 )
 from models.ka_tam_row import KaTamRow
@@ -87,11 +88,7 @@ class KaTamWorkflow:
             try:
                 self._check_stop()
                 self._step(self.STEP_NEW_VOUCHER, "สร้างรายการใหม่", row_detail)
-                self._create_voucher(config, row)
-
-                self._check_stop()
-                self._step(self.STEP_HEADER, "กรอกหัวเรื่อง", row_detail)
-                self._fill_header(config, row)
+                self._create_voucher(config)
 
                 self._check_stop()
                 self._step(
@@ -210,19 +207,24 @@ class KaTamWorkflow:
         self.return_to_main_menu()
         open_change_company_menu(self.image, self.company_switch_settings)
 
-    def _create_voucher(self, config: RunConfig, row: KaTamRow) -> None:
-        self.image.press("f2")
+    def _create_voucher(self, config: RunConfig) -> None:
+        """Alt+A เปิดไฟล์ใหม่ → Enter → วันที่ → Enter → รายละเอียด → Enter"""
+        self.image.press(*PV_NEW_FILE_KEYS)
+        self.image.wait(0.2)
+        self.image.press("enter")
         self.image.wait(0.15)
-        if config.pv_date.strip():
-            self.image.type_text(config.pv_date.strip(), clear_first=True)
 
-    def _fill_header(self, config: RunConfig, row: KaTamRow) -> None:
-        self.image.press("tab", presses=2)
-        if config.pv_date.strip():
-            self.image.type_text(config.pv_date.strip(), clear_first=True)
-        if config.description.strip():
-            self.image.press("tab", presses=2)
-            self.image.type_thai(config.description.strip(), clear_first=True)
+        pv_date = config.pv_date.strip()
+        if pv_date:
+            self.image.type_text(pv_date, clear_first=True)
+        self.image.press("enter")
+        self.image.wait(0.15)
+
+        description = config.description.strip()
+        if description:
+            self.image.type_thai(description, clear_first=True)
+        self.image.press("enter")
+        self.image.wait(0.15)
 
     def _fill_service_line(self, row: KaTamRow) -> None:
         self._enter_grid_row(
