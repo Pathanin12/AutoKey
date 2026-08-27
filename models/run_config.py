@@ -19,6 +19,7 @@ class RunConfig:
     pv_date: str
     description: str = ""
     tax_payer_id: str = ""
+    start_from_no: int = 1
     sheet_summaries: list[ExcelSheetSummary] | None = None
     sheet_rows: dict[str, list[KaTamRow]] = field(default_factory=dict)
 
@@ -28,9 +29,29 @@ class RunConfig:
             errors.append(f"ไม่พบไฟล์ Excel: {self.excel_path}")
         if not self.pv_date.strip():
             errors.append("กรุณากรอกวันที่ใบสำคัญ")
+        if self.start_from_no < 1:
+            errors.append("เริ่มที่ No. ต้อง ≥ 1")
         if self.sheet_summaries is not None and not self.sheet_summaries:
             errors.append("ไม่พบข้อมูลที่รองรับในไฟล์ Excel")
+        if self.sheet_summaries and self.sheet_rows and self.planned_row_count() == 0:
+            errors.append(f"ไม่พบแถวที่ No. ≥ {self.start_from_no}")
         return errors
+
+    def filter_rows(self, rows: list[KaTamRow]) -> list[KaTamRow]:
+        if self.start_from_no <= 1:
+            return rows
+        return [row for row in rows if row.sequence >= self.start_from_no]
+
+    def planned_row_count(self) -> int:
+        if not self.sheet_summaries:
+            return 0
+        if self.sheet_rows:
+            total = 0
+            for summary in self.sheet_summaries:
+                rows = self.sheet_rows.get(summary.name, [])
+                total += len(self.filter_rows(rows))
+            return total
+        return self.total_rows
 
     @property
     def sheet_names(self) -> list[str]:

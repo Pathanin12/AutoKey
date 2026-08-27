@@ -25,6 +25,7 @@ accounts:
 
 defaults:
   pv_date: ""
+  start_from_no: 1
 
 lookup_search:
   confirm_enter_count: 2

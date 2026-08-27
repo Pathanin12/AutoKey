@@ -228,7 +228,13 @@ class AutomationService:
                 self._warmup_automation(image, on_status=on_status)
                 self._check_stop()
 
-                total_rows = sum(summary.row_count for summary in sheet_summaries)
+                total_rows = self._planned_row_count(run_config, sheet_summaries, cached_rows)
+                if total_rows == 0:
+                    on_finished(False, f"ไม่พบแถวที่ No. ≥ {run_config.start_from_no}")
+                    return
+
+                if run_config.start_from_no > 1:
+                    on_status(f"เริ่มที่ No. {run_config.start_from_no}")
                 on_status(f"ทำรายการ: {total_rows} แถว")
 
                 focus_express_window(self.window_focus_settings, on_status=on_status)
@@ -269,6 +275,7 @@ class AutomationService:
                     rows = cached_rows.get(summary.name) if cached_rows else None
                     if rows is None:
                         rows = ExcelService.load_ka_tam_rows(run_config.excel_path, summary.name)
+                    rows = run_config.filter_rows(rows)
                     if not rows:
                         continue
 
@@ -347,6 +354,21 @@ class AutomationService:
         if self._stop_event.is_set():
             raise InterruptedError("หยุดโดยผู้ใช้")
 
+    def _planned_row_count(
+        self,
+        run_config: RunConfig,
+        sheet_summaries: list[ExcelSheetSummary],
+        cached_rows: dict[str, list[KaTamRow]] | None,
+    ) -> int:
+        if cached_rows:
+            return run_config.planned_row_count()
+
+        total = 0
+        for summary in sheet_summaries:
+            rows = ExcelService.load_ka_tam_rows(run_config.excel_path, summary.name)
+            total += len(run_config.filter_rows(rows))
+        return total
+
     def _first_lookup_name(
         self,
         run_config: RunConfig,
@@ -357,6 +379,7 @@ class AutomationService:
             rows = cached_rows.get(summary.name) if cached_rows else None
             if rows is None:
                 rows = ExcelService.load_ka_tam_rows(run_config.excel_path, summary.name)
+            rows = run_config.filter_rows(rows)
             if rows:
                 return rows[0].legal_name.strip()
         return ""

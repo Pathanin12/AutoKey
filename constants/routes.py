@@ -42,6 +42,8 @@ UI_TEXT = {
     "excel_summary_empty": "ยังไม่ได้เลือกไฟล์ Excel",
     "pv_date": "วันที่ใบสำคัญ",
     "pv_date_hint": "รูปแบบ วัน/เดือน/ปี(2 หลัก) เช่น 25/07/69 — ค่าเริ่มต้นเป็นวันนี้",
+    "start_from_no": "เริ่มที่ No.",
+    "start_from_no_hint": "คอลัมน์ No ใน Excel — ใช้ resume หลัง error (เช่น เริ่มใหม่ที่ 5)",
     "description": "รายละเอียด",
     "description_hint": "ใช้เหมือนกันทุกแถวในรอบนั้น — พิมพ์ในช่องรายละเอียดหลัง Alt+A",
     "tax_payer_id": "เลขผู้เสียภาษี",

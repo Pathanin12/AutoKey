@@ -19,7 +19,7 @@ class MainWindow:
     def __init__(self) -> None:
         self.root = tk.Tk()
         self.root.title(f"{UI_TEXT['app_title']} v{__version__}")
-        self.root.geometry("560x540")
+        self.root.geometry("560x580")
         self.root.resizable(False, False)
         self._set_window_icon()
 
@@ -38,8 +38,10 @@ class MainWindow:
 
         defaults = self.automation_service.default_settings
         initial_pv_date = str(defaults.get("pv_date", "")).strip() or default_work_date()
+        initial_start_from_no = str(defaults.get("start_from_no", 1) or 1).strip() or "1"
         self.excel_path = tk.StringVar(value="")
         self.pv_date = tk.StringVar(value=initial_pv_date)
+        self.start_from_no = tk.StringVar(value=initial_start_from_no)
         self.description = tk.StringVar(value="")
         self.tax_payer_id = tk.StringVar(value="")
         self.status_text = tk.StringVar(value=UI_TEXT["ready"])
@@ -83,16 +85,22 @@ class MainWindow:
             row=3, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
 
-        ttk.Label(form_frame, text=UI_TEXT["description"]).grid(row=4, column=0, sticky="nw")
-        ttk.Entry(form_frame, textvariable=self.description, width=48).grid(row=4, column=1, columnspan=2, sticky="ew")
-        ttk.Label(form_frame, text=UI_TEXT["description_hint"], wraplength=500, foreground="#555555").grid(
+        ttk.Label(form_frame, text=UI_TEXT["start_from_no"]).grid(row=4, column=0, sticky="w")
+        ttk.Entry(form_frame, textvariable=self.start_from_no, width=8).grid(row=4, column=1, sticky="w")
+        ttk.Label(form_frame, text=UI_TEXT["start_from_no_hint"], wraplength=500, foreground="#555555").grid(
             row=5, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
 
-        ttk.Label(form_frame, text=UI_TEXT["tax_payer_id"]).grid(row=6, column=0, sticky="nw")
-        ttk.Entry(form_frame, textvariable=self.tax_payer_id, width=48).grid(row=6, column=1, columnspan=2, sticky="ew")
-        ttk.Label(form_frame, text=UI_TEXT["tax_payer_id_hint"], wraplength=500, foreground="#555555").grid(
+        ttk.Label(form_frame, text=UI_TEXT["description"]).grid(row=6, column=0, sticky="nw")
+        ttk.Entry(form_frame, textvariable=self.description, width=48).grid(row=6, column=1, columnspan=2, sticky="ew")
+        ttk.Label(form_frame, text=UI_TEXT["description_hint"], wraplength=500, foreground="#555555").grid(
             row=7, column=0, columnspan=3, sticky="w", pady=(2, 0)
+        )
+
+        ttk.Label(form_frame, text=UI_TEXT["tax_payer_id"]).grid(row=8, column=0, sticky="nw")
+        ttk.Entry(form_frame, textvariable=self.tax_payer_id, width=48).grid(row=8, column=1, columnspan=2, sticky="ew")
+        ttk.Label(form_frame, text=UI_TEXT["tax_payer_id_hint"], wraplength=500, foreground="#555555").grid(
+            row=9, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
         form_frame.columnconfigure(1, weight=1)
 
@@ -186,6 +194,15 @@ class MainWindow:
         self._append_log(UI_TEXT["excel_loaded"].format(path=excel_path.name))
         self._append_log(UI_TEXT["excel_total"].format(rows=total_rows))
 
+    def _parse_start_from_no(self) -> int:
+        raw = self.start_from_no.get().strip()
+        if not raw:
+            return 1
+        try:
+            return int(raw)
+        except ValueError:
+            return 0
+
     def _choose_excel(self) -> None:
         selected = filedialog.askopenfilename(
             title=UI_TEXT["choose_file"],
@@ -211,6 +228,7 @@ class MainWindow:
             pv_date=self.pv_date.get().strip(),
             description=self.description.get().strip(),
             tax_payer_id=self.tax_payer_id.get().strip(),
+            start_from_no=self._parse_start_from_no(),
             sheet_summaries=self.sheet_summaries,
             sheet_rows=self.sheet_rows,
         )
@@ -219,10 +237,11 @@ class MainWindow:
             messagebox.showwarning("AutoKey", "\n".join(errors))
             return
 
-        confirm_rows = run_config.total_rows
+        confirm_rows = run_config.planned_row_count()
+        start_label = f"เริ่มที่ No. {run_config.start_from_no}"
         if not messagebox.askyesno(
             UI_TEXT["confirm_title"],
-            f"{UI_TEXT['confirm_message']}\n\nจะทำ {confirm_rows} รายการ",
+            f"{UI_TEXT['confirm_message']}\n\n{start_label} — จะทำ {confirm_rows} รายการ",
         ):
             return
 
