@@ -4,8 +4,8 @@ screen:
   scale: 100
 
 automation:
-  action_delay: 0.4
-  type_interval: 0.03
+  action_delay: 0.05
+  type_interval: 0.02
   fail_safe: true
 
 ui:
@@ -26,6 +26,9 @@ lookup_search:
   button_tabs: 2
   field_tabs: 0
   confirm_enter_count: 1
+  dialog_wait: 0.35
+  template_retries: 4
+  template_retry_delay: 0.15
 
 template_click:
   enabled: true

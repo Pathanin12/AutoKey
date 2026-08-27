@@ -128,11 +128,11 @@ class KaTamWorkflow:
     def _open_payment_journal(self) -> None:
         self._status("เปิดสมุดรายวันจ่าย")
         self.image.press(MENU_ACCOUNT)
-        self.image.wait(0.8)
+        self.image.wait(0.15)
         self.image.press(MENU_DAILY_ENTRY)
-        self.image.wait(0.8)
+        self.image.wait(0.15)
         self.image.press(MENU_PAYMENT_JOURNAL)
-        self.image.wait(1.5)
+        self.image.wait(0.25)
 
     def select_company_flow(self, company_name: str) -> None:
         name = company_name.strip()
@@ -167,7 +167,7 @@ class KaTamWorkflow:
 
     def _create_voucher(self, config: RunConfig, row: KaTamRow) -> None:
         self.image.press("f2")
-        self.image.wait(0.8)
+        self.image.wait(0.15)
         if config.pv_date.strip():
             self.image.type_text(config.pv_date.strip(), clear_first=True)
 
@@ -211,11 +211,11 @@ class KaTamWorkflow:
         debit: float | None = None,
         credit: float | None = None,
     ) -> None:
-        self.image.type_text(account_code, clear_first=True)
+        self.image.type_text(account_code, clear_first=False)
         self.image.press("tab")
         self.image.press("tab")
         self.image.press(VENDOR_LOOKUP_KEY)
-        self.image.wait(0.5)
+        self.image.wait(0.1)
         search_and_select(
             self.image,
             self.lookup_search_settings,

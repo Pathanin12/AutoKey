@@ -90,6 +90,9 @@ class AutomationService:
             button_tabs=int(raw.get("button_tabs", 2)),
             field_tabs=int(raw.get("field_tabs", 0)),
             confirm_enter_count=int(raw.get("confirm_enter_count", 1)),
+            dialog_wait=float(raw.get("dialog_wait", 0.35)),
+            template_retries=int(raw.get("template_retries", 4)),
+            template_retry_delay=float(raw.get("template_retry_delay", 0.15)),
         )
 
     @property
@@ -184,10 +187,13 @@ class AutomationService:
                 total_rows = sum(summary.row_count for summary in sheet_summaries)
                 on_status(f"ทำรายการ: {total_rows} แถว")
 
+                image = self.create_image_service()
+                self._warmup_automation(image, on_status=on_status)
+                self._check_stop()
+
                 focus_express_window(self.window_focus_settings, on_status=on_status)
                 self._check_stop()
 
-                image = self.create_image_service()
                 template_click = self.create_template_click_service(
                     image,
                     on_status=on_status,
@@ -237,6 +243,28 @@ class AutomationService:
 
         self._thread = threading.Thread(target=worker, daemon=True)
         self._thread.start()
+
+    def _warmup_automation(
+        self,
+        image: ImageService,
+        *,
+        on_status: Callable[[str], None],
+    ) -> None:
+        on_status(UI_TEXT["warming_up"])
+        import cv2  # noqa: F401
+        import numpy  # noqa: F401
+
+        image.screenshot()
+        if not self.template_click_settings.enabled:
+            return
+
+        try:
+            from services.template_match_service import load_step_template
+
+            action = self.template_click_settings.get_action("lookup_search")
+            load_step_template(action.target)
+        except Exception:
+            return
 
     def _check_stop(self) -> None:
         if self._stop_event.is_set():
