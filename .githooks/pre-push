@@ -1,0 +1,22 @@
+#!/bin/sh
+# Optional: git config core.hooksPath .githooks
+# Bump version before push — ถ้ามี commit ใหม่ ให้ push อีกครั้ง
+set -e
+
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT"
+
+PYTHON=python3
+command -v python3 >/dev/null 2>&1 || PYTHON=python
+
+NEW_VERSION=$("$PYTHON" scripts/bump_version.py)
+git add constants/version.py packaging/version_info.txt
+
+if ! git diff --cached --quiet; then
+  git commit -m "Bump version to ${NEW_VERSION}."
+  echo ""
+  echo "AutoKey: bumped to v${NEW_VERSION}. Run git push again."
+  exit 1
+fi
+
+exit 0
