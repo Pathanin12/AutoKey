@@ -1,4 +1,4 @@
-"""เปิดช่องค้นหาใน dialog เลือกข้อมูล — จับภาพปุ่ม ค้นหา แล้วคลิกเท่านั้น (ไม่ใช้ Tab)"""
+"""เปิดช่องค้นหาใน dialog เลือกข้อมูล — จับภาพปุ่ม ค้นหา แล้วคลิก → วางชื่อ"""
 
 from __future__ import annotations
 
@@ -6,10 +6,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable
 
 from constants.routes import UI_TEXT
-from services.clipboard_service import copy_text, read_text
+from services.clipboard_service import copy_text
 from services.image_service import ImageService
 from services.lookup_match_service import (
-    clipboard_matches_query,
     is_plausible_vendor_name,
     name_similarity,
     names_match,
@@ -45,6 +44,8 @@ class LookupSearchSettings:
     selection_ocr_row_height: int = 22
     selection_ocr_lang: str = "tha"
     tesseract_cmd: str = ""
+    post_search_click_wait: float = 0.3
+    paste_wait: float = 0.15
 
     @property
     def ocr_settings(self) -> LookupOcrSettings:
@@ -72,16 +73,19 @@ def activate_search_button(
     from services.template_click_service import TemplateNotFoundError
 
     attempts = max(1, settings.template_retries)
+    last_error: TemplateNotFoundError | None = None
     for attempt in range(attempts):
         try:
             template_click.click("lookup_search")
-            image.wait(0.1)
+            image.wait(settings.post_search_click_wait)
             return
-        except TemplateNotFoundError:
+        except TemplateNotFoundError as exc:
+            last_error = exc
             if attempt + 1 < attempts:
                 image.wait(settings.template_retry_delay)
                 continue
-            raise
+            raise last_error
+    raise RuntimeError("activate_search_button failed unexpectedly")
 
 
 def search_and_select(
@@ -98,8 +102,9 @@ def search_and_select(
     if not name:
         return
 
+    _check_stop(should_stop)
     activate_search_button(image, settings, template_click=template_click)
-    _paste_query_from_excel(image, name, on_status=on_status)
+    _paste_into_search_field(image, settings, name, on_status=on_status)
 
     presses = max(1, confirm_enter_count if confirm_enter_count is not None else settings.confirm_enter_count)
     if settings.verify_selection:
@@ -122,36 +127,25 @@ def search_and_select(
         image.wait(0.15)
 
 
-def _paste_query_from_excel(
+def _paste_into_search_field(
     image: ImageService,
+    settings: LookupSearchSettings,
     name: str,
     *,
     on_status: Callable[[str], None] | None = None,
 ) -> None:
     if on_status:
-        on_status(UI_TEXT["copy_log"].format(field="ค้นหา (จาก Excel)", text=name))
+        on_status(UI_TEXT["clipboard_copy_log"].format(field="ค้นหา (จาก Excel)", text=name))
 
     copy_text(name)
-    image.wait(0.12)
-    clipboard = read_text().strip()
-
-    if not clipboard:
-        message = f"Clipboard ว่าง — ไม่สามารถวางจาก Excel: {name}"
-        if on_status:
-            on_status(message)
-        raise LookupSelectionMismatchError(message)
-
-    if not clipboard_matches_query(clipboard, name):
-        message = f"Clipboard ไม่ตรง Excel — ต้องการ: {name} / ได้: {clipboard[:80]}"
-        if on_status:
-            on_status(message)
-        raise LookupSelectionMismatchError(message)
+    image.wait(settings.paste_wait)
 
     if on_status:
-        on_status(UI_TEXT["paste_log"].format(field="ค้นหา (Ctrl+V)", text=name))
+        on_status(UI_TEXT["paste_log"].format(field="ช่องค้นหา (Ctrl+V)", text=name))
 
-    image.paste_from_clipboard(clear_first=True)
-    image.wait(0.15)
+    # หลังคลิกปุ่มค้นหา ช่องพร้อมรับข้อความแล้ว — อย่า Ctrl+A เพราะจะเลือกผิด control
+    image.paste_clipboard(clear_first=False)
+    image.wait(settings.paste_wait)
 
 
 def _verify_lookup_selection(

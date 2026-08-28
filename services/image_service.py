@@ -87,7 +87,11 @@ class ImageService:
         pyautogui.typewrite(text, interval=self.type_interval)
         self.wait(0.05)
 
-    def paste_from_clipboard(self, clear_first: bool = True) -> None:
+    def paste_clipboard(self, *, clear_first: bool = False) -> None:
+        """วางจาก clipboard — ใช้ clear_first=False สำหรับช่องค้นหา Express"""
+        self.paste_from_clipboard(clear_first=clear_first)
+
+    def paste_from_clipboard(self, clear_first: bool = False) -> None:
         """วางจาก clipboard ที่เตรียมไว้แล้ว — ไม่ copy ซ้ำ"""
         self._ensure_runtime()
         if clear_first:

@@ -14,6 +14,7 @@ from constants.routes import (
 )
 from models.ka_tam_row import KaTamRow
 from models.run_config import RunConfig
+from models.window_focus_settings import WindowFocusSettings
 from services.image_service import ImageService
 from services.company_switch_service import (
     CompanySwitchSettings,
@@ -51,6 +52,7 @@ class KaTamWorkflow:
         company_switch_settings: CompanySwitchSettings | None = None,
         lookup_search_settings: LookupSearchSettings | None = None,
         template_click_service: TemplateClickService | None = None,
+        express_focus_settings: WindowFocusSettings | None = None,
         verbose_log: bool = False,
     ) -> None:
         self.image = image_service
@@ -62,6 +64,7 @@ class KaTamWorkflow:
         self.company_switch_settings = company_switch_settings
         self.lookup_search_settings = lookup_search_settings or LookupSearchSettings()
         self.template_click = template_click_service
+        self.express_focus_settings = express_focus_settings or WindowFocusSettings()
 
     def run(
         self,
@@ -87,7 +90,7 @@ class KaTamWorkflow:
             try:
                 self._check_stop()
                 if index > 1:
-                    self._lookup_and_open_pv(row.legal_name)
+                    self._lookup_and_open_pv(row)
 
                 self._check_stop()
                 self._step(self.STEP_NEW_VOUCHER, "สร้างรายการใหม่", row_detail)
@@ -134,8 +137,8 @@ class KaTamWorkflow:
             template_retry_delay=self.lookup_search_settings.template_retry_delay,
         )
 
-    def open_payment_journal_after_lookup(self, query: str) -> None:
-        name = query.strip()
+    def open_payment_journal_after_lookup(self, row: KaTamRow) -> None:
+        name = row.legal_name.strip()
         if not name:
             raise RuntimeError("ไม่พบชื่อสำหรับค้นหาใน dialog เลือกข้อมูล")
 
@@ -205,8 +208,8 @@ class KaTamWorkflow:
         self.image.press("enter")
         self.image.wait(0.15)
 
-    def _lookup_and_open_pv(self, legal_name: str) -> None:
-        name = legal_name.strip()
+    def _lookup_and_open_pv(self, row: KaTamRow) -> None:
+        name = row.legal_name.strip()
         if not name:
             raise RuntimeError("ไม่พบชื่อสำหรับค้นหาในแถวถัดไป")
 

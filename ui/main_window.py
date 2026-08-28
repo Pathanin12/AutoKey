@@ -110,13 +110,14 @@ class MainWindow:
         )
         form_frame.columnconfigure(1, weight=1)
         bind_entries_clipboard(
+            self.root,
             [
                 self.excel_path_entry,
                 self.pv_date_entry,
                 self.start_from_no_entry,
                 self.description_entry,
                 self.tax_payer_id_entry,
-            ]
+            ],
         )
 
         action_frame = ttk.Frame(self.root)

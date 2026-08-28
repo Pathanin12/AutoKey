@@ -99,7 +99,7 @@ class AutomationService:
             selection_name_subitems=self._parse_selection_name_subitems(raw.get("selection_name_subitems")),
             selection_match_threshold=float(raw.get("selection_match_threshold", 0.85)),
             selection_down_max_attempts=int(raw.get("selection_down_max_attempts", 15)),
-            selection_down_wait=float(raw.get("selection_down_wait", 0.25)),
+            selection_down_wait=float(raw.get("selection_down_wait", 0.4)),
             express_title_contains=str(
                 raw.get("express_title_contains")
                 or self.config.get("window_focus", {}).get("title_contains", "Express")
@@ -109,6 +109,8 @@ class AutomationService:
             selection_ocr_row_height=int(raw.get("selection_ocr_row_height", 22)),
             selection_ocr_lang=str(raw.get("selection_ocr_lang", "tha")),
             tesseract_cmd=str(raw.get("tesseract_cmd", "")),
+            post_search_click_wait=float(raw.get("post_search_click_wait", 0.3)),
+            paste_wait=float(raw.get("paste_wait", 0.15)),
         )
 
     def _parse_region(self, raw_value, default: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
@@ -256,12 +258,13 @@ class AutomationService:
                     company_switch_settings=self.company_switch_settings,
                     lookup_search_settings=self.lookup_search_settings,
                     template_click_service=template_click,
+                    express_focus_settings=self.window_focus_settings,
                 )
 
-                first_lookup_name = self._first_lookup_name(run_config, sheet_summaries, cached_rows)
+                first_lookup_row = self._first_lookup_row(run_config, sheet_summaries, cached_rows)
                 try:
-                    if first_lookup_name:
-                        workflow.open_payment_journal_after_lookup(first_lookup_name)
+                    if first_lookup_row:
+                        workflow.open_payment_journal_after_lookup(first_lookup_row)
                     else:
                         workflow.open_payment_journal_only()
                 except LookupSelectionMismatchError as exc:
@@ -374,17 +377,17 @@ class AutomationService:
             total += len(run_config.filter_rows(rows))
         return total
 
-    def _first_lookup_name(
+    def _first_lookup_row(
         self,
         run_config: RunConfig,
         sheet_summaries: list[ExcelSheetSummary],
         cached_rows: dict[str, list[KaTamRow]] | None,
-    ) -> str:
+    ) -> KaTamRow | None:
         for summary in sheet_summaries:
             rows = cached_rows.get(summary.name) if cached_rows else None
             if rows is None:
                 rows = ExcelService.load_ka_tam_rows(run_config.excel_path, summary.name)
             rows = run_config.filter_rows(rows)
             if rows:
-                return rows[0].legal_name.strip()
-        return ""
+                return rows[0]
+        return None

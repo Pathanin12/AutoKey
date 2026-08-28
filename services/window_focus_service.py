@@ -14,6 +14,7 @@ def focus_express_window(
     *,
     on_status: Callable[[str], None] | None = None,
 ) -> bool:
+    title = settings.title_contains.strip()
     if not settings.enabled:
         return True
 
@@ -21,7 +22,6 @@ def focus_express_window(
         _status(on_status, "ข้ามโฟกัส Express (รองรับบน Windows เท่านั้น)")
         return True
 
-    title = settings.title_contains.strip()
     if not title:
         _status(on_status, "ข้ามโฟกัส Express (ไม่ได้ตั้งชื่อหน้าต่าง)")
         return True
@@ -29,18 +29,45 @@ def focus_express_window(
     if settings.prepare_seconds > 0:
         time.sleep(settings.prepare_seconds)
 
-    hwnd = _find_visible_window(title)
+    return focus_window_by_title(
+        title,
+        on_status=on_status,
+        required=settings.required,
+        wait_after_focus_seconds=settings.wait_after_focus_seconds,
+        success_label=f"โฟกัส Express แล้ว: {{title}}",
+        missing_label=f'ไม่พบหน้าต่าง Express ที่มีคำว่า "{title}"',
+    )
+
+
+def focus_window_by_title(
+    title_contains: str,
+    *,
+    on_status: Callable[[str], None] | None = None,
+    required: bool = False,
+    wait_after_focus_seconds: float = 0.0,
+    success_label: str = "โฟกัสหน้าต่างแล้ว: {title}",
+    missing_label: str | None = None,
+) -> bool:
+    if sys.platform != "win32":
+        return True
+
+    needle = title_contains.strip()
+    if not needle:
+        return False
+
+    hwnd = _find_visible_window(needle)
     if hwnd is None:
-        message = f"ไม่พบหน้าต่าง Express ที่มีคำว่า \"{title}\""
-        if settings.required:
+        message = missing_label or f'ไม่พบหน้าต่างที่มีคำว่า "{needle}"'
+        if required:
             raise RuntimeError(message)
         _status(on_status, message)
         return False
 
     window_title = _get_window_title(hwnd)
     _activate_window(hwnd)
-    time.sleep(max(0.0, settings.wait_after_focus_seconds))
-    _status(on_status, f"โฟกัส Express แล้ว: {window_title}")
+    if wait_after_focus_seconds > 0:
+        time.sleep(wait_after_focus_seconds)
+    _status(on_status, success_label.format(title=window_title))
     return True
 
 
