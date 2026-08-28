@@ -1,4 +1,4 @@
-"""Ctrl+V / Cmd+V สำหรับช่องกรอก — รองรับวางจาก Excel / Notepad / ที่อื่น"""
+"""Ctrl+V สำหรับช่องกรอก AutoKey — รองรับ ttk.Entry + StringVar บน Windows"""
 
 from __future__ import annotations
 
@@ -43,107 +43,79 @@ SELECT_ALL_SEQUENCES = (
 )
 
 
-def bind_entries_clipboard(root: tk.Misc, entries: list[ttk.Entry | tk.Entry]) -> None:
+def bind_entries_clipboard(entries: list[ttk.Entry | tk.Entry]) -> None:
     for entry in entries:
+        _bind_entry_keys(entry)
         _bind_entry_context_menu(entry)
 
-    for sequence in PASTE_SEQUENCES:
-        root.bind_class("TEntry", sequence, _paste_event)
-        root.bind_class("Entry", sequence, _paste_event)
-    for sequence in COPY_SEQUENCES:
-        root.bind_class("TEntry", sequence, _copy_event)
-        root.bind_class("Entry", sequence, _copy_event)
-    for sequence in CUT_SEQUENCES:
-        root.bind_class("TEntry", sequence, _cut_event)
-        root.bind_class("Entry", sequence, _cut_event)
-    for sequence in SELECT_ALL_SEQUENCES:
-        root.bind_class("TEntry", sequence, _select_all_event)
-        root.bind_class("Entry", sequence, _select_all_event)
 
-    # fallback เมื่อ class binding ไม่ทำงาน (พบบ่อยบน Windows + ttk)
-    for sequence in PASTE_SEQUENCES:
-        root.bind_all(sequence, _paste_all, add="+")
-    for sequence in COPY_SEQUENCES:
-        root.bind_all(sequence, _copy_all, add="+")
-    for sequence in CUT_SEQUENCES:
-        root.bind_all(sequence, _cut_all, add="+")
-    for sequence in SELECT_ALL_SEQUENCES:
-        root.bind_all(sequence, _select_all_all, add="+")
+def _bind_entry_keys(entry: tk.Entry | ttk.Entry) -> None:
+    entry.bind("<Control-v>", lambda _event: _handle_paste(entry), add="+")
+    entry.bind("<Control-V>", lambda _event: _handle_paste(entry), add="+")
+    entry.bind("<Control-Key-v>", lambda _event: _handle_paste(entry), add="+")
+    entry.bind("<Control-Key-V>", lambda _event: _handle_paste(entry), add="+")
+    entry.bind("<Shift-Insert>", lambda _event: _handle_paste(entry), add="+")
+    entry.bind("<Command-v>", lambda _event: _handle_paste(entry), add="+")
+    entry.bind("<Command-V>", lambda _event: _handle_paste(entry), add="+")
 
+    entry.bind("<Control-c>", lambda _event: _handle_copy(entry), add="+")
+    entry.bind("<Control-C>", lambda _event: _handle_copy(entry), add="+")
+    entry.bind("<Control-Key-c>", lambda _event: _handle_copy(entry), add="+")
+    entry.bind("<Control-Key-C>", lambda _event: _handle_copy(entry), add="+")
+    entry.bind("<Control-Insert>", lambda _event: _handle_copy(entry), add="+")
+    entry.bind("<Command-c>", lambda _event: _handle_copy(entry), add="+")
+    entry.bind("<Command-C>", lambda _event: _handle_copy(entry), add="+")
 
-def _focused_entry(root: tk.Misc, event: tk.Event | None = None) -> ttk.Entry | tk.Entry | None:
-    widget = event.widget if event is not None else None
-    if widget is not None and widget.winfo_class() in {"TEntry", "Entry"}:
-        return widget  # type: ignore[return-value]
+    entry.bind("<Control-x>", lambda _event: _handle_cut(entry), add="+")
+    entry.bind("<Control-X>", lambda _event: _handle_cut(entry), add="+")
+    entry.bind("<Control-Key-x>", lambda _event: _handle_cut(entry), add="+")
+    entry.bind("<Control-Key-X>", lambda _event: _handle_cut(entry), add="+")
+    entry.bind("<Shift-Delete>", lambda _event: _handle_cut(entry), add="+")
+    entry.bind("<Command-x>", lambda _event: _handle_cut(entry), add="+")
+    entry.bind("<Command-X>", lambda _event: _handle_cut(entry), add="+")
 
-    focus = root.focus_get()
-    if focus is not None and focus.winfo_class() in {"TEntry", "Entry"}:
-        return focus  # type: ignore[return-value]
-    return None
-
-
-def _paste_event(event: tk.Event) -> str:
-    _paste_into_entry(event.widget)
-    return "break"
+    entry.bind("<Control-a>", lambda _event: _handle_select_all(entry), add="+")
+    entry.bind("<Control-A>", lambda _event: _handle_select_all(entry), add="+")
+    entry.bind("<Control-Key-a>", lambda _event: _handle_select_all(entry), add="+")
+    entry.bind("<Control-Key-A>", lambda _event: _handle_select_all(entry), add="+")
+    entry.bind("<Command-a>", lambda _event: _handle_select_all(entry), add="+")
+    entry.bind("<Command-A>", lambda _event: _handle_select_all(entry), add="+")
 
 
-def _paste_all(event: tk.Event) -> str | None:
-    entry = _focused_entry(event.widget.winfo_toplevel(), event)
-    if entry is None:
-        return None
+def _handle_paste(entry: tk.Entry | ttk.Entry) -> str:
     _paste_into_entry(entry)
     return "break"
 
 
-def _copy_event(event: tk.Event) -> str:
-    _copy_from_entry(event.widget)
-    return "break"
-
-
-def _copy_all(event: tk.Event) -> str | None:
-    entry = _focused_entry(event.widget.winfo_toplevel(), event)
-    if entry is None:
-        return None
+def _handle_copy(entry: tk.Entry | ttk.Entry) -> str:
     _copy_from_entry(entry)
     return "break"
 
 
-def _cut_event(event: tk.Event) -> str:
-    _cut_from_entry(event.widget)
-    return "break"
-
-
-def _cut_all(event: tk.Event) -> str | None:
-    entry = _focused_entry(event.widget.winfo_toplevel(), event)
-    if entry is None:
-        return None
+def _handle_cut(entry: tk.Entry | ttk.Entry) -> str:
     _cut_from_entry(entry)
     return "break"
 
 
-def _select_all_event(event: tk.Event) -> str:
-    _select_all_in_entry(event.widget)
-    return "break"
-
-
-def _select_all_all(event: tk.Event) -> str | None:
-    entry = _focused_entry(event.widget.winfo_toplevel(), event)
-    if entry is None:
-        return None
+def _handle_select_all(entry: tk.Entry | ttk.Entry) -> str:
     _select_all_in_entry(entry)
     return "break"
 
 
 def _read_clipboard(entry: tk.Entry | ttk.Entry) -> str:
-    root = entry.winfo_toplevel()
+    try:
+        text = entry.clipboard_get()
+        if text:
+            return text
+    except tk.TclError:
+        pass
 
-    for source in (entry, root):
-        try:
-            text = source.clipboard_get()
-            if text:
-                return text
-        except tk.TclError:
-            pass
+    try:
+        text = entry.winfo_toplevel().clipboard_get()
+        if text:
+            return text
+    except tk.TclError:
+        pass
 
     if sys.platform == "win32":
         try:
@@ -158,26 +130,14 @@ def _read_clipboard(entry: tk.Entry | ttk.Entry) -> str:
     try:
         import pyperclip
 
-        text = pyperclip.paste()
-        if text:
-            return text
+        return pyperclip.paste() or ""
     except Exception:
-        pass
-
-    return ""
+        return ""
 
 
-def _write_clipboard(entry: tk.Entry | ttk.Entry, text: str) -> None:
+def _write_clipboard(text: str) -> None:
     if not text:
         return
-
-    root = entry.winfo_toplevel()
-    try:
-        root.clipboard_clear()
-        root.clipboard_append(text)
-        root.update_idletasks()
-    except tk.TclError:
-        pass
 
     if sys.platform == "win32":
         try:
@@ -196,21 +156,39 @@ def _write_clipboard(entry: tk.Entry | ttk.Entry, text: str) -> None:
         pass
 
 
+def _set_entry_text(entry: tk.Entry | ttk.Entry, value: str, *, cursor: int | None = None) -> None:
+    var_name = str(entry.cget("textvariable") or "")
+    if var_name:
+        entry.setvar(var_name, value)
+    else:
+        entry.delete(0, tk.END)
+        entry.insert(0, value)
+
+    if cursor is None:
+        entry.icursor(tk.END)
+    else:
+        entry.icursor(cursor)
+
+
 def _paste_into_entry(entry: tk.Entry | ttk.Entry) -> None:
     text = _read_clipboard(entry)
     if not text:
         return
 
     entry.focus_set()
+    current = entry.get()
+
     try:
         if entry.selection_present():
-            entry.delete("sel.first", "sel.last")
+            start = int(entry.index("sel.first"))
+            end = int(entry.index("sel.last"))
+        else:
+            start = end = int(entry.index("insert"))
     except tk.TclError:
-        pass
+        start = end = len(current)
 
-    entry.insert("insert", text)
-    entry.icursor(entry.index("insert"))
-    entry.selection_clear()
+    new_text = current[:start] + text + current[end:]
+    _set_entry_text(entry, new_text, cursor=start + len(text))
 
 
 def _copy_from_entry(entry: tk.Entry | ttk.Entry) -> None:
@@ -218,7 +196,7 @@ def _copy_from_entry(entry: tk.Entry | ttk.Entry) -> None:
         text = entry.selection_get()
     except tk.TclError:
         return
-    _write_clipboard(entry, text)
+    _write_clipboard(text)
 
 
 def _cut_from_entry(entry: tk.Entry | ttk.Entry) -> None:
@@ -226,11 +204,14 @@ def _cut_from_entry(entry: tk.Entry | ttk.Entry) -> None:
         text = entry.selection_get()
     except tk.TclError:
         return
-    _write_clipboard(entry, text)
+    _write_clipboard(text)
     try:
-        entry.delete("sel.first", "sel.last")
+        start = int(entry.index("sel.first"))
+        end = int(entry.index("sel.last"))
     except tk.TclError:
-        pass
+        return
+    new_text = entry.get()[:start] + entry.get()[end:]
+    _set_entry_text(entry, new_text, cursor=start)
 
 
 def _select_all_in_entry(entry: tk.Entry | ttk.Entry) -> None:

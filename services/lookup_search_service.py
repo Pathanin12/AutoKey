@@ -141,9 +141,8 @@ def _paste_into_search_field(
     image.wait(settings.paste_wait)
 
     if on_status:
-        on_status(UI_TEXT["paste_log"].format(field="ช่องค้นหา (Ctrl+V)", text=name))
+        on_status(UI_TEXT["paste_log"].format(field="ช่องค้นหา (WM_PASTE)", text=name))
 
-    # หลังคลิกปุ่มค้นหา ช่องพร้อมรับข้อความแล้ว — อย่า Ctrl+A เพราะจะเลือกผิด control
     image.paste_clipboard(clear_first=False)
     image.wait(settings.paste_wait)
 

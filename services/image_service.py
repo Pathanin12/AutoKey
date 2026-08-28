@@ -9,6 +9,7 @@ except ImportError:  # pragma: no cover - dev on non-runtime env
     pyautogui = None
 
 from services.clipboard_service import copy_text
+from services.window_paste_service import paste_to_foreground
 
 
 class ImageService:
@@ -92,12 +93,9 @@ class ImageService:
         self.paste_from_clipboard(clear_first=clear_first)
 
     def paste_from_clipboard(self, clear_first: bool = False) -> None:
-        """วางจาก clipboard ที่เตรียมไว้แล้ว — ไม่ copy ซ้ำ"""
+        """วางจาก clipboard — ใช้ WM_PASTE บน Windows สำหรับ Express"""
         self._ensure_runtime()
-        if clear_first:
-            pyautogui.hotkey("ctrl", "a")
-            time.sleep(0.04)
-        pyautogui.hotkey("ctrl", "v")
+        paste_to_foreground(clear_first=clear_first)
         self.wait(0.05)
 
     def _paste_text(self, text: str, clear_first: bool = True) -> None:
