@@ -5,8 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable
 
+from constants.routes import UI_TEXT
+from services.clipboard_service import copy_text, read_text
 from services.image_service import ImageService
-from services.lookup_match_service import names_match, names_match_complete
+from services.lookup_match_service import (
+    clipboard_matches_query,
+    is_plausible_vendor_name,
+    name_similarity,
+    names_match,
+    names_match_complete,
+)
 from services.lookup_ocr_service import LookupOcrSettings, read_highlighted_vendor_name
 from services.lookup_selection_read_service import read_selected_row_text
 
@@ -25,12 +33,12 @@ class LookupSearchSettings:
     template_retries: int = 4
     template_retry_delay: float = 0.15
     verify_selection: bool = True
-    verify_method: str = "ocr"
+    verify_method: str = "ocr_then_uia"
     post_search_wait: float = 0.4
     selection_name_subitems: tuple[int, ...] = (1, 0, 2, 3)
     selection_match_threshold: float = 0.85
     selection_down_max_attempts: int = 15
-    selection_down_wait: float = 0.25
+    selection_down_wait: float = 0.4
     express_title_contains: str = "Express"
     selection_ocr_grid_region: tuple[int, int, int, int] = (520, 380, 980, 580)
     selection_ocr_name_x: tuple[int, int] = (530, 780)
@@ -84,27 +92,66 @@ def search_and_select(
     confirm_enter_count: int | None = None,
     template_click: TemplateClickService | None = None,
     on_status: Callable[[str], None] | None = None,
+    should_stop: Callable[[], bool] | None = None,
 ) -> None:
     name = query.strip()
     if not name:
         return
 
     activate_search_button(image, settings, template_click=template_click)
-    image.type_thai(name, clear_first=True)
-    image.wait(0.15)
+    _paste_query_from_excel(image, name, on_status=on_status)
 
     presses = max(1, confirm_enter_count if confirm_enter_count is not None else settings.confirm_enter_count)
     if settings.verify_selection:
         image.press("enter")
         image.wait(settings.post_search_wait)
-        _verify_lookup_selection(image, settings, name, on_status=on_status)
+        _verify_lookup_selection(
+            image,
+            settings,
+            name,
+            on_status=on_status,
+            should_stop=should_stop,
+        )
         select_presses = max(1, presses - 1)
     else:
         select_presses = presses
 
     for _ in range(select_presses):
+        _check_stop(should_stop)
         image.press("enter")
         image.wait(0.15)
+
+
+def _paste_query_from_excel(
+    image: ImageService,
+    name: str,
+    *,
+    on_status: Callable[[str], None] | None = None,
+) -> None:
+    if on_status:
+        on_status(UI_TEXT["copy_log"].format(field="ค้นหา (จาก Excel)", text=name))
+
+    copy_text(name)
+    image.wait(0.12)
+    clipboard = read_text().strip()
+
+    if not clipboard:
+        message = f"Clipboard ว่าง — ไม่สามารถวางจาก Excel: {name}"
+        if on_status:
+            on_status(message)
+        raise LookupSelectionMismatchError(message)
+
+    if not clipboard_matches_query(clipboard, name):
+        message = f"Clipboard ไม่ตรง Excel — ต้องการ: {name} / ได้: {clipboard[:80]}"
+        if on_status:
+            on_status(message)
+        raise LookupSelectionMismatchError(message)
+
+    if on_status:
+        on_status(UI_TEXT["paste_log"].format(field="ค้นหา (Ctrl+V)", text=name))
+
+    image.paste_from_clipboard(clear_first=True)
+    image.wait(0.15)
 
 
 def _verify_lookup_selection(
@@ -113,11 +160,14 @@ def _verify_lookup_selection(
     query: str,
     *,
     on_status: Callable[[str], None] | None = None,
+    should_stop: Callable[[], bool] | None = None,
 ) -> None:
     attempts = max(1, settings.selection_down_max_attempts)
     last_selected = ""
 
     for attempt in range(attempts):
+        _check_stop(should_stop)
+
         selected = _read_verified_selection_text(image, settings, query)
         if selected and _looks_like_search_field(selected, query):
             selected = ""
@@ -132,12 +182,13 @@ def _verify_lookup_selection(
             break
 
         if on_status:
+            shown = selected if is_plausible_vendor_name(selected) else "OCR ไม่ชัด"
             on_status(
-                f"ชื่อไม่ตรงครบ — กด Down ({selected or 'ว่าง'}) "
+                f"ชื่อไม่ตรงครบ — กด Down ({shown or 'ว่าง'}) "
                 f"→ ต้องการ: {query}"
             )
         image.press("down")
-        image.wait(settings.selection_down_wait)
+        _interruptible_wait(image, settings.selection_down_wait, should_stop=should_stop)
 
     message = f"ค้นหา vendor ไม่ตรง — ต้องการ: {query} / ได้: {last_selected or '(ว่าง)'}"
     if on_status:
@@ -150,20 +201,58 @@ def _read_verified_selection_text(
     settings: LookupSearchSettings,
     query: str,
 ) -> str:
-    method = settings.verify_method.strip().lower() or "ocr"
+    method = settings.verify_method.strip().lower() or "ocr_then_uia"
+    ocr_text = ""
+    uia_text = ""
+
     if method in {"ocr", "ocr_then_uia"}:
-        text = read_highlighted_vendor_name(image, settings.ocr_settings, expected=query)
-        if text:
-            return text
+        raw = read_highlighted_vendor_name(image, settings.ocr_settings, expected=query)
+        if raw and is_plausible_vendor_name(raw):
+            ocr_text = raw
+
     if method in {"uia", "ocr_then_uia"}:
-        return read_selected_row_text(
+        raw = read_selected_row_text(
             name_subitems=settings.selection_name_subitems,
             express_title_contains=settings.express_title_contains,
         )
-    return ""
+        if raw and is_plausible_vendor_name(raw):
+            uia_text = raw
+
+    if ocr_text and uia_text:
+        if name_similarity(query, uia_text) >= name_similarity(query, ocr_text):
+            return uia_text
+        return ocr_text
+
+    return uia_text or ocr_text
 
 
 def _looks_like_search_field(selected: str, query: str) -> bool:
     if not selected:
         return True
     return names_match(query, selected, 1.0)
+
+
+def _check_stop(should_stop: Callable[[], bool] | None) -> None:
+    if should_stop and should_stop():
+        raise InterruptedError("หยุดโดยผู้ใช้")
+
+
+def _interruptible_wait(
+    image: ImageService,
+    seconds: float,
+    *,
+    should_stop: Callable[[], bool] | None = None,
+) -> None:
+    import time
+
+    if seconds <= 0:
+        _check_stop(should_stop)
+        return
+
+    deadline = time.monotonic() + seconds
+    while True:
+        _check_stop(should_stop)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        image.wait(min(0.08, remaining))

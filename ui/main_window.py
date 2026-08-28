@@ -13,6 +13,7 @@ from services.automation_service import AutomationService
 from services.excel_service import ExcelService
 from services.hotkey_service import HotkeyService
 from ui.app_icon import apply_window_icon, load_title_photo
+from ui.entry_clipboard import bind_entries_clipboard
 
 
 class MainWindow:
@@ -72,7 +73,8 @@ class MainWindow:
         form_frame.pack(fill="x", **padding)
 
         ttk.Label(form_frame, text=UI_TEXT["excel_file"]).grid(row=0, column=0, sticky="w")
-        ttk.Entry(form_frame, textvariable=self.excel_path, width=48).grid(row=0, column=1, sticky="ew")
+        self.excel_path_entry = ttk.Entry(form_frame, textvariable=self.excel_path, width=48)
+        self.excel_path_entry.grid(row=0, column=1, sticky="ew")
         ttk.Button(form_frame, text=UI_TEXT["choose_file"], command=self._choose_excel).grid(row=0, column=2)
 
         ttk.Label(form_frame, textvariable=self.excel_summary, wraplength=500).grid(
@@ -80,29 +82,42 @@ class MainWindow:
         )
 
         ttk.Label(form_frame, text=UI_TEXT["pv_date"]).grid(row=2, column=0, sticky="w")
-        ttk.Entry(form_frame, textvariable=self.pv_date, width=20).grid(row=2, column=1, sticky="w")
+        self.pv_date_entry = ttk.Entry(form_frame, textvariable=self.pv_date, width=20)
+        self.pv_date_entry.grid(row=2, column=1, sticky="w")
         ttk.Label(form_frame, text=UI_TEXT["pv_date_hint"], wraplength=500, foreground="#555555").grid(
             row=3, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
 
         ttk.Label(form_frame, text=UI_TEXT["start_from_no"]).grid(row=4, column=0, sticky="w")
-        ttk.Entry(form_frame, textvariable=self.start_from_no, width=8).grid(row=4, column=1, sticky="w")
+        self.start_from_no_entry = ttk.Entry(form_frame, textvariable=self.start_from_no, width=8)
+        self.start_from_no_entry.grid(row=4, column=1, sticky="w")
         ttk.Label(form_frame, text=UI_TEXT["start_from_no_hint"], wraplength=500, foreground="#555555").grid(
             row=5, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
 
         ttk.Label(form_frame, text=UI_TEXT["description"]).grid(row=6, column=0, sticky="nw")
-        ttk.Entry(form_frame, textvariable=self.description, width=48).grid(row=6, column=1, columnspan=2, sticky="ew")
+        self.description_entry = ttk.Entry(form_frame, textvariable=self.description, width=48)
+        self.description_entry.grid(row=6, column=1, columnspan=2, sticky="ew")
         ttk.Label(form_frame, text=UI_TEXT["description_hint"], wraplength=500, foreground="#555555").grid(
             row=7, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
 
         ttk.Label(form_frame, text=UI_TEXT["tax_payer_id"]).grid(row=8, column=0, sticky="nw")
-        ttk.Entry(form_frame, textvariable=self.tax_payer_id, width=48).grid(row=8, column=1, columnspan=2, sticky="ew")
+        self.tax_payer_id_entry = ttk.Entry(form_frame, textvariable=self.tax_payer_id, width=48)
+        self.tax_payer_id_entry.grid(row=8, column=1, columnspan=2, sticky="ew")
         ttk.Label(form_frame, text=UI_TEXT["tax_payer_id_hint"], wraplength=500, foreground="#555555").grid(
             row=9, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
         form_frame.columnconfigure(1, weight=1)
+        bind_entries_clipboard(
+            [
+                self.excel_path_entry,
+                self.pv_date_entry,
+                self.start_from_no_entry,
+                self.description_entry,
+                self.tax_payer_id_entry,
+            ]
+        )
 
         action_frame = ttk.Frame(self.root)
         action_frame.pack(fill="x", **padding)

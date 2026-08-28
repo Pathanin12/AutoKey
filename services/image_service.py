@@ -87,14 +87,19 @@ class ImageService:
         pyautogui.typewrite(text, interval=self.type_interval)
         self.wait(0.05)
 
-    def _paste_text(self, text: str, clear_first: bool = True) -> None:
-        if not text:
-            return
+    def paste_from_clipboard(self, clear_first: bool = True) -> None:
+        """วางจาก clipboard ที่เตรียมไว้แล้ว — ไม่ copy ซ้ำ"""
         self._ensure_runtime()
         if clear_first:
             pyautogui.hotkey("ctrl", "a")
             time.sleep(0.04)
-        copy_text(text)
-        time.sleep(0.1 if sys.platform == "win32" else 0.04)
         pyautogui.hotkey("ctrl", "v")
         self.wait(0.05)
+
+    def _paste_text(self, text: str, clear_first: bool = True) -> None:
+        if not text:
+            return
+        self._ensure_runtime()
+        copy_text(text)
+        time.sleep(0.1 if sys.platform == "win32" else 0.04)
+        self.paste_from_clipboard(clear_first=clear_first)

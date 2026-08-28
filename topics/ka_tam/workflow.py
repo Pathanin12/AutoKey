@@ -146,6 +146,7 @@ class KaTamWorkflow:
             name,
             template_click=self.template_click,
             on_status=self.on_status,
+            should_stop=self.stop_event.is_set,
         )
         self.open_payment_journal_only()
 
@@ -216,6 +217,7 @@ class KaTamWorkflow:
             name,
             template_click=self.template_click,
             on_status=self.on_status,
+            should_stop=self.stop_event.is_set,
         )
         self.open_payment_journal_only()
 

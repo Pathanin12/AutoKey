@@ -94,7 +94,7 @@ class AutomationService:
             template_retries=int(raw.get("template_retries", 4)),
             template_retry_delay=float(raw.get("template_retry_delay", 0.15)),
             verify_selection=bool(raw.get("verify_selection", True)),
-            verify_method=str(raw.get("verify_method", "ocr")),
+            verify_method=str(raw.get("verify_method", "ocr_then_uia")),
             post_search_wait=float(raw.get("post_search_wait", 0.4)),
             selection_name_subitems=self._parse_selection_name_subitems(raw.get("selection_name_subitems")),
             selection_match_threshold=float(raw.get("selection_match_threshold", 0.85)),
@@ -266,6 +266,9 @@ class AutomationService:
                         workflow.open_payment_journal_only()
                 except LookupSelectionMismatchError as exc:
                     on_finished(False, str(exc))
+                    return
+                except InterruptedError:
+                    on_finished(False, "หยุดโดยผู้ใช้")
                     return
 
                 self._check_stop()

@@ -73,6 +73,7 @@ UI_TEXT = {
     "starting": "กำลังเริ่ม — โฟกัส Express...",
     "warming_up": "เตรียมระบบจับภาพ...",
     "paste_log": "วาง — {field}: {text}",
+    "copy_log": "คัดลอก — {field}: {text}",
     "excel_loaded": "โหลดไฟล์: {path}",
     "excel_sheet_line": "  • {sheet}: {rows} รายการ",
     "excel_total": "พบ {rows} รายการ",

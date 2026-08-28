@@ -59,6 +59,8 @@ def names_match(expected: str, actual: str, threshold: float = 0.85) -> bool:
 
 def names_match_complete(expected: str, actual: str, threshold: float = 0.85) -> bool:
     """ตรงครบ — ไม่ยอมรับแถวที่สั้นกว่า query (เช่น ขาด '1' ท้ายชื่อ)"""
+    if not is_plausible_vendor_name(actual):
+        return False
     if not names_match(expected, actual, threshold):
         return False
 
@@ -76,3 +78,41 @@ def names_match_complete(expected: str, actual: str, threshold: float = 0.85) ->
         return False
 
     return True
+
+
+def is_plausible_vendor_name(value: str) -> bool:
+    """กรอง OCR ขยะ — ต้องมีตัวไทย/ตัวอักษรพอสมควร"""
+    text = value.strip()
+    if len(text) < 2:
+        return False
+
+    noise_chars = sum(1 for ch in text if ch in "[]|#+*\"{}\\")
+    if noise_chars >= 1 and (noise_chars >= 2 or text.lstrip().startswith("[")):
+        return False
+
+    compact = text.replace(" ", "")
+    if not compact:
+        return False
+
+    thai_count = sum(1 for ch in compact if "\u0E00" <= ch <= "\u0E7F")
+    letter_count = sum(1 for ch in compact if ch.isalpha() or "\u0E00" <= ch <= "\u0E7F")
+    if letter_count == 0:
+        return False
+
+    if thai_count == 0 and letter_count / len(compact) < 0.5:
+        return False
+
+    if thai_count > 0 and thai_count / len(compact) < 0.2:
+        return False
+
+    return True
+
+
+def clipboard_matches_query(clipboard: str, query: str) -> bool:
+    clip = clipboard.strip()
+    name = query.strip()
+    if not clip or not name:
+        return False
+    if clip == name or name in clip or clip in name:
+        return True
+    return normalize_name(clip) == normalize_name(name)
