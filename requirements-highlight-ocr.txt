@@ -1,0 +1,12 @@
+# Highlight OCR — dependencies (local, no cloud API)
+# ติดตั้งพื้นฐาน (Tesseract + OpenCV)
+-r requirements.txt
+
+# OCR engines เพิ่มเติม (เลือกอย่างน้อย 1 ตัวนอกจาก Tesseract)
+easyocr>=1.7.1
+
+# PaddleOCR — แม่นภาษาไทยมักดีที่สุด แต่ bundle ใหญ่ (แนะนำบน Windows)
+# Windows CPU:
+#   pip install paddlepaddle==2.6.2 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
+#   pip install paddleocr>=2.7.0
+paddleocr>=2.7.0

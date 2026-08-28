@@ -98,6 +98,8 @@ class AutomationService:
             post_search_wait=float(raw.get("post_search_wait", 0.4)),
             selection_name_subitems=self._parse_selection_name_subitems(raw.get("selection_name_subitems")),
             selection_match_threshold=float(raw.get("selection_match_threshold", 0.85)),
+            selection_down_max_attempts=int(raw.get("selection_down_max_attempts", 15)),
+            selection_down_wait=float(raw.get("selection_down_wait", 0.25)),
             express_title_contains=str(
                 raw.get("express_title_contains")
                 or self.config.get("window_focus", {}).get("title_contains", "Express")

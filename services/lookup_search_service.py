@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable
 
 from services.image_service import ImageService
-from services.lookup_match_service import names_match
+from services.lookup_match_service import names_match, names_match_complete
 from services.lookup_ocr_service import LookupOcrSettings, read_highlighted_vendor_name
 from services.lookup_selection_read_service import read_selected_row_text
 
@@ -29,6 +29,8 @@ class LookupSearchSettings:
     post_search_wait: float = 0.4
     selection_name_subitems: tuple[int, ...] = (1, 0, 2, 3)
     selection_match_threshold: float = 0.85
+    selection_down_max_attempts: int = 15
+    selection_down_wait: float = 0.25
     express_title_contains: str = "Express"
     selection_ocr_grid_region: tuple[int, int, int, int] = (520, 380, 980, 580)
     selection_ocr_name_x: tuple[int, int] = (530, 780)
@@ -112,14 +114,32 @@ def _verify_lookup_selection(
     *,
     on_status: Callable[[str], None] | None = None,
 ) -> None:
-    selected = _read_verified_selection_text(image, settings, query)
-    if selected and _looks_like_search_field(selected, query):
-        selected = ""
+    attempts = max(1, settings.selection_down_max_attempts)
+    last_selected = ""
 
-    if names_match(query, selected, settings.selection_match_threshold):
-        return
+    for attempt in range(attempts):
+        selected = _read_verified_selection_text(image, settings, query)
+        if selected and _looks_like_search_field(selected, query):
+            selected = ""
+        last_selected = selected
 
-    message = f"ค้นหา vendor ไม่ตรง — ต้องการ: {query} / ได้: {selected or '(ว่าง)'}"
+        if names_match_complete(query, selected, settings.selection_match_threshold):
+            if on_status and attempt > 0:
+                on_status(f"เลือก vendor แถวที่ {attempt + 1}: {selected}")
+            return
+
+        if attempt + 1 >= attempts:
+            break
+
+        if on_status:
+            on_status(
+                f"ชื่อไม่ตรงครบ — กด Down ({selected or 'ว่าง'}) "
+                f"→ ต้องการ: {query}"
+            )
+        image.press("down")
+        image.wait(settings.selection_down_wait)
+
+    message = f"ค้นหา vendor ไม่ตรง — ต้องการ: {query} / ได้: {last_selected or '(ว่าง)'}"
     if on_status:
         on_status(message)
     raise LookupSelectionMismatchError(message)

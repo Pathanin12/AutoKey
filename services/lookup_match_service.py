@@ -55,3 +55,24 @@ def names_match(expected: str, actual: str, threshold: float = 0.85) -> bool:
             return False
 
     return True
+
+
+def names_match_complete(expected: str, actual: str, threshold: float = 0.85) -> bool:
+    """ตรงครบ — ไม่ยอมรับแถวที่สั้นกว่า query (เช่น ขาด '1' ท้ายชื่อ)"""
+    if not names_match(expected, actual, threshold):
+        return False
+
+    expected_norm = normalize_name(expected)
+    actual_norm = normalize_name(actual)
+    if expected_norm == actual_norm:
+        return True
+
+    if len(actual_norm) < len(expected_norm) and expected_norm.startswith(actual_norm):
+        return False
+
+    expected_tokens = expected.split()
+    actual_tokens = actual.split()
+    if len(actual_tokens) < len(expected_tokens):
+        return False
+
+    return True

@@ -33,6 +33,8 @@ lookup_search:
   verify_method: ocr
   post_search_wait: 0.4
   selection_match_threshold: 0.85
+  selection_down_max_attempts: 15
+  selection_down_wait: 0.25
   selection_ocr_grid_region: [520, 380, 980, 580]
   selection_ocr_name_x: [530, 780]
   selection_ocr_row_height: 22
