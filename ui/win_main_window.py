@@ -8,7 +8,7 @@ from ctypes import wintypes
 from pathlib import Path
 
 from constants.date_utils import default_work_date, format_express_pv_date, mask_express_pv_date
-from constants.routes import EXCEL_OPEN_EXTENSIONS, TOPIC_PAYMENT_JOURNAL, UI_TEXT
+from constants.routes import TOPIC_PAYMENT_JOURNAL, UI_TEXT
 from constants.version import __version__
 from models.ka_tam_row import KaTamRow
 from models.run_config import ExcelSheetSummary, RunConfig
@@ -16,12 +16,12 @@ from services.clipboard_service import copy_text
 from services.automation_service import AutomationService
 from services.excel_service import ExcelService
 from services.hotkey_service import HotkeyService
+from services.windows_file_dialog import pick_excel_path
 from ui.app_icon import ico_icon_path
 
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
-comdlg32 = ctypes.WinDLL("comdlg32", use_last_error=True)
 
 LRESULT = ctypes.c_ssize_t
 WNDPROC = ctypes.WINFUNCTYPE(LRESULT, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
@@ -32,9 +32,14 @@ WM_COMMAND = 0x0111
 WM_SETFONT = 0x0030
 WM_SETICON = 0x0080
 WM_APP = 0x8000
+WM_APP_CHOOSE_EXCEL = WM_APP + 1
 WM_TIMER = 0x0113
+WM_NCHITTEST = 0x0084
+HTTRANSPARENT = -1
+GWLP_WNDPROC = -4
 EN_KILLFOCUS = 0x0100
 EN_CHANGE = 0x0300
+BN_CLICKED = 0
 ICON_BIG = 1
 SW_HIDE = 0
 SW_RESTORE = 9
@@ -63,10 +68,6 @@ HWND_TOPMOST = wintypes.HWND(-1)
 HWND_NOTOPMOST = wintypes.HWND(-2)
 SWP_NOMOVE = 0x0002
 SWP_NOSIZE = 0x0001
-OFN_HIDEREADONLY = 0x00000004
-OFN_PATHMUSTEXIST = 0x00000800
-OFN_FILEMUSTEXIST = 0x00001000
-OFN_EXPLORER = 0x00080000
 EM_SETSEL = 0x00B1
 EM_REPLACESEL = 0x00C2
 IMAGE_ICON = 1
@@ -84,6 +85,8 @@ ID_STOP = 109
 ID_PROGRESS = 110
 ID_COPY = 111
 ID_LOG = 112
+ID_SETTINGS_BOX = 201
+ID_STATUS_BOX = 211
 
 WIN_W = 560
 WIN_H = 620
@@ -91,21 +94,10 @@ WIN_H = 620
 user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
 user32.DefWindowProcW.restype = LRESULT
 user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
-user32.CreateWindowExW.argtypes = [
-    wintypes.DWORD,
-    wintypes.LPCWSTR,
-    wintypes.LPCWSTR,
-    wintypes.DWORD,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    wintypes.HWND,
-    wintypes.HMENU,
-    wintypes.HINSTANCE,
-    wintypes.LPVOID,
-]
-user32.CreateWindowExW.restype = wintypes.HWND
+user32.CallWindowProcW.argtypes = [ctypes.c_void_p, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+user32.CallWindowProcW.restype = LRESULT
+user32.SetWindowLongPtrW.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_void_p]
+user32.SetWindowLongPtrW.restype = ctypes.c_void_p
 
 
 class WNDCLASSEXW(ctypes.Structure):
@@ -123,49 +115,6 @@ class WNDCLASSEXW(ctypes.Structure):
         ("lpszClassName", wintypes.LPCWSTR),
         ("hIconSm", wintypes.HICON),
     ]
-
-
-class OPENFILENAMEW(ctypes.Structure):
-    _fields_ = [
-        ("lStructSize", wintypes.DWORD),
-        ("hwndOwner", wintypes.HWND),
-        ("hInstance", wintypes.HINSTANCE),
-        ("lpstrFilter", wintypes.LPCWSTR),
-        ("lpstrCustomFilter", wintypes.LPWSTR),
-        ("nMaxCustFilter", wintypes.DWORD),
-        ("nFilterIndex", wintypes.DWORD),
-        ("lpstrFile", wintypes.LPWSTR),
-        ("nMaxFile", wintypes.DWORD),
-        ("lpstrFileTitle", wintypes.LPWSTR),
-        ("nMaxFileTitle", wintypes.DWORD),
-        ("lpstrInitialDir", wintypes.LPCWSTR),
-        ("lpstrTitle", wintypes.LPCWSTR),
-        ("Flags", wintypes.DWORD),
-        ("nFileOffset", wintypes.WORD),
-        ("nFileExtension", wintypes.WORD),
-        ("lpstrDefExt", wintypes.LPCWSTR),
-        ("lCustData", ctypes.c_void_p),
-        ("lpfnHook", ctypes.c_void_p),
-        ("lpTemplateName", wintypes.LPCWSTR),
-        ("pvReserved", ctypes.c_void_p),
-        ("dwReserved", wintypes.DWORD),
-        ("FlagsEx", wintypes.DWORD),
-    ]
-
-
-def _wchar_zchunks(*parts: str):
-    """สตริงมี \\0 ภายใน — ctypes ตัด Python str ที่ null ตัวแรก"""
-    payload = "\0".join(parts) + "\0\0"
-    buf = ctypes.create_unicode_buffer(len(payload))
-    for index, char in enumerate(payload):
-        buf[index] = char
-    return buf
-
-
-comdlg32.GetOpenFileNameW.argtypes = [ctypes.POINTER(OPENFILENAMEW)]
-comdlg32.GetOpenFileNameW.restype = wintypes.BOOL
-comdlg32.CommDlgExtendedError.argtypes = []
-comdlg32.CommDlgExtendedError.restype = wintypes.DWORD
 
 
 class POINT(ctypes.Structure):
@@ -208,6 +157,7 @@ class MainWindow:
         self._controls: dict[int, wintypes.HWND] = {}
         self._font = None
         self._masking_pv_date = False
+        self._group_procs: list[WNDPROC] = []
 
         defaults = self.automation_service.default_settings
         self._initial_pv_date = format_express_pv_date(
@@ -269,7 +219,7 @@ class MainWindow:
             w,
             h,
             self._hwnd,
-            ctypes.c_void_p(ctrl_id),
+            ctrl_id,
             kernel32.GetModuleHandleW(None),
             None,
         )
@@ -296,10 +246,10 @@ class MainWindow:
 
     def _build_controls(self) -> None:
         self._ctrl("STATIC", f"{UI_TEXT['app_title']} v{__version__}", SS_LEFT, 12, 10, 520, 22, 200)
-        self._ctrl("BUTTON", UI_TEXT["settings_frame"], BS_GROUPBOX, 12, 36, 520, 300, 201)
+        self._ctrl("BUTTON", UI_TEXT["settings_frame"], BS_GROUPBOX, 12, 36, 520, 300, ID_SETTINGS_BOX)
         self._ctrl("STATIC", UI_TEXT["excel_file"], SS_LEFT, 24, 56, 90, 20, 202)
-        self._ctrl("EDIT", "", WS_TABSTOP | ES_AUTOHSCROLL, 120, 54, 300, 22, ID_EXCEL)
-        self._ctrl("BUTTON", UI_TEXT["choose_file"], WS_TABSTOP | BS_PUSHBUTTON, 428, 52, 90, 24, ID_BROWSE)
+        self._ctrl("EDIT", "", WS_TABSTOP | ES_AUTOHSCROLL, 120, 54, 290, 22, ID_EXCEL)
+        self._ctrl("BUTTON", UI_TEXT["choose_file"], WS_TABSTOP | BS_PUSHBUTTON, 418, 50, 110, 28, ID_BROWSE)
         self._ctrl("STATIC", UI_TEXT["excel_summary_empty"], SS_LEFT, 24, 82, 490, 32, ID_SUMMARY)
         self._ctrl("STATIC", UI_TEXT["pv_date"], SS_LEFT, 24, 118, 110, 20, 203)
         self._ctrl("EDIT", self._initial_pv_date, WS_TABSTOP | ES_AUTOHSCROLL, 140, 116, 140, 22, ID_PV)
@@ -324,13 +274,30 @@ class MainWindow:
             28,
             ID_STOP,
         )
-        self._ctrl("BUTTON", UI_TEXT["status_frame"], BS_GROUPBOX, 12, 386, 520, 186, 211)
+        self._ctrl("BUTTON", UI_TEXT["status_frame"], BS_GROUPBOX, 12, 386, 520, 186, ID_STATUS_BOX)
         self._ctrl("STATIC", "0 / 0", SS_LEFT, 24, 406, 200, 20, ID_PROGRESS)
         self._ctrl("BUTTON", UI_TEXT["copy_log"], WS_TABSTOP | BS_PUSHBUTTON, 412, 402, 100, 24, ID_COPY)
         log_style = WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | ES_WANTRETURN
         self._ctrl("EDIT", "", log_style, 24, 430, 492, 128, ID_LOG)
         self._write_log(UI_TEXT["welcome_log"] + "\n", trim=False)
+        self._click_through_group_box(ID_SETTINGS_BOX)
+        self._click_through_group_box(ID_STATUS_BOX)
         self._raise_input_controls()
+
+    def _click_through_group_box(self, ctrl_id: int) -> None:
+        hwnd = self._controls.get(ctrl_id)
+        if not hwnd:
+            return
+        state: dict[str, object] = {}
+
+        def proc(hw, msg, wp, lp):
+            if msg == WM_NCHITTEST:
+                return HTTRANSPARENT
+            return user32.CallWindowProcW(state["old"], hw, msg, wp, lp)
+
+        wrapped = WNDPROC(proc)
+        state["old"] = user32.SetWindowLongPtrW(hwnd, GWLP_WNDPROC, ctypes.cast(wrapped, ctypes.c_void_p))
+        self._group_procs.append(wrapped)
 
     def _set_icon(self) -> None:
         ico = ico_icon_path()
@@ -375,10 +342,10 @@ class MainWindow:
         if message == WM_COMMAND:
             notify = (wparam >> 16) & 0xFFFF
             ctrl_id = wparam & 0xFFFF
-            if notify == BN_CLICKED:
-                if ctrl_id == ID_BROWSE:
-                    self._choose_excel()
-                elif ctrl_id == ID_START:
+            if ctrl_id == ID_BROWSE:
+                user32.PostMessageW(hwnd, WM_APP_CHOOSE_EXCEL, 0, 0)
+            elif notify == BN_CLICKED:
+                if ctrl_id == ID_START:
                     self._start()
                 elif ctrl_id == ID_STOP:
                     self._stop()
@@ -389,6 +356,9 @@ class MainWindow:
                     self._mask_pv_date()
                 elif notify == EN_KILLFOCUS:
                     self._format_pv_date()
+        elif message == WM_APP_CHOOSE_EXCEL:
+            self._choose_excel()
+            return 0
         elif message == WM_APP:
             self._drain_queue()
         elif message == WM_TIMER and wparam == 1:
@@ -460,32 +430,15 @@ class MainWindow:
             return 0
 
     def _choose_excel(self) -> None:
-        extensions = ";".join(f"*.{ext}" for ext in EXCEL_OPEN_EXTENSIONS)
-        file_buf = ctypes.create_unicode_buffer(1024)
-        filter_buf = _wchar_zchunks(f"Excel ({extensions})", extensions, "All files (*.*)", "*.*")
-        title_buf = ctypes.create_unicode_buffer(UI_TEXT["choose_file"])
-        ofn = OPENFILENAMEW()
-        ofn.lStructSize = ctypes.sizeof(OPENFILENAMEW)
-        ofn.hwndOwner = self._hwnd
-        ofn.lpstrFilter = ctypes.cast(filter_buf, wintypes.LPCWSTR)
-        ofn.nFilterIndex = 1
-        ofn.lpstrFile = file_buf
-        ofn.nMaxFile = 1024
-        ofn.lpstrTitle = title_buf
-        ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY
-        ofn.lpstrDefExt = EXCEL_OPEN_EXTENSIONS[0]
-        if comdlg32.GetOpenFileNameW(ctypes.byref(ofn)):
-            self._set_text(ID_EXCEL, file_buf.value)
-            self._load_excel()
+        try:
+            path = pick_excel_path(self._hwnd)
+        except Exception as exc:
+            user32.MessageBoxW(self._hwnd, str(exc), "AutoKey", MB_OK | MB_ICONERROR)
             return
-        err = comdlg32.CommDlgExtendedError()
-        if err:
-            user32.MessageBoxW(
-                self._hwnd,
-                f"เปิดหน้าต่างเลือกไฟล์ไม่ได้ (รหัส {err})",
-                "AutoKey",
-                MB_OK | MB_ICONERROR,
-            )
+        if not path:
+            return
+        self._set_text(ID_EXCEL, path)
+        self._load_excel()
 
     def _start(self) -> None:
         if self.is_running:
