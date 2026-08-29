@@ -180,8 +180,7 @@ class KaTamWorkflow:
     def _create_voucher(self, config: RunConfig) -> None:
         """Alt+A เปิดไฟล์ใหม่ → Enter → วันที่ → Enter → รายละเอียด → Enter"""
         self.image.press(*PV_NEW_FILE_KEYS)
-        self._status("กด Alt+A สร้างรายการใหม่")
-        self.image.wait(0.6)
+        self.image.wait(0.3)
         self.image.press("enter")
         self.image.wait(0.4)
 
@@ -194,13 +193,13 @@ class KaTamWorkflow:
 
         description = config.description.strip()
         if description:
-            self.image.type_keys(description, clear_first=True)
+            self.image.type_thai(description, clear_first=True)
         self.image.press("enter")
-        self.image.wait(0.4)
+        self.image.wait(0.15)
 
     def _lookup_and_open_pv(self, row: KaTamRow) -> None:
-        """Shift+F11 กลับ dialog แล้ว — ค้นหาบริษัทถัดไปอย่างเดียว ไม่เปิดเมนู 5-1-2 ซ้ำ"""
         self._search_vendor(row, "ค้นหาบริษัทถัดไป")
+        self.open_payment_journal_only()
 
     def _search_vendor(self, row: KaTamRow, status_prefix: str) -> None:
         name = row.legal_name.strip()
@@ -218,16 +217,14 @@ class KaTamWorkflow:
         )
 
     def _fill_pv_lines(self, config: RunConfig, row: KaTamRow, *, prepare_next: bool) -> None:
-        """5330 Enter×2 srv Enter → 1154 Enter×2 vat Enter → 2132 Enter×3 wt Enter×5 → F2 F9"""
         self._step(
             self.STEP_SERVICE,
             "กรอกบัญชีค่าบริการ",
             f"{ACCOUNT_SERVICE} → srv {self._format_amount(row.service_amount)}",
         )
-        self.image.type_keys(ACCOUNT_SERVICE)
-        self.image.wait(0.15)
+        self.image.type_text(ACCOUNT_SERVICE, clear_first=False)
         self.image.press("enter", presses=2)
-        self.image.type_keys(self._amount_keys(row.service_amount), clear_first=True)
+        self.image.type_text(self._format_amount(row.service_amount), clear_first=True)
         self.image.press("enter")
 
         self._step(
@@ -235,10 +232,9 @@ class KaTamWorkflow:
             "กรอกบัญชีภาษีซื้อ",
             f"{ACCOUNT_VAT} → vat {self._format_amount(row.vat_amount)}",
         )
-        self.image.type_keys(ACCOUNT_VAT)
-        self.image.wait(0.15)
+        self.image.type_text(ACCOUNT_VAT, clear_first=False)
         self.image.press("enter", presses=2)
-        self.image.type_keys(self._amount_keys(row.vat_amount), clear_first=True)
+        self.image.type_text(self._format_amount(row.vat_amount), clear_first=True)
         self.image.press("enter")
 
         self._step(
@@ -246,10 +242,9 @@ class KaTamWorkflow:
             "กรอกบัญชีภาษีหัก ณ ที่จ่าย",
             f"{ACCOUNT_WT} → wt {self._format_amount(row.wt_amount)}",
         )
-        self.image.type_keys(ACCOUNT_WT)
-        self.image.wait(0.15)
+        self.image.type_text(ACCOUNT_WT, clear_first=False)
         self.image.press("enter", presses=3)
-        self.image.type_keys(self._amount_keys(row.wt_amount), clear_first=True)
+        self.image.type_text(self._format_amount(row.wt_amount), clear_first=True)
         self.image.press("enter", presses=5)
 
         self._fill_tax_invoice_via_f2_f9(config, row)
@@ -274,10 +269,10 @@ class KaTamWorkflow:
         self.image.press("f9")
         self.image.wait(0.8)
         if invoice_number:
-            self.image.type_keys(invoice_number, clear_first=True)
+            self.image.type_text(invoice_number, clear_first=True)
         self.image.press("enter", presses=13)
         if tax_payer_id:
-            self.image.type_keys(tax_payer_id, clear_first=True)
+            self.image.type_text(tax_payer_id, clear_first=True)
         self.image.press("enter", presses=3)
         self.image.press("esc")
         self.image.wait(0.3)
@@ -285,7 +280,3 @@ class KaTamWorkflow:
     @staticmethod
     def _format_amount(value: float) -> str:
         return f"{value:,.2f}"
-
-    @staticmethod
-    def _amount_keys(value: float) -> str:
-        return f"{value:.2f}"

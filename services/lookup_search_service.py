@@ -1,4 +1,4 @@
-"""เปิดช่องค้นหาใน dialog เลือกข้อมูล — คลิกปุ่ม ค้นหา แล้วพิมพ์ (Express โฟกัสช่องให้)"""
+"""เปิดช่องค้นหาใน dialog เลือกข้อมูล — คลิก ค้นหา แล้ววางด้วย type_thai"""
 
 from __future__ import annotations
 
@@ -45,17 +45,16 @@ def search_and_select(
 
     _check_stop(should_stop)
     _click_search_button(image, settings, template_click=template_click)
-    image.type_keys(name, clear_first=False)
+    image.type_thai(name, clear_first=True)
+    image.wait(0.15)
     if on_status:
-        on_status(UI_TEXT["type_log"].format(field="ช่องค้นหา", text=name))
-    image.wait(settings.paste_wait)
+        on_status(UI_TEXT["paste_log"].format(field="ช่องค้นหา", text=name))
 
     presses = max(1, confirm_enter_count if confirm_enter_count is not None else settings.confirm_enter_count)
-    for index in range(presses):
+    for _ in range(presses):
         _check_stop(should_stop)
         image.press("enter")
-        if index + 1 < presses:
-            image.wait(settings.post_search_wait)
+        image.wait(0.15)
 
 
 def _click_search_button(
@@ -77,7 +76,7 @@ def _click_search_button(
     for attempt in range(attempts):
         try:
             match = template_click.click("lookup_search")
-            image.wait(settings.post_search_click_wait)
+            image.wait(0.1)
             return match
         except TemplateNotFoundError as exc:
             last_error = exc

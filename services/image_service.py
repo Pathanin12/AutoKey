@@ -8,6 +8,9 @@ try:
 except ImportError:  # pragma: no cover - dev on non-runtime env
     pyautogui = None
 
+from services.clipboard_service import copy_text
+from services.window_paste_service import paste_to_foreground
+
 
 class ImageService:
     """ส่งคีย์/คลิก/จับภาพหน้าจอผ่าน pyautogui"""
@@ -74,28 +77,39 @@ class ImageService:
         self.wait(0.03)
 
     def type_text(self, text: str, clear_first: bool = True) -> None:
-        self.type_keys(text, clear_first=clear_first)
+        self._paste_text(text, clear_first=clear_first)
 
     def type_thai(self, text: str, clear_first: bool = True) -> None:
-        self.type_keys(text, clear_first=clear_first)
+        self._paste_text(text, clear_first=clear_first)
 
     def type_keys(self, text: str, *, clear_first: bool = False) -> None:
-        """พิมพ์ทีละตัวลง Express — Unicode ไม่ตามแป้นไทย ไม่ใช้ clipboard"""
+        """พิมพ์ทีละตัว — เหมาะกับช่องวันที่ที่มี input mask"""
         if not text:
             return
         self._ensure_runtime()
         if clear_first:
-            if sys.platform == "win32":
-                from services.windows_input_service import send_combo
-
-                send_combo("ctrl", "a")
-            else:
-                pyautogui.hotkey("ctrl", "a")
+            pyautogui.hotkey("ctrl", "a")
             time.sleep(0.04)
-        if sys.platform == "win32":
-            from services.windows_input_service import send_unicode_text
+        pyautogui.typewrite(text, interval=self.type_interval)
+        self.wait(0.05)
 
-            send_unicode_text(text, interval=self.type_interval)
-        else:
-            pyautogui.typewrite(text, interval=self.type_interval)
+    def paste_clipboard(self, *, clear_first: bool = False) -> None:
+        """วางจาก clipboard — ช่องค้นหา Express หลังคลิก ค้นหา"""
+        self.paste_from_clipboard(clear_first=clear_first)
+
+    def paste_from_clipboard(self, clear_first: bool = False) -> None:
+        self._ensure_runtime()
+        paste_to_foreground(clear_first=clear_first)
+        self.wait(0.05)
+
+    def _paste_text(self, text: str, clear_first: bool = True) -> None:
+        if not text:
+            return
+        self._ensure_runtime()
+        if clear_first:
+            pyautogui.hotkey("ctrl", "a")
+            time.sleep(0.04)
+        copy_text(text)
+        time.sleep(0.1 if sys.platform == "win32" else 0.04)
+        pyautogui.hotkey("ctrl", "v")
         self.wait(0.05)
