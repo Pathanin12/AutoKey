@@ -8,9 +8,6 @@ try:
 except ImportError:  # pragma: no cover - dev on non-runtime env
     pyautogui = None
 
-from services.clipboard_service import copy_text
-from services.window_paste_service import paste_to_foreground
-
 
 class ImageService:
     """ส่งคีย์/คลิก/จับภาพหน้าจอผ่าน pyautogui"""
@@ -77,36 +74,28 @@ class ImageService:
         self.wait(0.03)
 
     def type_text(self, text: str, clear_first: bool = True) -> None:
-        self._paste_text(text, clear_first=clear_first)
+        self.type_keys(text, clear_first=clear_first)
 
     def type_thai(self, text: str, clear_first: bool = True) -> None:
-        self._paste_text(text, clear_first=clear_first)
+        self.type_keys(text, clear_first=clear_first)
 
     def type_keys(self, text: str, *, clear_first: bool = False) -> None:
-        """พิมพ์ทีละตัว — เหมาะกับช่องวันที่ที่มี input mask"""
+        """พิมพ์ทีละตัวลง Express — Unicode ไม่ตามแป้นไทย ไม่ใช้ clipboard"""
         if not text:
             return
         self._ensure_runtime()
         if clear_first:
-            pyautogui.hotkey("ctrl", "a")
+            if sys.platform == "win32":
+                from services.windows_input_service import send_combo
+
+                send_combo("ctrl", "a")
+            else:
+                pyautogui.hotkey("ctrl", "a")
             time.sleep(0.04)
-        pyautogui.typewrite(text, interval=self.type_interval)
+        if sys.platform == "win32":
+            from services.windows_input_service import send_unicode_text
+
+            send_unicode_text(text, interval=self.type_interval)
+        else:
+            pyautogui.typewrite(text, interval=self.type_interval)
         self.wait(0.05)
-
-    def paste_clipboard(self, *, clear_first: bool = False) -> None:
-        """วางจาก clipboard — ใช้ clear_first=False สำหรับช่องค้นหา Express"""
-        self.paste_from_clipboard(clear_first=clear_first)
-
-    def paste_from_clipboard(self, clear_first: bool = False) -> None:
-        """วางจาก clipboard — ใช้ WM_PASTE บน Windows สำหรับ Express"""
-        self._ensure_runtime()
-        paste_to_foreground(clear_first=clear_first)
-        self.wait(0.05)
-
-    def _paste_text(self, text: str, clear_first: bool = True) -> None:
-        if not text:
-            return
-        self._ensure_runtime()
-        copy_text(text)
-        time.sleep(0.1 if sys.platform == "win32" else 0.04)
-        self.paste_from_clipboard(clear_first=clear_first)

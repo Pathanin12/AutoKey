@@ -1,4 +1,4 @@
-"""ส่งคีย์แบบ virtual-key บน Windows — ไม่ตามแป้นไทย และไม่ให้หน้า Tk กิน Alt"""
+"""ส่งคีย์แบบ virtual-key / Unicode บน Windows — ไม่ตามแป้นไทย"""
 
 from __future__ import annotations
 
@@ -25,8 +25,13 @@ _VK = {
     "f11": 0x7A,
 }
 
+INPUT_KEYBOARD = 1
+KEYEVENTF_KEYUP = 0x0002
+KEYEVENTF_UNICODE = 0x0004
+
 
 def send_hotkey(*keys: str) -> None:
+    """Alt+A เปิดไฟล์ใหม่ — โฟกัส Express ก่อน แล้วส่ง virtual key"""
     if sys.platform != "win32":
         return
 
@@ -38,8 +43,34 @@ def send_hotkey(*keys: str) -> None:
         required=False,
         wait_after_focus_seconds=0.12,
     )
+    send_combo(*keys)
+
+
+def send_combo(*keys: str) -> None:
+    """ส่งคีย์ค้าง (เช่น Ctrl+A) โดยไม่โฟกัส Express ใหม่"""
+    if sys.platform != "win32":
+        return
     _send_virtual_keys([_vk_code(key) for key in keys])
     time.sleep(0.03)
+
+
+def send_unicode_text(text: str, *, interval: float = 0.03) -> None:
+    """พิมพ์ตัวอักษรจริงลงช่องที่โฟกัส — ไม่ตามแป้นไทย และไม่ใช้ clipboard"""
+    if sys.platform != "win32" or not text:
+        return
+    for char in text:
+        for unit in _utf16_units(char):
+            _send_unicode_unit(unit)
+        if interval:
+            time.sleep(interval)
+
+
+def _utf16_units(char: str) -> tuple[int, ...]:
+    code = ord(char)
+    if code <= 0xFFFF:
+        return (code,)
+    extra = code - 0x10000
+    return (0xD800 + (extra >> 10), 0xDC00 + (extra & 0x3FF))
 
 
 def _vk_code(key: str) -> int:
@@ -58,6 +89,24 @@ def _vk_code(key: str) -> int:
 
 
 def _send_virtual_keys(virtual_keys: list[int]) -> None:
+    events = []
+    for vk in virtual_keys:
+        events.append((vk, 0, 0))
+    for vk in reversed(virtual_keys):
+        events.append((vk, 0, KEYEVENTF_KEYUP))
+    _send_key_events(events)
+
+
+def _send_unicode_unit(unit: int) -> None:
+    _send_key_events(
+        [
+            (0, unit, KEYEVENTF_UNICODE),
+            (0, unit, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP),
+        ]
+    )
+
+
+def _send_key_events(events: list[tuple[int, int, int]]) -> None:
     import ctypes
     from ctypes import wintypes
 
@@ -88,27 +137,21 @@ def _send_virtual_keys(virtual_keys: list[int]) -> None:
     class INPUT(ctypes.Structure):
         _fields_ = [("type", wintypes.DWORD), ("union", INPUTUNION)]
 
-    INPUT_KEYBOARD = 1
-    KEYEVENTF_KEYUP = 0x0002
-    events: list[INPUT] = []
-
-    def _event(vk: int, flags: int) -> INPUT:
+    payload_events: list[INPUT] = []
+    for vk, scan, flags in events:
         item = INPUT()
         item.type = INPUT_KEYBOARD
         item.union.ki.wVk = vk
-        item.union.ki.wScan = 0
+        item.union.ki.wScan = scan
         item.union.ki.dwFlags = flags
         item.union.ki.time = 0
         item.union.ki.dwExtraInfo = 0
-        return item
+        payload_events.append(item)
 
-    for vk in virtual_keys:
-        events.append(_event(vk, 0))
-    for vk in reversed(virtual_keys):
-        events.append(_event(vk, KEYEVENTF_KEYUP))
-
-    array_type = INPUT * len(events)
-    payload = array_type(*events)
-    sent = ctypes.windll.user32.SendInput(len(events), ctypes.byref(payload), ctypes.sizeof(INPUT))
-    if sent != len(events):
+    array_type = INPUT * len(payload_events)
+    payload = array_type(*payload_events)
+    sent = ctypes.windll.user32.SendInput(
+        len(payload_events), ctypes.byref(payload), ctypes.sizeof(INPUT)
+    )
+    if sent != len(payload_events):
         raise RuntimeError("ส่งคีย์ไป Express ไม่ครบ")

@@ -75,6 +75,7 @@ UI_TEXT = {
     "stop_requested": "ส่งคำสั่งหยุด...",
     "starting": "กำลังเริ่ม — โฟกัส Express...",
     "warming_up": "เตรียมระบบจับภาพ...",
+    "type_log": "พิมพ์ — {field}: {text}",
     "paste_log": "วาง — {field}: {text}",
     "clipboard_copy_log": "คัดลอก — {field}: {text}",
     "excel_copy_log": "Excel copy — {cell}: {text}",

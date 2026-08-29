@@ -1,4 +1,4 @@
-"""เปิดช่องค้นหาใน dialog เลือกข้อมูล — คลิกปุ่ม ค้นหา แล้ววางเลย (Express โฟกัสช่องให้)"""
+"""เปิดช่องค้นหาใน dialog เลือกข้อมูล — คลิกปุ่ม ค้นหา แล้วพิมพ์ (Express โฟกัสช่องให้)"""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Callable
 
 from constants.routes import UI_TEXT
 from models.step_match_result import StepMatchResult
-from services.clipboard_service import copy_text
 from services.image_service import ImageService
 from services.lookup_match_service import to_express_vendor_name
 
@@ -45,11 +44,10 @@ def search_and_select(
         return
 
     _check_stop(should_stop)
-    copy_text(name)
     _click_search_button(image, settings, template_click=template_click)
-    image.paste_clipboard(clear_first=False)
+    image.type_keys(name, clear_first=False)
     if on_status:
-        on_status(UI_TEXT["paste_log"].format(field="ช่องค้นหา", text=name))
+        on_status(UI_TEXT["type_log"].format(field="ช่องค้นหา", text=name))
     image.wait(settings.paste_wait)
 
     presses = max(1, confirm_enter_count if confirm_enter_count is not None else settings.confirm_enter_count)
