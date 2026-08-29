@@ -32,7 +32,6 @@ WM_COMMAND = 0x0111
 WM_SETFONT = 0x0030
 WM_SETICON = 0x0080
 WM_APP = 0x8000
-WM_APP_CHOOSE_EXCEL = WM_APP + 1
 WM_TIMER = 0x0113
 EN_KILLFOCUS = 0x0100
 EN_CHANGE = 0x0300
@@ -299,24 +298,20 @@ class MainWindow:
         if message == WM_COMMAND:
             notify = (wparam >> 16) & 0xFFFF
             ctrl_id = wparam & 0xFFFF
-            if ctrl_id == ID_BROWSE or ctrl_id == ID_START or ctrl_id == ID_STOP or ctrl_id == ID_COPY:
-                if ctrl_id == ID_BROWSE:
-                    user32.PostMessageW(hwnd, WM_APP_CHOOSE_EXCEL, 0, 0)
-                elif notify == BN_CLICKED:
-                    if ctrl_id == ID_START:
-                        self._start()
-                    elif ctrl_id == ID_STOP:
-                        self._stop()
-                    elif ctrl_id == ID_COPY:
-                        self._copy_all_log()
+            if ctrl_id == ID_BROWSE:
+                self._choose_excel()
+            elif notify == BN_CLICKED:
+                if ctrl_id == ID_START:
+                    self._start()
+                elif ctrl_id == ID_STOP:
+                    self._stop()
+                elif ctrl_id == ID_COPY:
+                    self._copy_all_log()
             elif ctrl_id == ID_PV:
                 if notify == EN_CHANGE:
                     self._mask_pv_date()
                 elif notify == EN_KILLFOCUS:
                     self._format_pv_date()
-        elif message == WM_APP_CHOOSE_EXCEL:
-            self._choose_excel()
-            return 0
         elif message == WM_APP:
             self._drain_queue()
         elif message == WM_TIMER and wparam == 1:
@@ -388,17 +383,12 @@ class MainWindow:
             return 0
 
     def _choose_excel(self) -> None:
-        user32.SetForegroundWindow(self._hwnd)
-        user32.BringWindowToTop(self._hwnd)
-        user32.SetWindowPos(self._hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE)
         self._append_log("เปิดหน้าต่างเลือกไฟล์...")
         try:
             path = pick_excel_path(self._hwnd)
         except Exception as exc:
             user32.MessageBoxW(self._hwnd, str(exc), "AutoKey", MB_OK | MB_ICONERROR)
             return
-        finally:
-            user32.SetWindowPos(self._hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE)
         if not path:
             return
         self._set_text(ID_EXCEL, path)

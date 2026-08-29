@@ -1,221 +1,54 @@
-"""เลือกไฟล์บน Windows — IFileOpenDialog แล้วค่อย GetOpenFileNameW"""
+"""เลือกไฟล์บน Windows — ใช้ OpenFileDialog ของระบบผ่าน PowerShell"""
 
 from __future__ import annotations
 
-import ctypes
-from ctypes import wintypes
-from uuid import UUID
+import subprocess
+import tempfile
+from pathlib import Path
 
 from constants.routes import EXCEL_OPEN_EXTENSIONS, UI_TEXT
 
-ole32 = ctypes.WinDLL("ole32")
-comdlg32 = ctypes.WinDLL("comdlg32")
-comctl32 = ctypes.WinDLL("comctl32")
 
-CLSCTX_INPROC_SERVER = 1
-FOS_FORCEFILESYSTEM = 0x40
-FOS_PATHMUSTEXIST = 0x800
-FOS_FILEMUSTEXIST = 0x1000
-SIGDN_FILESYSPATH = 0x80058000
-S_OK = 0
-ERROR_CANCELLED = 0x800704C7
-OFN_HIDEREADONLY = 0x00000004
-OFN_PATHMUSTEXIST = 0x00000800
-OFN_FILEMUSTEXIST = 0x00001000
-OFN_EXPLORER = 0x00080000
-OFN_ENABLESIZING = 0x00800000
-ICC_WIN95_CLASSES = 0x000000FF
-HRESULT = ctypes.c_long
-
-
-class INITCOMMONCONTROLSEX(ctypes.Structure):
-    _fields_ = [("dwSize", wintypes.DWORD), ("dwICC", wintypes.DWORD)]
-
-
-class GUID(ctypes.Structure):
-    _fields_ = [
-        ("Data1", ctypes.c_uint32),
-        ("Data2", ctypes.c_uint16),
-        ("Data3", ctypes.c_uint16),
-        ("Data4", ctypes.c_ubyte * 8),
-    ]
-
-    @classmethod
-    def from_string(cls, text: str) -> "GUID":
-        parsed = UUID(text)
-        return cls(
-            parsed.time_low,
-            parsed.time_mid,
-            parsed.time_hi_version,
-            (ctypes.c_ubyte * 8).from_buffer_copy(parsed.bytes[8:]),
-        )
-
-
-class COMDLG_FILTERSPEC(ctypes.Structure):
-    _fields_ = [("pszName", wintypes.LPCWSTR), ("pszSpec", wintypes.LPCWSTR)]
-
-
-class OPENFILENAMEW(ctypes.Structure):
-    _fields_ = [
-        ("lStructSize", wintypes.DWORD),
-        ("hwndOwner", wintypes.HWND),
-        ("hInstance", wintypes.HINSTANCE),
-        ("lpstrFilter", wintypes.LPCWSTR),
-        ("lpstrCustomFilter", wintypes.LPWSTR),
-        ("nMaxCustFilter", wintypes.DWORD),
-        ("nFilterIndex", wintypes.DWORD),
-        ("lpstrFile", wintypes.LPWSTR),
-        ("nMaxFile", wintypes.DWORD),
-        ("lpstrFileTitle", wintypes.LPWSTR),
-        ("nMaxFileTitle", wintypes.DWORD),
-        ("lpstrInitialDir", wintypes.LPCWSTR),
-        ("lpstrTitle", wintypes.LPCWSTR),
-        ("Flags", wintypes.DWORD),
-        ("nFileOffset", wintypes.WORD),
-        ("nFileExtension", wintypes.WORD),
-        ("lpstrDefExt", wintypes.LPCWSTR),
-        ("lCustData", ctypes.c_void_p),
-        ("lpfnHook", ctypes.c_void_p),
-        ("lpTemplateName", wintypes.LPCWSTR),
-    ]
-
-
-CLSID_FileOpenDialog = GUID.from_string("DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7")
-IID_IFileOpenDialog = GUID.from_string("D57C7288-D4AD-4768-BE02-9D969532D960")
-
-ole32.CoCreateInstance.argtypes = [
-    ctypes.POINTER(GUID),
-    ctypes.c_void_p,
-    wintypes.DWORD,
-    ctypes.POINTER(GUID),
-    ctypes.POINTER(ctypes.c_void_p),
-]
-ole32.CoCreateInstance.restype = HRESULT
-ole32.CoTaskMemFree.argtypes = [ctypes.c_void_p]
-comdlg32.GetOpenFileNameW.argtypes = [ctypes.POINTER(OPENFILENAMEW)]
-comdlg32.GetOpenFileNameW.restype = wintypes.BOOL
-comdlg32.CommDlgExtendedError.argtypes = []
-comdlg32.CommDlgExtendedError.restype = wintypes.DWORD
-comctl32.InitCommonControlsEx.argtypes = [ctypes.POINTER(INITCOMMONCONTROLSEX)]
-comctl32.InitCommonControlsEx.restype = wintypes.BOOL
-
-
-def pick_excel_path(owner_hwnd) -> str | None:
-    _init_common_controls()
-    cancelled = False
-    try:
-        path, cancelled = _pick_with_file_open_dialog(owner_hwnd)
-        if path or cancelled:
-            return path
-    except Exception:
-        cancelled = False
-    path = _pick_with_get_open_file_name(owner_hwnd)
-    if path:
-        return path
-    err = int(comdlg32.CommDlgExtendedError())
-    if err:
-        raise RuntimeError(f"เปิดหน้าต่างเลือกไฟล์ไม่ได้ (รหัส {err})")
-    return None
-
-
-def _init_common_controls() -> None:
-    info = INITCOMMONCONTROLSEX(ctypes.sizeof(INITCOMMONCONTROLSEX), ICC_WIN95_CLASSES)
-    comctl32.InitCommonControlsEx(ctypes.byref(info))
-
-
-def _pick_with_get_open_file_name(owner_hwnd) -> str | None:
+def pick_excel_path(_owner_hwnd=None) -> str | None:
     extensions = ";".join(f"*.{ext}" for ext in EXCEL_OPEN_EXTENSIONS)
-    file_buf = ctypes.create_unicode_buffer(32768)
-    filter_buf = _wchar_zchunks(f"Excel ({extensions})", extensions, "All files (*.*)", "*.*")
-    title_buf = ctypes.create_unicode_buffer(UI_TEXT["choose_file"])
-    defext_buf = ctypes.create_unicode_buffer(EXCEL_OPEN_EXTENSIONS[0])
-    ofn = OPENFILENAMEW()
-    ofn.lStructSize = ctypes.sizeof(OPENFILENAMEW)
-    ofn.hwndOwner = owner_hwnd
-    ofn.lpstrFilter = ctypes.cast(filter_buf, wintypes.LPCWSTR)
-    ofn.nFilterIndex = 1
-    ofn.lpstrFile = file_buf
-    ofn.nMaxFile = len(file_buf)
-    ofn.lpstrTitle = title_buf
-    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_ENABLESIZING
-    ofn.lpstrDefExt = defext_buf
-    if comdlg32.GetOpenFileNameW(ctypes.byref(ofn)):
-        return file_buf.value
+    out_file = Path(tempfile.gettempdir()) / "autokey_picked_excel.txt"
+    if out_file.exists():
+        out_file.unlink()
+    out_ps = str(out_file).replace("'", "''")
+    title = UI_TEXT["choose_file"].replace("'", "''")
+    script = (
+        "Add-Type -AssemblyName System.Windows.Forms; "
+        "$d = New-Object System.Windows.Forms.OpenFileDialog; "
+        f"$d.Title = '{title}'; "
+        f"$d.Filter = 'Excel ({extensions})|{extensions}|All files (*.*)|*.*'; "
+        "$d.Multiselect = $false; "
+        "if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { "
+        f"[System.IO.File]::WriteAllText('{out_ps}', $d.FileName, [System.Text.UTF8Encoding]::new($false)) "
+        "}"
+    )
+    completed = subprocess.run(
+        [
+            "powershell",
+            "-STA",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+            script,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if out_file.exists():
+        path = out_file.read_text(encoding="utf-8").strip()
+        out_file.unlink(missing_ok=True)
+        if path:
+            return path
+    if completed.returncode not in (0, None) and completed.stderr:
+        raise RuntimeError(completed.stderr.strip()[:500])
     return None
-
-
-def _pick_with_file_open_dialog(owner_hwnd) -> tuple[str | None, bool]:
-    dialog = ctypes.c_void_p()
-    hr = ole32.CoCreateInstance(
-        ctypes.byref(CLSID_FileOpenDialog),
-        None,
-        CLSCTX_INPROC_SERVER,
-        ctypes.byref(IID_IFileOpenDialog),
-        ctypes.byref(dialog),
-    )
-    if int(hr) != S_OK or not dialog.value:
-        return None, False
-    obj = dialog.value
-    spec = ";".join(f"*.{ext}" for ext in EXCEL_OPEN_EXTENSIONS)
-    name = f"Excel ({spec})"
-    filters = (COMDLG_FILTERSPEC * 2)(
-        COMDLG_FILTERSPEC(name, spec),
-        COMDLG_FILTERSPEC("All files (*.*)", "*.*"),
-    )
-    try:
-        if int(_vtable_call(obj, 4, HRESULT, [ctypes.POINTER(COMDLG_FILTERSPEC), ctypes.c_uint], ctypes.cast(filters, ctypes.POINTER(COMDLG_FILTERSPEC)), 2)) != S_OK:
-            return None, False
-        _vtable_call(
-            obj,
-            9,
-            HRESULT,
-            [wintypes.DWORD],
-            FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST | FOS_PATHMUSTEXIST,
-        )
-        _vtable_call(obj, 17, HRESULT, [wintypes.LPCWSTR], UI_TEXT["choose_file"])
-        _vtable_call(obj, 22, HRESULT, [wintypes.LPCWSTR], EXCEL_OPEN_EXTENSIONS[0])
-        hr = int(_vtable_call(obj, 3, HRESULT, [wintypes.HWND], owner_hwnd))
-        if hr == ERROR_CANCELLED or hr == -2147023673:
-            return None, True
-        if hr != S_OK:
-            return None, False
-        item = ctypes.c_void_p()
-        if int(_vtable_call(obj, 20, HRESULT, [ctypes.POINTER(ctypes.c_void_p)], ctypes.byref(item))) != S_OK:
-            return None, False
-        if not item.value:
-            return None, False
-        try:
-            path_ptr = wintypes.LPWSTR()
-            hr = int(
-                _vtable_call(
-                    item.value,
-                    5,
-                    HRESULT,
-                    [ctypes.c_uint32, ctypes.POINTER(wintypes.LPWSTR)],
-                    SIGDN_FILESYSPATH,
-                    ctypes.byref(path_ptr),
-                )
-            )
-            if hr != S_OK or not path_ptr:
-                return None, False
-            path = path_ptr.value
-            ole32.CoTaskMemFree(path_ptr)
-            return path, False
-        finally:
-            _vtable_call(item.value, 2, ctypes.c_ulong, [])
-    finally:
-        _vtable_call(obj, 2, ctypes.c_ulong, [])
-
-
-def _vtable_call(obj, index, restype, argtypes, *args):
-    vtable = ctypes.cast(ctypes.cast(obj, ctypes.POINTER(ctypes.c_void_p)).contents, ctypes.POINTER(ctypes.c_void_p))
-    proto = ctypes.WINFUNCTYPE(restype, ctypes.c_void_p, *argtypes)
-    return proto(vtable[index])(obj, *args)
-
-
-def _wchar_zchunks(*parts: str):
-    payload = "\0".join(parts) + "\0\0"
-    buf = ctypes.create_unicode_buffer(len(payload))
-    for index, char in enumerate(payload):
-        buf[index] = char
-    return buf
