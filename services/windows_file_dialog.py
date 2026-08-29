@@ -1,4 +1,4 @@
-"""เลือกไฟล์บน Windows — GetOpenFileNameW แล้วค่อย IFileOpenDialog"""
+"""เลือกไฟล์บน Windows — IFileOpenDialog แล้วค่อย GetOpenFileNameW"""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from constants.routes import EXCEL_OPEN_EXTENSIONS, UI_TEXT
 
 ole32 = ctypes.WinDLL("ole32")
 comdlg32 = ctypes.WinDLL("comdlg32")
+comctl32 = ctypes.WinDLL("comctl32")
 
 CLSCTX_INPROC_SERVER = 1
 FOS_FORCEFILESYSTEM = 0x40
@@ -17,12 +18,18 @@ FOS_PATHMUSTEXIST = 0x800
 FOS_FILEMUSTEXIST = 0x1000
 SIGDN_FILESYSPATH = 0x80058000
 S_OK = 0
+ERROR_CANCELLED = 0x800704C7
 OFN_HIDEREADONLY = 0x00000004
 OFN_PATHMUSTEXIST = 0x00000800
 OFN_FILEMUSTEXIST = 0x00001000
 OFN_EXPLORER = 0x00080000
 OFN_ENABLESIZING = 0x00800000
+ICC_WIN95_CLASSES = 0x000000FF
 HRESULT = ctypes.c_long
+
+
+class INITCOMMONCONTROLSEX(ctypes.Structure):
+    _fields_ = [("dwSize", wintypes.DWORD), ("dwICC", wintypes.DWORD)]
 
 
 class GUID(ctypes.Structure):
@@ -89,19 +96,31 @@ comdlg32.GetOpenFileNameW.argtypes = [ctypes.POINTER(OPENFILENAMEW)]
 comdlg32.GetOpenFileNameW.restype = wintypes.BOOL
 comdlg32.CommDlgExtendedError.argtypes = []
 comdlg32.CommDlgExtendedError.restype = wintypes.DWORD
+comctl32.InitCommonControlsEx.argtypes = [ctypes.POINTER(INITCOMMONCONTROLSEX)]
+comctl32.InitCommonControlsEx.restype = wintypes.BOOL
 
 
 def pick_excel_path(owner_hwnd) -> str | None:
+    _init_common_controls()
+    cancelled = False
     try:
-        path = _pick_with_get_open_file_name(owner_hwnd)
-        if path:
+        path, cancelled = _pick_with_file_open_dialog(owner_hwnd)
+        if path or cancelled:
             return path
     except Exception:
-        pass
-    try:
-        return _pick_with_file_open_dialog(owner_hwnd)
-    except Exception:
-        return None
+        cancelled = False
+    path = _pick_with_get_open_file_name(owner_hwnd)
+    if path:
+        return path
+    err = int(comdlg32.CommDlgExtendedError())
+    if err:
+        raise RuntimeError(f"เปิดหน้าต่างเลือกไฟล์ไม่ได้ (รหัส {err})")
+    return None
+
+
+def _init_common_controls() -> None:
+    info = INITCOMMONCONTROLSEX(ctypes.sizeof(INITCOMMONCONTROLSEX), ICC_WIN95_CLASSES)
+    comctl32.InitCommonControlsEx(ctypes.byref(info))
 
 
 def _pick_with_get_open_file_name(owner_hwnd) -> str | None:
@@ -112,7 +131,7 @@ def _pick_with_get_open_file_name(owner_hwnd) -> str | None:
     defext_buf = ctypes.create_unicode_buffer(EXCEL_OPEN_EXTENSIONS[0])
     ofn = OPENFILENAMEW()
     ofn.lStructSize = ctypes.sizeof(OPENFILENAMEW)
-    ofn.hwndOwner = owner_hwnd or None
+    ofn.hwndOwner = owner_hwnd
     ofn.lpstrFilter = ctypes.cast(filter_buf, wintypes.LPCWSTR)
     ofn.nFilterIndex = 1
     ofn.lpstrFile = file_buf
@@ -125,7 +144,7 @@ def _pick_with_get_open_file_name(owner_hwnd) -> str | None:
     return None
 
 
-def _pick_with_file_open_dialog(owner_hwnd) -> str | None:
+def _pick_with_file_open_dialog(owner_hwnd) -> tuple[str | None, bool]:
     dialog = ctypes.c_void_p()
     hr = ole32.CoCreateInstance(
         ctypes.byref(CLSID_FileOpenDialog),
@@ -135,7 +154,7 @@ def _pick_with_file_open_dialog(owner_hwnd) -> str | None:
         ctypes.byref(dialog),
     )
     if int(hr) != S_OK or not dialog.value:
-        return None
+        return None, False
     obj = dialog.value
     spec = ";".join(f"*.{ext}" for ext in EXCEL_OPEN_EXTENSIONS)
     name = f"Excel ({spec})"
@@ -144,8 +163,8 @@ def _pick_with_file_open_dialog(owner_hwnd) -> str | None:
         COMDLG_FILTERSPEC("All files (*.*)", "*.*"),
     )
     try:
-        if _vtable_call(obj, 4, HRESULT, [ctypes.POINTER(COMDLG_FILTERSPEC), ctypes.c_uint], ctypes.cast(filters, ctypes.POINTER(COMDLG_FILTERSPEC)), 2) != S_OK:
-            return None
+        if int(_vtable_call(obj, 4, HRESULT, [ctypes.POINTER(COMDLG_FILTERSPEC), ctypes.c_uint], ctypes.cast(filters, ctypes.POINTER(COMDLG_FILTERSPEC)), 2)) != S_OK:
+            return None, False
         _vtable_call(
             obj,
             9,
@@ -155,29 +174,33 @@ def _pick_with_file_open_dialog(owner_hwnd) -> str | None:
         )
         _vtable_call(obj, 17, HRESULT, [wintypes.LPCWSTR], UI_TEXT["choose_file"])
         _vtable_call(obj, 22, HRESULT, [wintypes.LPCWSTR], EXCEL_OPEN_EXTENSIONS[0])
-        hr = _vtable_call(obj, 3, HRESULT, [wintypes.HWND], owner_hwnd)
-        if int(hr) != S_OK:
-            return None
+        hr = int(_vtable_call(obj, 3, HRESULT, [wintypes.HWND], owner_hwnd))
+        if hr == ERROR_CANCELLED or hr == -2147023673:
+            return None, True
+        if hr != S_OK:
+            return None, False
         item = ctypes.c_void_p()
-        if _vtable_call(obj, 20, HRESULT, [ctypes.POINTER(ctypes.c_void_p)], ctypes.byref(item)) != S_OK:
-            return None
+        if int(_vtable_call(obj, 20, HRESULT, [ctypes.POINTER(ctypes.c_void_p)], ctypes.byref(item))) != S_OK:
+            return None, False
         if not item.value:
-            return None
+            return None, False
         try:
             path_ptr = wintypes.LPWSTR()
-            hr = _vtable_call(
-                item.value,
-                5,
-                HRESULT,
-                [ctypes.c_uint32, ctypes.POINTER(wintypes.LPWSTR)],
-                SIGDN_FILESYSPATH,
-                ctypes.byref(path_ptr),
+            hr = int(
+                _vtable_call(
+                    item.value,
+                    5,
+                    HRESULT,
+                    [ctypes.c_uint32, ctypes.POINTER(wintypes.LPWSTR)],
+                    SIGDN_FILESYSPATH,
+                    ctypes.byref(path_ptr),
+                )
             )
-            if int(hr) != S_OK or not path_ptr:
-                return None
+            if hr != S_OK or not path_ptr:
+                return None, False
             path = path_ptr.value
             ole32.CoTaskMemFree(path_ptr)
-            return path
+            return path, False
         finally:
             _vtable_call(item.value, 2, ctypes.c_ulong, [])
     finally:

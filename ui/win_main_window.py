@@ -34,9 +34,6 @@ WM_SETICON = 0x0080
 WM_APP = 0x8000
 WM_APP_CHOOSE_EXCEL = WM_APP + 1
 WM_TIMER = 0x0113
-WM_NCHITTEST = 0x0084
-HTTRANSPARENT = -1
-GWLP_WNDPROC = -4
 EN_KILLFOCUS = 0x0100
 EN_CHANGE = 0x0300
 BN_CLICKED = 0
@@ -94,10 +91,6 @@ WIN_H = 620
 user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
 user32.DefWindowProcW.restype = LRESULT
 user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
-user32.CallWindowProcW.argtypes = [ctypes.c_void_p, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
-user32.CallWindowProcW.restype = LRESULT
-user32.SetWindowLongPtrW.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_void_p]
-user32.SetWindowLongPtrW.restype = ctypes.c_void_p
 
 
 class WNDCLASSEXW(ctypes.Structure):
@@ -157,7 +150,6 @@ class MainWindow:
         self._controls: dict[int, wintypes.HWND] = {}
         self._font = None
         self._masking_pv_date = False
-        self._group_procs: list[WNDPROC] = []
 
         defaults = self.automation_service.default_settings
         self._initial_pv_date = format_express_pv_date(
@@ -227,42 +219,24 @@ class MainWindow:
         self._controls[ctrl_id] = hwnd
         return hwnd
 
-    def _raise_input_controls(self) -> None:
-        for ctrl_id in (
-            ID_EXCEL,
-            ID_BROWSE,
-            ID_PV,
-            ID_START_NO,
-            ID_DESC,
-            ID_TAX,
-            ID_START,
-            ID_STOP,
-            ID_COPY,
-            ID_LOG,
-        ):
-            hwnd = self._controls.get(ctrl_id)
-            if hwnd:
-                user32.SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE)
-
     def _build_controls(self) -> None:
         self._ctrl("STATIC", f"{UI_TEXT['app_title']} v{__version__}", SS_LEFT, 12, 10, 520, 22, 200)
-        self._ctrl("BUTTON", UI_TEXT["settings_frame"], BS_GROUPBOX, 12, 36, 520, 300, ID_SETTINGS_BOX)
-        self._ctrl("STATIC", UI_TEXT["excel_file"], SS_LEFT, 24, 56, 90, 20, 202)
-        self._ctrl("EDIT", "", WS_TABSTOP | ES_AUTOHSCROLL, 120, 54, 290, 22, ID_EXCEL)
-        self._ctrl("BUTTON", UI_TEXT["choose_file"], WS_TABSTOP | BS_PUSHBUTTON, 418, 50, 110, 28, ID_BROWSE)
-        self._ctrl("STATIC", UI_TEXT["excel_summary_empty"], SS_LEFT, 24, 82, 490, 32, ID_SUMMARY)
-        self._ctrl("STATIC", UI_TEXT["pv_date"], SS_LEFT, 24, 118, 110, 20, 203)
-        self._ctrl("EDIT", self._initial_pv_date, WS_TABSTOP | ES_AUTOHSCROLL, 140, 116, 140, 22, ID_PV)
-        self._ctrl("STATIC", UI_TEXT["pv_date_hint"], SS_LEFT, 24, 142, 490, 28, 204)
-        self._ctrl("STATIC", UI_TEXT["start_from_no"], SS_LEFT, 24, 174, 110, 20, 205)
-        self._ctrl("EDIT", self._initial_start_from_no, WS_TABSTOP | ES_AUTOHSCROLL, 140, 172, 60, 22, ID_START_NO)
-        self._ctrl("STATIC", UI_TEXT["start_from_no_hint"], SS_LEFT, 24, 198, 490, 28, 206)
-        self._ctrl("STATIC", UI_TEXT["description"], SS_LEFT, 24, 230, 110, 20, 207)
-        self._ctrl("EDIT", "", WS_TABSTOP | ES_AUTOHSCROLL, 140, 228, 370, 22, ID_DESC)
-        self._ctrl("STATIC", UI_TEXT["description_hint"], SS_LEFT, 24, 252, 490, 28, 208)
-        self._ctrl("STATIC", UI_TEXT["tax_payer_id"], SS_LEFT, 24, 284, 110, 20, 209)
-        self._ctrl("EDIT", "", WS_TABSTOP | ES_AUTOHSCROLL, 140, 282, 370, 22, ID_TAX)
-        self._ctrl("STATIC", UI_TEXT["tax_payer_id_hint"], SS_LEFT, 24, 306, 490, 28, 210)
+        self._ctrl("STATIC", UI_TEXT["settings_frame"], SS_LEFT, 12, 36, 520, 20, ID_SETTINGS_BOX)
+        self._ctrl("STATIC", UI_TEXT["excel_file"], SS_LEFT, 24, 62, 90, 20, 202)
+        self._ctrl("EDIT", "", WS_TABSTOP | ES_AUTOHSCROLL, 120, 60, 280, 24, ID_EXCEL)
+        self._ctrl("STATIC", UI_TEXT["excel_summary_empty"], SS_LEFT, 24, 88, 490, 32, ID_SUMMARY)
+        self._ctrl("STATIC", UI_TEXT["pv_date"], SS_LEFT, 24, 124, 110, 20, 203)
+        self._ctrl("EDIT", self._initial_pv_date, WS_TABSTOP | ES_AUTOHSCROLL, 140, 122, 140, 22, ID_PV)
+        self._ctrl("STATIC", UI_TEXT["pv_date_hint"], SS_LEFT, 24, 148, 490, 28, 204)
+        self._ctrl("STATIC", UI_TEXT["start_from_no"], SS_LEFT, 24, 180, 110, 20, 205)
+        self._ctrl("EDIT", self._initial_start_from_no, WS_TABSTOP | ES_AUTOHSCROLL, 140, 178, 60, 22, ID_START_NO)
+        self._ctrl("STATIC", UI_TEXT["start_from_no_hint"], SS_LEFT, 24, 204, 490, 28, 206)
+        self._ctrl("STATIC", UI_TEXT["description"], SS_LEFT, 24, 236, 110, 20, 207)
+        self._ctrl("EDIT", "", WS_TABSTOP | ES_AUTOHSCROLL, 140, 234, 370, 22, ID_DESC)
+        self._ctrl("STATIC", UI_TEXT["description_hint"], SS_LEFT, 24, 258, 490, 28, 208)
+        self._ctrl("STATIC", UI_TEXT["tax_payer_id"], SS_LEFT, 24, 290, 110, 20, 209)
+        self._ctrl("EDIT", "", WS_TABSTOP | ES_AUTOHSCROLL, 140, 288, 370, 22, ID_TAX)
+        self._ctrl("STATIC", UI_TEXT["tax_payer_id_hint"], SS_LEFT, 24, 312, 490, 28, 210)
         self._ctrl("BUTTON", f"▶ {UI_TEXT['start']}", WS_TABSTOP | BS_PUSHBUTTON, 12, 348, 140, 28, ID_START)
         self._ctrl(
             "BUTTON",
@@ -274,30 +248,13 @@ class MainWindow:
             28,
             ID_STOP,
         )
-        self._ctrl("BUTTON", UI_TEXT["status_frame"], BS_GROUPBOX, 12, 386, 520, 186, ID_STATUS_BOX)
-        self._ctrl("STATIC", "0 / 0", SS_LEFT, 24, 406, 200, 20, ID_PROGRESS)
-        self._ctrl("BUTTON", UI_TEXT["copy_log"], WS_TABSTOP | BS_PUSHBUTTON, 412, 402, 100, 24, ID_COPY)
+        self._ctrl("STATIC", UI_TEXT["status_frame"], SS_LEFT, 12, 386, 200, 20, ID_STATUS_BOX)
+        self._ctrl("STATIC", "0 / 0", SS_LEFT, 24, 410, 200, 20, ID_PROGRESS)
+        self._ctrl("BUTTON", UI_TEXT["copy_log"], WS_TABSTOP | BS_PUSHBUTTON, 412, 406, 100, 24, ID_COPY)
         log_style = WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | ES_WANTRETURN
-        self._ctrl("EDIT", "", log_style, 24, 430, 492, 128, ID_LOG)
+        self._ctrl("EDIT", "", log_style, 24, 434, 492, 128, ID_LOG)
         self._write_log(UI_TEXT["welcome_log"] + "\n", trim=False)
-        self._click_through_group_box(ID_SETTINGS_BOX)
-        self._click_through_group_box(ID_STATUS_BOX)
-        self._raise_input_controls()
-
-    def _click_through_group_box(self, ctrl_id: int) -> None:
-        hwnd = self._controls.get(ctrl_id)
-        if not hwnd:
-            return
-        state: dict[str, object] = {}
-
-        def proc(hw, msg, wp, lp):
-            if msg == WM_NCHITTEST:
-                return HTTRANSPARENT
-            return user32.CallWindowProcW(state["old"], hw, msg, wp, lp)
-
-        wrapped = WNDPROC(proc)
-        state["old"] = user32.SetWindowLongPtrW(hwnd, GWLP_WNDPROC, ctypes.cast(wrapped, ctypes.c_void_p))
-        self._group_procs.append(wrapped)
+        self._ctrl("BUTTON", UI_TEXT["choose_file"], WS_TABSTOP | BS_PUSHBUTTON, 412, 58, 120, 28, ID_BROWSE)
 
     def _set_icon(self) -> None:
         ico = ico_icon_path()
@@ -342,15 +299,16 @@ class MainWindow:
         if message == WM_COMMAND:
             notify = (wparam >> 16) & 0xFFFF
             ctrl_id = wparam & 0xFFFF
-            if ctrl_id == ID_BROWSE:
-                user32.PostMessageW(hwnd, WM_APP_CHOOSE_EXCEL, 0, 0)
-            elif notify == BN_CLICKED:
-                if ctrl_id == ID_START:
-                    self._start()
-                elif ctrl_id == ID_STOP:
-                    self._stop()
-                elif ctrl_id == ID_COPY:
-                    self._copy_all_log()
+            if ctrl_id == ID_BROWSE or ctrl_id == ID_START or ctrl_id == ID_STOP or ctrl_id == ID_COPY:
+                if ctrl_id == ID_BROWSE:
+                    user32.PostMessageW(hwnd, WM_APP_CHOOSE_EXCEL, 0, 0)
+                elif notify == BN_CLICKED:
+                    if ctrl_id == ID_START:
+                        self._start()
+                    elif ctrl_id == ID_STOP:
+                        self._stop()
+                    elif ctrl_id == ID_COPY:
+                        self._copy_all_log()
             elif ctrl_id == ID_PV:
                 if notify == EN_CHANGE:
                     self._mask_pv_date()
@@ -430,11 +388,17 @@ class MainWindow:
             return 0
 
     def _choose_excel(self) -> None:
+        user32.SetForegroundWindow(self._hwnd)
+        user32.BringWindowToTop(self._hwnd)
+        user32.SetWindowPos(self._hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE)
+        self._append_log("เปิดหน้าต่างเลือกไฟล์...")
         try:
             path = pick_excel_path(self._hwnd)
         except Exception as exc:
             user32.MessageBoxW(self._hwnd, str(exc), "AutoKey", MB_OK | MB_ICONERROR)
             return
+        finally:
+            user32.SetWindowPos(self._hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE)
         if not path:
             return
         self._set_text(ID_EXCEL, path)
@@ -554,6 +518,5 @@ class MainWindow:
     def run(self) -> None:
         msg = MSG()
         while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) != 0:
-            if not user32.IsDialogMessageW(self._hwnd, ctypes.byref(msg)):
-                user32.TranslateMessage(ctypes.byref(msg))
-                user32.DispatchMessageW(ctypes.byref(msg))
+            user32.TranslateMessage(ctypes.byref(msg))
+            user32.DispatchMessageW(ctypes.byref(msg))
