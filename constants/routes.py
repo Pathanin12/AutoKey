@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+from constants.date_utils import PV_DATE_EXAMPLE
+
 
 def _resolve_project_root() -> Path:
     if getattr(sys, "frozen", False):
@@ -41,7 +43,7 @@ UI_TEXT = {
     "choose_file": "เลือกไฟล์...",
     "excel_summary_empty": "ยังไม่ได้เลือกไฟล์ Excel",
     "pv_date": "วันที่ใบสำคัญ",
-    "pv_date_hint": "รูปแบบ วัน/เดือน/ปี(2 หลัก) เช่น 25/07/69 — ค่าเริ่มต้นเป็นวันนี้",
+    "pv_date_hint": f"รูปแบบ วัน/เดือน/ปี(2 หลัก) เช่น {PV_DATE_EXAMPLE} — ค่าเริ่มต้นเป็นวันนี้",
     "start_from_no": "เริ่มที่ No.",
     "start_from_no_hint": "คอลัมน์ No ใน Excel — ใช้ resume หลัง error (เช่น เริ่มใหม่ที่ 5)",
     "description": "รายละเอียด",

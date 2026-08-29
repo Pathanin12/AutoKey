@@ -5,12 +5,7 @@ cd "$(dirname "$0")"
 PYTHON="/opt/homebrew/bin/python3.13"
 
 if ! command -v "$PYTHON" >/dev/null 2>&1; then
-  echo "ไม่พบ Homebrew Python — ติดตั้งด้วย: brew install python@3.13 python-tk@3.13"
-  exit 1
-fi
-
-if ! "$PYTHON" -c "import tkinter" >/dev/null 2>&1; then
-  echo "ไม่พบ tkinter — ติดตั้งด้วย: brew install python-tk@3.13"
+  echo "ไม่พบ Homebrew Python — ติดตั้งด้วย: brew install python@3.13"
   exit 1
 fi
 

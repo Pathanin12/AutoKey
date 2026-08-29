@@ -9,14 +9,26 @@ GMEM_MOVEABLE = 0x0002
 THAI_ANSI_ENCODING = "cp874"
 
 
+def normalize_pasted_cell(value: str) -> str:
+    """Excel ก๊อปเซลล์มักมี CR/LF ท้าย — ช่องบรรทัดเดียวตัดออก"""
+    return (value or "").replace("\r", "").replace("\n", "")
+
+
 def copy_text(text: str) -> None:
     if sys.platform == "win32":
         _copy_windows_express(text)
         return
 
-    import pyperclip
+    try:
+        import pyperclip
 
-    pyperclip.copy(text)
+        pyperclip.copy(text)
+        return
+    except Exception:
+        pass
+
+    if sys.platform == "darwin":
+        _copy_pbpaste(text)
 
 
 def _copy_windows_express(text: str) -> None:
@@ -104,9 +116,36 @@ def _put_clipboard_format(
 def read_text() -> str:
     if sys.platform == "win32":
         return _read_windows_clipboard()
-    import pyperclip
 
-    return pyperclip.paste()
+    try:
+        import pyperclip
+
+        text = pyperclip.paste()
+        if text:
+            return text
+    except Exception:
+        pass
+
+    if sys.platform == "darwin":
+        return _read_pbpaste()
+    return ""
+
+
+def _copy_pbpaste(text: str) -> None:
+    import subprocess
+
+    subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=False)
+
+
+def _read_pbpaste() -> str:
+    import subprocess
+
+    try:
+        return subprocess.check_output(["pbpaste"], stderr=subprocess.DEVNULL).decode(
+            "utf-8", errors="replace"
+        )
+    except Exception:
+        return ""
 
 
 def _read_windows_clipboard() -> str:

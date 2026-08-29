@@ -83,7 +83,7 @@ class HotkeyService:
 
     def start_listening(self, on_cancel: Callable[[], None]) -> None:
         if keyboard is None or sys.platform == "darwin":
-            # macOS: ใช้ Tk shortcut อย่างเดียว — pynput GlobalHotKeys ทำให้ crash ได้
+            # macOS: pynput GlobalHotKeys ทำให้ crash — ใช้ NSEvent ในหน้าต่าง Cocoa
             return
 
         self.stop_listening()
@@ -96,12 +96,6 @@ class HotkeyService:
             if self._listener is not None:
                 self._listener.stop()
                 self._listener = None
-
-    def bind_tk_shortcuts(self, widget, callback: Callable[[], None]) -> None:
-        for spec in self.hotkeys:
-            sequence = self._to_tk_bind(spec)
-            if sequence:
-                widget.bind(sequence, lambda _event: callback(), add="+")
 
     def _to_pynput(self, spec: str) -> str:
         parts = [part.strip().lower() for part in spec.split("+") if part.strip()]
@@ -136,34 +130,3 @@ class HotkeyService:
         if modifiers:
             return "+".join(modifiers + [key_token])
         return key_token
-
-    def _to_tk_bind(self, spec: str) -> str | None:
-        parts = [part.strip().lower() for part in spec.split("+") if part.strip()]
-        if not parts:
-            return None
-
-        tk_modifiers: list[str] = []
-        key_part = parts[-1]
-        for part in parts[:-1]:
-            modifier = MODIFIER_ALIASES.get(part)
-            if modifier == "ctrl":
-                tk_modifiers.append("Control")
-            elif modifier == "cmd":
-                tk_modifiers.append("Command")
-            elif modifier == "alt":
-                tk_modifiers.append("Alt")
-            elif modifier == "shift":
-                tk_modifiers.append("Shift")
-
-        key = SPECIAL_KEYS.get(key_part, key_part)
-        if key == "esc":
-            tk_key = "Escape"
-        elif key.startswith("f") and key[1:].isdigit():
-            tk_key = key.upper()
-        elif len(key) == 1:
-            tk_key = key.lower()
-        else:
-            tk_key = key.capitalize()
-
-        prefix = "-".join(tk_modifiers)
-        return f"<{prefix}-{tk_key}>" if prefix else f"<{tk_key}>"
