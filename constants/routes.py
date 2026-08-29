@@ -35,6 +35,7 @@ PV_NEW_FILE_KEYS = ("alt", "a")
 MENU_OTHERS = "8"
 MENU_OTHERS_CHANGE_COMPANY = "8"
 VENDOR_LOOKUP_KEY = "f8"
+EXCEL_OPEN_EXTENSIONS = ("xlsx", "xlsm")
 
 UI_TEXT = {
     "app_title": "AutoKey — สมุดรายวันจ่าย",

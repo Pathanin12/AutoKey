@@ -8,7 +8,7 @@ from ctypes import wintypes
 from pathlib import Path
 
 from constants.date_utils import default_work_date, format_express_pv_date, mask_express_pv_date
-from constants.routes import TOPIC_PAYMENT_JOURNAL, UI_TEXT
+from constants.routes import EXCEL_OPEN_EXTENSIONS, TOPIC_PAYMENT_JOURNAL, UI_TEXT
 from constants.version import __version__
 from models.ka_tam_row import KaTamRow
 from models.run_config import ExcelSheetSummary, RunConfig
@@ -58,10 +58,15 @@ ES_WANTRETURN = 0x1000
 SS_LEFT = 0
 BS_PUSHBUTTON = 0
 BS_GROUPBOX = 0x00000007
+HWND_TOP = wintypes.HWND(0)
 HWND_TOPMOST = wintypes.HWND(-1)
 HWND_NOTOPMOST = wintypes.HWND(-2)
 SWP_NOMOVE = 0x0002
 SWP_NOSIZE = 0x0001
+OFN_HIDEREADONLY = 0x00000004
+OFN_PATHMUSTEXIST = 0x00000800
+OFN_FILEMUSTEXIST = 0x00001000
+OFN_EXPLORER = 0x00080000
 EM_SETSEL = 0x00B1
 EM_REPLACESEL = 0x00C2
 IMAGE_ICON = 1
@@ -86,6 +91,21 @@ WIN_H = 620
 user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
 user32.DefWindowProcW.restype = LRESULT
 user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+user32.CreateWindowExW.argtypes = [
+    wintypes.DWORD,
+    wintypes.LPCWSTR,
+    wintypes.LPCWSTR,
+    wintypes.DWORD,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    wintypes.HWND,
+    wintypes.HMENU,
+    wintypes.HINSTANCE,
+    wintypes.LPVOID,
+]
+user32.CreateWindowExW.restype = wintypes.HWND
 
 
 class WNDCLASSEXW(ctypes.Structure):
@@ -131,6 +151,21 @@ class OPENFILENAMEW(ctypes.Structure):
         ("dwReserved", wintypes.DWORD),
         ("FlagsEx", wintypes.DWORD),
     ]
+
+
+def _wchar_zchunks(*parts: str):
+    """สตริงมี \\0 ภายใน — ctypes ตัด Python str ที่ null ตัวแรก"""
+    payload = "\0".join(parts) + "\0\0"
+    buf = ctypes.create_unicode_buffer(len(payload))
+    for index, char in enumerate(payload):
+        buf[index] = char
+    return buf
+
+
+comdlg32.GetOpenFileNameW.argtypes = [ctypes.POINTER(OPENFILENAMEW)]
+comdlg32.GetOpenFileNameW.restype = wintypes.BOOL
+comdlg32.CommDlgExtendedError.argtypes = []
+comdlg32.CommDlgExtendedError.restype = wintypes.DWORD
 
 
 class POINT(ctypes.Structure):
@@ -181,6 +216,10 @@ class MainWindow:
         self._initial_start_from_no = str(defaults.get("start_from_no", 1) or 1).strip() or "1"
 
         self._wndproc = WNDPROC(self._wnd_proc)
+        ole32 = ctypes.WinDLL("ole32")
+        ole32.OleInitialize.argtypes = [ctypes.c_void_p]
+        ole32.OleInitialize.restype = ctypes.HRESULT
+        ole32.OleInitialize(None)
         self._create_window()
         self._load_excel()
 
@@ -230,13 +269,30 @@ class MainWindow:
             w,
             h,
             self._hwnd,
-            ctrl_id,
+            ctypes.c_void_p(ctrl_id),
             kernel32.GetModuleHandleW(None),
             None,
         )
         user32.SendMessageW(hwnd, WM_SETFONT, self._font, 1)
         self._controls[ctrl_id] = hwnd
         return hwnd
+
+    def _raise_input_controls(self) -> None:
+        for ctrl_id in (
+            ID_EXCEL,
+            ID_BROWSE,
+            ID_PV,
+            ID_START_NO,
+            ID_DESC,
+            ID_TAX,
+            ID_START,
+            ID_STOP,
+            ID_COPY,
+            ID_LOG,
+        ):
+            hwnd = self._controls.get(ctrl_id)
+            if hwnd:
+                user32.SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE)
 
     def _build_controls(self) -> None:
         self._ctrl("STATIC", f"{UI_TEXT['app_title']} v{__version__}", SS_LEFT, 12, 10, 520, 22, 200)
@@ -274,6 +330,7 @@ class MainWindow:
         log_style = WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | ES_WANTRETURN
         self._ctrl("EDIT", "", log_style, 24, 430, 492, 128, ID_LOG)
         self._write_log(UI_TEXT["welcome_log"] + "\n", trim=False)
+        self._raise_input_controls()
 
     def _set_icon(self) -> None:
         ico = ico_icon_path()
@@ -403,18 +460,32 @@ class MainWindow:
             return 0
 
     def _choose_excel(self) -> None:
-        buf = ctypes.create_unicode_buffer(1024)
+        extensions = ";".join(f"*.{ext}" for ext in EXCEL_OPEN_EXTENSIONS)
+        file_buf = ctypes.create_unicode_buffer(1024)
+        filter_buf = _wchar_zchunks(f"Excel ({extensions})", extensions, "All files (*.*)", "*.*")
+        title_buf = ctypes.create_unicode_buffer(UI_TEXT["choose_file"])
         ofn = OPENFILENAMEW()
         ofn.lStructSize = ctypes.sizeof(OPENFILENAMEW)
         ofn.hwndOwner = self._hwnd
-        ofn.lpstrFilter = "Excel (*.xlsx)\0*.xlsx\0All files (*.*)\0*.*\0"
-        ofn.lpstrFile = buf
+        ofn.lpstrFilter = ctypes.cast(filter_buf, wintypes.LPCWSTR)
+        ofn.nFilterIndex = 1
+        ofn.lpstrFile = file_buf
         ofn.nMaxFile = 1024
-        ofn.Flags = 0x00080000 | 0x00001000
-        ofn.lpstrDefExt = "xlsx"
+        ofn.lpstrTitle = title_buf
+        ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY
+        ofn.lpstrDefExt = EXCEL_OPEN_EXTENSIONS[0]
         if comdlg32.GetOpenFileNameW(ctypes.byref(ofn)):
-            self._set_text(ID_EXCEL, buf.value)
+            self._set_text(ID_EXCEL, file_buf.value)
             self._load_excel()
+            return
+        err = comdlg32.CommDlgExtendedError()
+        if err:
+            user32.MessageBoxW(
+                self._hwnd,
+                f"เปิดหน้าต่างเลือกไฟล์ไม่ได้ (รหัส {err})",
+                "AutoKey",
+                MB_OK | MB_ICONERROR,
+            )
 
     def _start(self) -> None:
         if self.is_running:

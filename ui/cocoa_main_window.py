@@ -44,7 +44,7 @@ from constants.date_utils import (
     format_express_pv_date,
     mask_express_pv_date,
 )
-from constants.routes import TOPIC_PAYMENT_JOURNAL, UI_TEXT
+from constants.routes import EXCEL_OPEN_EXTENSIONS, TOPIC_PAYMENT_JOURNAL, UI_TEXT
 from constants.version import __version__
 from models.ka_tam_row import KaTamRow
 from models.run_config import ExcelSheetSummary, RunConfig
@@ -320,7 +320,7 @@ class MainWindow:
 
     def _choose_excel(self) -> None:
         panel = NSOpenPanel.openPanel()
-        panel.setAllowedFileTypes_(["xlsx"])
+        panel.setAllowedFileTypes_(list(EXCEL_OPEN_EXTENSIONS))
         panel.setCanChooseFiles_(True)
         panel.setCanChooseDirectories_(False)
         if panel.runModal() != 1:
