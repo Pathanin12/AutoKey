@@ -138,19 +138,7 @@ class KaTamWorkflow:
         )
 
     def open_payment_journal_after_lookup(self, row: KaTamRow) -> None:
-        name = row.legal_name.strip()
-        if not name:
-            raise RuntimeError("ไม่พบชื่อสำหรับค้นหาใน dialog เลือกข้อมูล")
-
-        self._status(f"ค้นหาใน dialog: {name}")
-        search_and_select(
-            self.image,
-            self.lookup_search_settings,
-            name,
-            template_click=self.template_click,
-            on_status=self.on_status,
-            should_stop=self.stop_event.is_set,
-        )
+        self._search_vendor(row, "ค้นหาใน dialog")
         self.open_payment_journal_only()
 
     def open_payment_journal_only(self) -> None:
@@ -209,11 +197,15 @@ class KaTamWorkflow:
         self.image.wait(0.15)
 
     def _lookup_and_open_pv(self, row: KaTamRow) -> None:
+        self._search_vendor(row, "ค้นหาบริษัทถัดไป")
+        self.open_payment_journal_only()
+
+    def _search_vendor(self, row: KaTamRow, status_prefix: str) -> None:
         name = row.legal_name.strip()
         if not name:
-            raise RuntimeError("ไม่พบชื่อสำหรับค้นหาในแถวถัดไป")
+            raise RuntimeError("ไม่พบชื่อสำหรับค้นหาใน dialog เลือกข้อมูล")
 
-        self._status(f"ค้นหาบริษัทถัดไป: {name}")
+        self._status(f"{status_prefix}: {name}")
         search_and_select(
             self.image,
             self.lookup_search_settings,
@@ -222,7 +214,6 @@ class KaTamWorkflow:
             on_status=self.on_status,
             should_stop=self.stop_event.is_set,
         )
-        self.open_payment_journal_only()
 
     def _fill_pv_lines(self, config: RunConfig, row: KaTamRow, *, prepare_next: bool) -> None:
         self._step(

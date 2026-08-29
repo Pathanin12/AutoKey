@@ -19,10 +19,13 @@ def build_nrg_tax_reference(sheet_name: str, sequence: int) -> str:
 
 
 def format_tax_payer_id(value: str) -> str:
-    digits = value.strip().replace("-", "").replace(" ", "")
+    text = value.strip().replace("-", "").replace(" ", "")
+    if re.fullmatch(r"\d+\.0+", text):
+        text = text.split(".", 1)[0]
+    digits = "".join(ch for ch in text if ch.isdigit())
     if not digits:
         return ""
-    if digits.isdigit() and len(digits) < 13:
+    if len(digits) < 13:
         return digits.zfill(13)
     return digits
 

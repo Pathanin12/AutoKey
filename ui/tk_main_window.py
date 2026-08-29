@@ -13,6 +13,7 @@ from services.automation_service import AutomationService
 from services.excel_service import ExcelService
 from services.hotkey_service import HotkeyService
 from ui.app_icon import apply_window_icon, load_title_photo
+from ui.entry_excel_paste import bind_excel_cell_paste
 
 
 class MainWindow:
@@ -111,6 +112,15 @@ class MainWindow:
             row=9, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
         form_frame.columnconfigure(1, weight=1)
+        bind_excel_cell_paste(
+            [
+                self.excel_path_entry,
+                self.pv_date_entry,
+                self.start_from_no_entry,
+                self.description_entry,
+                self.tax_payer_id_entry,
+            ],
+        )
 
         action_frame = ttk.Frame(self.root)
         action_frame.pack(fill="x", **padding)

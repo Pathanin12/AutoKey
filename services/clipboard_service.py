@@ -10,8 +10,9 @@ THAI_ANSI_ENCODING = "cp874"
 
 
 def normalize_pasted_cell(value: str) -> str:
-    """Excel ก๊อปเซลล์มักมี CR/LF ท้าย — ช่องบรรทัดเดียวตัดออก"""
-    return (value or "").replace("\r", "").replace("\n", "")
+    """Excel ก๊อปเซลล์มักมี CR/LF ท้าย และช่องว่างแบบ NBSP"""
+    text = (value or "").replace("\r", "").replace("\n", "").replace("\xa0", " ")
+    return " ".join(text.split()) if text.strip() else ""
 
 
 def copy_text(text: str) -> None:

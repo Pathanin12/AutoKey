@@ -1,16 +1,67 @@
 from __future__ import annotations
 
+import unicodedata
 from difflib import SequenceMatcher
+
+
+_NBSP = "\u00a0"
+
+
+def tidy_vendor_name(value: str) -> str:
+    """ช่องว่างทุกแบบ → ช่องว่างปกติ แล้วตัดซ้ำ (ใช้เทียบชื่อ ไม่ใช่ตอนวาง Express)"""
+    text = "".join(" " if unicodedata.category(ch) == "Zs" else ch for ch in (value or ""))
+    return " ".join(text.split())
+
+
+def to_express_vendor_name(value: str) -> str:
+    """Express คั่นคำด้วย NBSP — วางช่องว่างปกติแล้วค้น 1/2 ไม่ขึ้น ไปแถวแรก"""
+    collapsed = " ".join((value or "").split())
+    if not collapsed:
+        return ""
+    return collapsed.replace(" ", _NBSP)
 
 
 def normalize_name(value: str) -> str:
     cleaned = (
-        value.replace(".", "")
+        tidy_vendor_name(value)
+        .replace(".", "")
         .replace(",", "")
         .replace("·", "")
         .replace(" ", "")
     )
     return cleaned.strip()
+
+
+def fold_for_ocr(value: str) -> str:
+    """ตัดวรรณยุกต์/เครื่องหมาย fore OCR เทียบตัวอักษรหลัก"""
+    return "".join(ch for ch in normalize_name(value) if unicodedata.category(ch) != "Mn")
+
+
+def _levenshtein(left: str, right: str) -> int:
+    if left == right:
+        return 0
+    if not left:
+        return len(right)
+    if not right:
+        return len(left)
+    prev = list(range(len(right) + 1))
+    for i, left_ch in enumerate(left, start=1):
+        current = [i]
+        for j, right_ch in enumerate(right, start=1):
+            insert_cost = current[j - 1] + 1
+            delete_cost = prev[j] + 1
+            replace_cost = prev[j - 1] + (left_ch != right_ch)
+            current.append(min(insert_cost, delete_cost, replace_cost))
+        prev = current
+    return prev[-1]
+
+
+def _common_prefix_len(left: str, right: str) -> int:
+    limit = min(len(left), len(right))
+    index = 0
+    while index < limit and left[index] == right[index]:
+        index += 1
+    return index
 
 
 def thai_only(value: str) -> str:
@@ -78,6 +129,32 @@ def names_match_complete(expected: str, actual: str, threshold: float = 0.85) ->
         return False
 
     return True
+
+
+def is_incomplete_same_vendor(expected: str, actual: str) -> bool:
+    """อ่านได้ชื่อจริงที่สั้นกว่า query — ควร Down ไปแถวถัดไป"""
+    if not is_plausible_vendor_name(actual):
+        return False
+    expected_norm = normalize_name(expected)
+    actual_norm = normalize_name(actual)
+    if not expected_norm or not actual_norm or actual_norm == expected_norm:
+        return False
+    return expected_norm.startswith(actual_norm) and len(actual_norm) >= 4
+
+
+def is_ocr_of_expected(expected: str, actual: str) -> bool:
+    """ชื่อเดียวกันที่ OCR เพี้ยนแค่ท้ายคำ (เช่น ค้า→ดํา) — ไม่รับบริษัทอื่นที่ย่านคล้าย"""
+    left = fold_for_ocr(expected)
+    right = fold_for_ocr(actual)
+    if not left or not right:
+        return False
+    if abs(len(left) - len(right)) > 2:
+        return False
+    distance = _levenshtein(left, right)
+    if distance > 2:
+        return False
+    prefix = _common_prefix_len(left, right)
+    return prefix >= max(len(left), len(right)) - 2
 
 
 def is_plausible_vendor_name(value: str) -> bool:

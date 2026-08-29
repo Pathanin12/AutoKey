@@ -6,6 +6,7 @@ import pandas as pd
 
 from models.ka_tam_row import KaTamRow
 from models.run_config import ExcelSheetSummary
+from services.lookup_match_service import tidy_vendor_name
 from services.tax_reference_service import build_nrg_tax_reference
 from topics.ka_tam.sheet_configs import SheetColumnMap, get_sheet_column_map
 
@@ -30,6 +31,20 @@ def _to_text(value) -> str:
     if text.lower() in {"xx", "nan", "no", "acct"}:
         return ""
     return text
+
+
+def _to_tax_id(value) -> str:
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    if isinstance(value, bool):
+        return ""
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        if value.is_integer():
+            return str(int(value))
+        return "".join(ch for ch in f"{value:.0f}" if ch.isdigit())
+    return _to_text(value)
 
 
 def _credit_amount(row_values: tuple, column_map: SheetColumnMap) -> float:
@@ -82,7 +97,7 @@ def _parse_row(
     if sequence is None:
         return None
 
-    legal_name = _to_text(raw_values[column_map.legal_name])
+    legal_name = tidy_vendor_name(_to_text(raw_values[column_map.legal_name]))
     if not legal_name:
         return None
 
@@ -102,7 +117,7 @@ def _parse_row(
         sheet_name=sheet_name,
         legal_name=legal_name,
         month=_to_text(raw_values[column_map.month]),
-        tax_id=_to_text(raw_values[column_map.tax_id]),
+        tax_id=_to_tax_id(raw_values[column_map.tax_id]),
         service_amount=_to_float(raw_values[column_map.service_amount]),
         vat_amount=_to_float(raw_values[column_map.vat_amount]),
         credit_amount=_credit_amount(raw_values, column_map),

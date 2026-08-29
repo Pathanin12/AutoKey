@@ -93,49 +93,10 @@ class AutomationService:
             dialog_wait=float(raw.get("dialog_wait", 0.35)),
             template_retries=int(raw.get("template_retries", 4)),
             template_retry_delay=float(raw.get("template_retry_delay", 0.15)),
-            verify_selection=bool(raw.get("verify_selection", True)),
-            verify_method=str(raw.get("verify_method", "ocr_then_uia")),
             post_search_wait=float(raw.get("post_search_wait", 0.4)),
-            selection_name_subitems=self._parse_selection_name_subitems(raw.get("selection_name_subitems")),
-            selection_match_threshold=float(raw.get("selection_match_threshold", 0.85)),
-            selection_down_max_attempts=int(raw.get("selection_down_max_attempts", 15)),
-            selection_down_wait=float(raw.get("selection_down_wait", 0.4)),
-            express_title_contains=str(
-                raw.get("express_title_contains")
-                or self.config.get("window_focus", {}).get("title_contains", "Express")
-            ),
-            selection_ocr_grid_region=self._parse_region(raw.get("selection_ocr_grid_region"), (520, 380, 980, 580)),
-            selection_ocr_name_x=self._parse_pair(raw.get("selection_ocr_name_x"), (530, 780)),
-            selection_ocr_row_height=int(raw.get("selection_ocr_row_height", 22)),
-            selection_ocr_lang=str(raw.get("selection_ocr_lang", "tha")),
-            tesseract_cmd=str(raw.get("tesseract_cmd", "")),
             post_search_click_wait=float(raw.get("post_search_click_wait", 0.3)),
             paste_wait=float(raw.get("paste_wait", 0.15)),
         )
-
-    def _parse_region(self, raw_value, default: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
-        if not raw_value:
-            return default
-        values = tuple(int(item) for item in raw_value)
-        if len(values) != 4:
-            return default
-        return values  # type: ignore[return-value]
-
-    def _parse_pair(self, raw_value, default: tuple[int, int]) -> tuple[int, int]:
-        if not raw_value:
-            return default
-        values = tuple(int(item) for item in raw_value)
-        if len(values) != 2:
-            return default
-        return values  # type: ignore[return-value]
-
-    def _parse_selection_name_subitems(self, raw_value) -> tuple[int, ...]:
-        if raw_value is None:
-            return (1, 0, 2, 3)
-        if isinstance(raw_value, (list, tuple)):
-            values = [int(item) for item in raw_value]
-            return tuple(values) if values else (1, 0, 2, 3)
-        return (int(raw_value),)
 
     @property
     def company_switch_settings(self) -> CompanySwitchSettings:
@@ -333,14 +294,6 @@ class AutomationService:
         import numpy  # noqa: F401
 
         image.screenshot()
-        if self.lookup_search_settings.verify_selection and self.lookup_search_settings.verify_method == "ocr":
-            from services.tesseract_runtime_service import is_tesseract_ready
-
-            if not is_tesseract_ready(self.lookup_search_settings.tesseract_cmd):
-                raise RuntimeError(
-                    "ไม่พบ Tesseract OCR ในโปรแกรม — ใช้ AutoKey.exe จาก GitHub Actions หรือ build ใหม่"
-                )
-
         if not self.template_click_settings.enabled:
             return
 
