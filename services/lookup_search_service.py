@@ -30,6 +30,7 @@ class LookupSearchSettings:
     paste_wait: float = 0.15
     verify_selection: bool = True
     verify_similarity: float = 0.75
+    ocr_region: tuple[int, int, int, int] = (480, 280, 1020, 600)
 
 
 def search_and_select(
@@ -56,15 +57,10 @@ def search_and_select(
     presses = max(1, confirm_enter_count if confirm_enter_count is not None else settings.confirm_enter_count)
     if settings.verify_selection:
         _check_stop(should_stop)
-        image.press("enter")
         image.wait(settings.post_search_wait)
+        if on_status:
+            on_status("กำลัง OCR แถวแรกในกริด...")
         _verify_first_selection(query, settings, on_status=on_status)
-        remaining = max(0, presses - 1)
-        for _ in range(remaining):
-            _check_stop(should_stop)
-            image.press("enter")
-            image.wait(0.15)
-        return
 
     for _ in range(presses):
         _check_stop(should_stop)
@@ -108,15 +104,23 @@ def _verify_first_selection(
     *,
     on_status: Callable[[str], None] | None = None,
 ) -> None:
-    check = check_highlighted_vendor(query)
+    check = check_highlighted_vendor(query, region=settings.ocr_region)
+    preview = _preview_ocr_text(check.actual)
     percent = f"{check.similarity:.0%}"
     if on_status:
-        on_status(f"OCR แถวแรก {percent}: {check.actual or '(ว่าง)'}")
+        on_status(f"OCR แถวแรก {percent}: {preview}")
     if check.similarity < settings.verify_similarity:
         raise LookupSelectionMismatchError(
             f"ชื่อที่เลือกไม่ถึง {settings.verify_similarity:.0%} "
-            f"— ต้องการ: {check.expected} / อ่านได้: {check.actual or '(ว่าง)'} ({percent})"
+            f"— ต้องการ: {check.expected} / อ่านได้: {preview} ({percent})"
         )
+
+
+def _preview_ocr_text(text: str, limit: int = 80) -> str:
+    value = text.strip() or "(ว่าง)"
+    if len(value) <= limit:
+        return value
+    return value[:limit] + "…"
 
 
 def _check_stop(should_stop: Callable[[], bool] | None) -> None:

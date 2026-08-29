@@ -37,6 +37,7 @@ lookup_search:
   paste_wait: 0.15
   verify_selection: true
   verify_similarity: 0.75
+  ocr_region: [480, 280, 1020, 600]
 
 template_click:
   enabled: true
