@@ -85,13 +85,6 @@ class AutomationService:
             search_region=search_region,  # type: ignore[arg-type]
         )
 
-    @staticmethod
-    def _parse_ocr_region(raw) -> tuple[int, int, int, int]:
-        default = (480, 280, 1020, 600)
-        if not raw or len(raw) != 4:
-            return default
-        return (int(raw[0]), int(raw[1]), int(raw[2]), int(raw[3]))
-
     @property
     def lookup_search_settings(self) -> LookupSearchSettings:
         raw = self.config.get("lookup_search", {})
@@ -103,9 +96,6 @@ class AutomationService:
             post_search_wait=float(raw.get("post_search_wait", 0.4)),
             post_search_click_wait=float(raw.get("post_search_click_wait", 0.3)),
             paste_wait=float(raw.get("paste_wait", 0.15)),
-            verify_selection=bool(raw.get("verify_selection", True)),
-            verify_similarity=float(raw.get("verify_similarity", 0.75)),
-            ocr_region=self._parse_ocr_region(raw.get("ocr_region")),
         )
 
     @property
