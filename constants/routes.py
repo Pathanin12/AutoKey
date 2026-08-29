@@ -50,7 +50,7 @@ UI_TEXT = {
     "description": "รายละเอียด",
     "description_hint": "ใช้เหมือนกันทุกแถวในรอบนั้น — พิมพ์ในช่องรายละเอียดหลัง Alt+A",
     "tax_payer_id": "เลขผู้เสียภาษี",
-    "tax_payer_id_hint": "อ่านจากคอลัมน์ TAX ID ใน Excel ทุกแถว — ช่องนี้ใช้เมื่อแถวใดใน Excel ว่าง",
+    "tax_payer_id_hint": "ใช้ค่าจากช่องนี้ทุกแถวตอนกรอกใบกำกับ — ไม่ได้อ่านจาก Excel",
     "start": "เริ่มทำงาน",
     "stop": "หยุด ({hotkey})",
     "cancel_hotkey_hint": "กด {hotkey} เพื่อยกเลิกขณะทำงาน",

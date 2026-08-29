@@ -258,7 +258,7 @@ class KaTamWorkflow:
             self.image.wait(0.4)
 
     def _fill_tax_invoice_via_f2_f9(self, config: RunConfig, row: KaTamRow) -> None:
-        tax_payer_id = resolve_tax_payer_id(row.tax_id, config.tax_payer_id)
+        tax_payer_id = resolve_tax_payer_id(config.tax_payer_id)
         invoice_number = row.tax_invoice_number
         self._step(
             self.STEP_TAX_INVOICE,

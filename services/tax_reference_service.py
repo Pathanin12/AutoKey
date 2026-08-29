@@ -30,8 +30,8 @@ def format_tax_payer_id(value: str) -> str:
     return digits
 
 
-def resolve_tax_payer_id(row_tax_id: str, ui_fallback: str = "") -> str:
-    candidate = row_tax_id.strip() or ui_fallback.strip()
+def resolve_tax_payer_id(ui_value: str) -> str:
+    candidate = ui_value.strip()
     if not candidate:
         return ""
     return format_tax_payer_id(candidate)
