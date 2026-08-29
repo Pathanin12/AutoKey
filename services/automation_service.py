@@ -96,6 +96,8 @@ class AutomationService:
             post_search_wait=float(raw.get("post_search_wait", 0.4)),
             post_search_click_wait=float(raw.get("post_search_click_wait", 0.3)),
             paste_wait=float(raw.get("paste_wait", 0.15)),
+            verify_selection=bool(raw.get("verify_selection", True)),
+            verify_similarity=float(raw.get("verify_similarity", 0.75)),
         )
 
     @property

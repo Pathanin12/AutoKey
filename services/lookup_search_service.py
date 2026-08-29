@@ -9,6 +9,7 @@ from constants.routes import UI_TEXT
 from models.step_match_result import StepMatchResult
 from services.image_service import ImageService
 from services.lookup_match_service import to_express_vendor_name
+from services.lookup_ocr_verify_service import check_highlighted_vendor
 
 if TYPE_CHECKING:
     from services.template_click_service import TemplateClickService
@@ -27,6 +28,8 @@ class LookupSearchSettings:
     post_search_wait: float = 0.4
     post_search_click_wait: float = 0.3
     paste_wait: float = 0.15
+    verify_selection: bool = True
+    verify_similarity: float = 0.75
 
 
 def search_and_select(
@@ -51,6 +54,18 @@ def search_and_select(
         on_status(UI_TEXT["paste_log"].format(field="ช่องค้นหา", text=name))
 
     presses = max(1, confirm_enter_count if confirm_enter_count is not None else settings.confirm_enter_count)
+    if settings.verify_selection:
+        _check_stop(should_stop)
+        image.press("enter")
+        image.wait(settings.post_search_wait)
+        _verify_first_selection(query, settings, on_status=on_status)
+        remaining = max(0, presses - 1)
+        for _ in range(remaining):
+            _check_stop(should_stop)
+            image.press("enter")
+            image.wait(0.15)
+        return
+
     for _ in range(presses):
         _check_stop(should_stop)
         image.press("enter")
@@ -85,6 +100,23 @@ def _click_search_button(
                 continue
             raise last_error
     raise RuntimeError("_click_search_button failed unexpectedly")
+
+
+def _verify_first_selection(
+    query: str,
+    settings: LookupSearchSettings,
+    *,
+    on_status: Callable[[str], None] | None = None,
+) -> None:
+    check = check_highlighted_vendor(query)
+    percent = f"{check.similarity:.0%}"
+    if on_status:
+        on_status(f"OCR แถวแรก {percent}: {check.actual or '(ว่าง)'}")
+    if check.similarity < settings.verify_similarity:
+        raise LookupSelectionMismatchError(
+            f"ชื่อที่เลือกไม่ถึง {settings.verify_similarity:.0%} "
+            f"— ต้องการ: {check.expected} / อ่านได้: {check.actual or '(ว่าง)'} ({percent})"
+        )
 
 
 def _check_stop(should_stop: Callable[[], bool] | None) -> None:
