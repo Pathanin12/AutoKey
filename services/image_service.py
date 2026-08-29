@@ -65,7 +65,12 @@ class ImageService:
         self._ensure_runtime()
         if len(keys) > 1:
             for _ in range(presses):
-                pyautogui.hotkey(*keys)
+                if sys.platform == "win32":
+                    from services.windows_input_service import send_hotkey
+
+                    send_hotkey(*keys)
+                else:
+                    pyautogui.hotkey(*keys)
                 self.wait(0.03)
             return
         pyautogui.press(keys[0], presses=presses, interval=0.03)

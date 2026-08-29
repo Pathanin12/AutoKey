@@ -179,12 +179,8 @@ class KaTamWorkflow:
 
     def _create_voucher(self, config: RunConfig) -> None:
         """Alt+A เปิดไฟล์ใหม่ → Enter → วันที่ → Enter → รายละเอียด → Enter"""
-        from services.window_focus_service import focus_express_window
-
-        focus_express_window(self.express_focus_settings, on_status=self.on_status)
-        self._status("กด Alt+A สร้างรายการใหม่")
-        self.image.wait(0.5)
         self.image.press(*PV_NEW_FILE_KEYS)
+        self._status("กด Alt+A สร้างรายการใหม่")
         self.image.wait(0.6)
         self.image.press("enter")
         self.image.wait(0.4)
