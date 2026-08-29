@@ -11,7 +11,6 @@ _PASTE_SEQUENCES = (
     "<<Paste>>",
     "<Control-v>",
     "<Control-V>",
-    "<Control-อ>",
     "<Control-Thai_fofan>",
     "<Shift-Insert>",
 )
@@ -20,7 +19,10 @@ _PASTE_SEQUENCES = (
 def bind_excel_cell_paste(entries: list[ttk.Entry | tk.Entry]) -> None:
     for entry in entries:
         for sequence in _PASTE_SEQUENCES:
-            entry.bind(sequence, _paste_excel_cell, add="+")
+            try:
+                entry.bind(sequence, _paste_excel_cell, add="+")
+            except tk.TclError:
+                continue
 
 
 def _paste_excel_cell(event: tk.Event) -> str | None:
