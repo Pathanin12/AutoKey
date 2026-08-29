@@ -199,8 +199,8 @@ class KaTamWorkflow:
         self.image.wait(0.15)
 
     def _lookup_and_open_pv(self, row: KaTamRow) -> None:
+        """Shift+F11 กลับ dialog แล้ว — ค้นหาบริษัทถัดไปอย่างเดียว ไม่เปิดเมนู 5-1-2 ซ้ำ"""
         self._search_vendor(row, "ค้นหาบริษัทถัดไป")
-        self.open_payment_journal_only()
 
     def _search_vendor(self, row: KaTamRow, status_prefix: str) -> None:
         name = row.legal_name.strip()
@@ -218,6 +218,7 @@ class KaTamWorkflow:
         )
 
     def _fill_pv_lines(self, config: RunConfig, row: KaTamRow, *, prepare_next: bool) -> None:
+        """5330 Enter×2 srv Enter → 1154 Enter×2 vat Enter → 2132 Enter×3 wt Enter×5 → F2 F9"""
         self._step(
             self.STEP_SERVICE,
             "กรอกบัญชีค่าบริการ",

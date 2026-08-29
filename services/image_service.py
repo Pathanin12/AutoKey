@@ -65,7 +65,7 @@ class ImageService:
         self._ensure_runtime()
         if len(keys) > 1:
             for _ in range(presses):
-                if sys.platform == "win32":
+                if sys.platform == "win32" and any(key.lower() == "alt" for key in keys):
                     from services.windows_input_service import send_hotkey
 
                     send_hotkey(*keys)
