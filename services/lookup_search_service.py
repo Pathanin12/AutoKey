@@ -1,4 +1,4 @@
-"""เปิดช่องค้นหาใน dialog เลือกข้อมูล — คลิกช่องซ้ายปุ่ม ค้นหา → ใส่ชื่อ → คลิกค้นหา"""
+"""เปิดช่องค้นหาใน dialog เลือกข้อมูล — คลิกปุ่ม ค้นหา แล้ววางเลย (Express โฟกัสช่องให้)"""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Callable
 from constants.routes import UI_TEXT
 from models.step_match_result import StepMatchResult
 from services.clipboard_service import copy_text
-from services.express_search_paste_service import paste_vendor_into_search
 from services.image_service import ImageService
 from services.lookup_match_service import (
     is_plausible_vendor_name,
@@ -48,7 +47,6 @@ class LookupSearchSettings:
     tesseract_cmd: str = ""
     post_search_click_wait: float = 0.3
     paste_wait: float = 0.15
-    search_field_offset_x: int = 48
 
     @property
     def ocr_settings(self) -> LookupOcrSettings:
@@ -76,11 +74,12 @@ def search_and_select(
         return
 
     _check_stop(should_stop)
-    match = _find_search_button(image, settings, template_click=template_click)
-    _click_search_field(image, settings, match)
-    _paste_into_search_field(image, settings, name, match=match, on_status=on_status)
-    image.click_at(*match.center)
-    image.wait(settings.post_search_click_wait)
+    copy_text(name)
+    _click_search_button(image, settings, template_click=template_click)
+    image.paste_clipboard(clear_first=False)
+    if on_status:
+        on_status(UI_TEXT["paste_log"].format(field="ช่องค้นหา", text=name))
+    image.wait(settings.paste_wait)
 
     presses = max(1, confirm_enter_count if confirm_enter_count is not None else settings.confirm_enter_count)
     if settings.verify_selection:
@@ -103,7 +102,7 @@ def search_and_select(
         image.wait(0.15)
 
 
-def _find_search_button(
+def _click_search_button(
     image: ImageService,
     settings: LookupSearchSettings,
     *,
@@ -120,62 +119,17 @@ def _find_search_button(
     attempts = max(1, settings.template_retries)
     last_error: TemplateNotFoundError | None = None
     for attempt in range(attempts):
-        match = template_click.find("lookup_search")
-        if match.found:
-            center_x, center_y = match.center
-            if template_click.on_status:
-                template_click.on_status(
-                    f"จับภาพผ่าน — {template_click.settings.get_action('lookup_search').target.label} "
-                    f"({match.score:.0%}) ที่ ({center_x}, {center_y})"
-                )
+        try:
+            match = template_click.click("lookup_search")
+            image.wait(settings.post_search_click_wait)
             return match
-        last_error = TemplateNotFoundError(
-            f"จับภาพไม่ผ่าน — ไม่พบปุ่ม ค้นหา (score {match.score:.0%})"
-        )
-        if attempt + 1 < attempts:
-            image.wait(settings.template_retry_delay)
-            continue
-        raise last_error
-    raise RuntimeError("_find_search_button failed unexpectedly")
-
-
-def _click_search_field(
-    image: ImageService,
-    settings: LookupSearchSettings,
-    match: StepMatchResult,
-) -> None:
-    offset = max(16, settings.search_field_offset_x)
-    field_x = max(8, match.x - offset)
-    field_y = match.y + match.height // 2
-    image.click_at(field_x, field_y)
-    image.wait(settings.paste_wait)
-
-
-def _paste_into_search_field(
-    image: ImageService,
-    settings: LookupSearchSettings,
-    name: str,
-    *,
-    match: StepMatchResult,
-    on_status: Callable[[str], None] | None = None,
-) -> None:
-    if on_status:
-        on_status(UI_TEXT["clipboard_copy_log"].format(field="ค้นหา (จาก Excel)", text=name))
-
-    copy_text(name)
-    image.wait(settings.paste_wait)
-
-    if on_status:
-        on_status(UI_TEXT["paste_log"].format(field="ช่องค้นหา", text=name))
-
-    pasted = paste_vendor_into_search(
-        name,
-        express_title_contains=settings.express_title_contains,
-        button_rect=match.rect,
-    )
-    if not pasted:
-        image.paste_clipboard(clear_first=False)
-    image.wait(settings.paste_wait)
+        except TemplateNotFoundError as exc:
+            last_error = exc
+            if attempt + 1 < attempts:
+                image.wait(settings.template_retry_delay)
+                continue
+            raise last_error
+    raise RuntimeError("_click_search_button failed unexpectedly")
 
 
 def _verify_lookup_selection(

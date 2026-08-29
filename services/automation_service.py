@@ -111,7 +111,6 @@ class AutomationService:
             tesseract_cmd=str(raw.get("tesseract_cmd", "")),
             post_search_click_wait=float(raw.get("post_search_click_wait", 0.3)),
             paste_wait=float(raw.get("paste_wait", 0.15)),
-            search_field_offset_x=int(raw.get("search_field_offset_x", 48)),
         )
 
     def _parse_region(self, raw_value, default: tuple[int, int, int, int]) -> tuple[int, int, int, int]:

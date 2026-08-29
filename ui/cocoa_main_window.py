@@ -116,6 +116,21 @@ class _DateFieldDelegate(NSObject):
             field.setStringValue_(formatted)
 
 
+class _PlainFieldDelegate(NSObject):
+    """ช่องบรรทัดเดียว — ตัด CR/LF ที่ Excel ก๊อปเซลล์มาด้วย"""
+
+    def controlTextDidChange_(self, notification) -> None:
+        field = notification.object()
+        raw = str(field.stringValue() or "")
+        cleaned = normalize_pasted_cell(raw)
+        if cleaned == raw:
+            return
+        field.setStringValue_(cleaned)
+        editor = field.currentEditor()
+        if editor is not None:
+            editor.setSelectedRange_((len(cleaned), 0))
+
+
 class MainWindow:
     def __init__(self) -> None:
         self.automation_service = AutomationService()
@@ -192,6 +207,8 @@ class MainWindow:
         _static_label(settings, UI_TEXT["excel_file"], 8, sy, 90, 18)
         self.excel_path_field = _edit_field(settings, 100, sy, 280)
         choose = _button(settings, UI_TEXT["choose_file"], 386, sy - 2, 90, 24, self._keep(self._choose_excel))
+        self._plain_delegate = _PlainFieldDelegate.alloc().init()
+        self.excel_path_field.setDelegate_(self._plain_delegate)
         sy += 26
         self.excel_summary_field = _static_label(settings, UI_TEXT["excel_summary_empty"], 8, sy, 500, 32, size=11, gray=True)
         self.excel_summary_field.setUsesSingleLineMode_(False)
@@ -209,16 +226,19 @@ class MainWindow:
         _static_label(settings, UI_TEXT["start_from_no"], 8, sy, 110, 18)
         self.start_from_no_field = _edit_field(settings, 120, sy, 80)
         self.start_from_no_field.setStringValue_(initial_start_from_no)
+        self.start_from_no_field.setDelegate_(self._plain_delegate)
         sy += 22
         _static_label(settings, UI_TEXT["start_from_no_hint"], 8, sy, 500, 28, size=11, gray=True)
         sy += 32
         _static_label(settings, UI_TEXT["description"], 8, sy, 110, 18)
         self.description_field = _edit_field(settings, 120, sy, 356)
+        self.description_field.setDelegate_(self._plain_delegate)
         sy += 26
         _static_label(settings, UI_TEXT["description_hint"], 8, sy, 500, 28, size=11, gray=True)
         sy += 32
         _static_label(settings, UI_TEXT["tax_payer_id"], 8, sy, 110, 18)
         self.tax_payer_id_field = _edit_field(settings, 120, sy, 356)
+        self.tax_payer_id_field.setDelegate_(self._plain_delegate)
         sy += 22
         _static_label(settings, UI_TEXT["tax_payer_id_hint"], 8, sy, 500, 28, size=11, gray=True)
 

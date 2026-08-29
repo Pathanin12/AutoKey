@@ -1,4 +1,4 @@
-"""วาง clipboard ไป control ที่โฟกัส — รองรับ Express (legacy Win32)"""
+"""วาง clipboard ไป control ที่โฟกัส — หลังคลิกค้นหา Express โฟกัสช่องให้แล้ว"""
 
 from __future__ import annotations
 
@@ -40,6 +40,7 @@ def paste_to_foreground(*, clear_first: bool = False) -> None:
         time.sleep(0.05)
 
     _paste_wm_paste()
+    _send_ctrl_v()
 
 
 def _get_focus_hwnd() -> int:
@@ -48,41 +49,12 @@ def _get_focus_hwnd() -> int:
     if not foreground:
         return 0
 
-    if _is_autokey_hwnd(int(foreground)):
-        return 0
-
     thread_id = user32.GetWindowThreadProcessId(foreground, None)
     info = _GUITHREADINFO()
     info.cbSize = ctypes.sizeof(_GUITHREADINFO)
     if user32.GetGUIThreadInfo(thread_id, ctypes.byref(info)) and info.hwndFocus:
-        target = int(info.hwndFocus)
-        if _is_autokey_hwnd(target):
-            return 0
-        return target
+        return int(info.hwndFocus)
     return int(foreground)
-
-
-def _is_autokey_hwnd(hwnd: int) -> bool:
-    user32 = ctypes.windll.user32
-    current = hwnd
-    for _ in range(8):
-        if not current:
-            break
-        length = user32.GetWindowTextLengthW(current)
-        if length > 0:
-            buffer = ctypes.create_unicode_buffer(length + 1)
-            user32.GetWindowTextW(current, buffer, length + 1)
-            if "autokey" in buffer.value.casefold():
-                return True
-        parent = int(user32.GetParent(current) or 0)
-        if not parent:
-            root = int(user32.GetAncestor(current, 2) or 0)
-            if root and root != current:
-                current = root
-                continue
-            break
-        current = parent
-    return False
 
 
 def _paste_wm_paste() -> None:
@@ -90,14 +62,6 @@ def _paste_wm_paste() -> None:
     if not target:
         return
     ctypes.windll.user32.SendMessageW(target, WM_PASTE, 0, 0)
-
-
-def _paste_shift_insert() -> None:
-    user32 = ctypes.windll.user32
-    user32.keybd_event(VK_SHIFT, 0, 0, 0)
-    user32.keybd_event(VK_INSERT, 0, 0, 0)
-    user32.keybd_event(VK_INSERT, 0, KEYEVENTF_KEYUP, 0)
-    user32.keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, 0)
 
 
 def _send_ctrl_v() -> None:

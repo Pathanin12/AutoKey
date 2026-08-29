@@ -45,7 +45,6 @@ lookup_search:
   template_retry_delay: 0.15
   post_search_click_wait: 0.3
   paste_wait: 0.15
-  search_field_offset_x: 48
 
 template_click:
   enabled: true
