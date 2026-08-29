@@ -5,7 +5,7 @@ import sys
 if sys.platform == "darwin":
     from ui.cocoa_main_window import MainWindow
 elif sys.platform == "win32":
-    from ui.win_main_window import MainWindow
+    from ui.tk_main_window import MainWindow
 else:
     raise RuntimeError("AutoKey รองรับเฉพาะ Windows และ macOS")
 
