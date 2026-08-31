@@ -6,10 +6,10 @@ from typing import Callable
 from constants.flow_model import FLOW_1_END_LABEL, FLOW_1_LABEL
 from constants.date_utils import format_express_pv_date
 from constants.routes import (
+    ACCOUNT_REPORT_FLOW_PATH,
     ACCOUNT_SERVICE,
     ACCOUNT_VAT,
     ACCOUNT_WT,
-    MENU_LEDGER_REPORT_PATH,
     MENU_PAYMENT_JOURNAL_PATH,
     PV_NEW_FILE_KEYS,
 )
@@ -265,18 +265,13 @@ class KaTamWorkflow:
             self.image.wait(0.4)
 
     def _capture_account_reports(self, config: RunConfig, row: KaTamRow) -> None:
-        if self.template_click is None:
-            raise RuntimeError("ต้องเปิด template_click และจับภาพเมนูรายงานบัญชี")
         jobs = build_account_report_jobs(config, row)
-        self._step(self.STEP_REPORT, "แคปรายงานแยกประเภท", MENU_LEDGER_REPORT_PATH)
+        self._step(self.STEP_REPORT, "แคปรายงานแยกประเภท", ACCOUNT_REPORT_FLOW_PATH)
         capture_account_reports(
             self.image,
-            self.template_click,
             jobs,
             on_status=self.on_status,
             should_stop=self.stop_event.is_set,
-            template_retries=self.lookup_search_settings.template_retries,
-            template_retry_delay=self.lookup_search_settings.template_retry_delay,
         )
 
     def _fill_tax_invoice_via_f2_f9(self, config: RunConfig, row: KaTamRow) -> None:
