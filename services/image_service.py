@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import time
+from pathlib import Path
 
 try:
     import pyautogui
@@ -45,6 +46,14 @@ class ImageService:
         if image.size != (self.screen_width, self.screen_height):
             image = image.resize((self.screen_width, self.screen_height))
         return image
+
+    def save_screenshot(self, path: Path) -> Path:
+        self._ensure_runtime()
+        dest = Path(path)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shot = pyautogui.screenshot()
+        shot.save(dest)
+        return dest
 
     def copy_selection(self) -> None:
         self._ensure_runtime()

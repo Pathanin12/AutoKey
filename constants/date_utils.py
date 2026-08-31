@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 import re
 from datetime import date
 
@@ -62,3 +63,33 @@ def _express_year(year: int) -> int:
     if year >= 1900:
         return (year + 543) % 100
     return year % 100
+
+
+def _ce_year(year: int) -> int:
+    if year >= 2400:
+        return year - 543
+    if year >= 1900:
+        return year
+    return 2500 + (year % 100) - 543
+
+
+def express_month_date_range(pv_date: str) -> tuple[str, str]:
+    """วันแรกและวันสุดท้ายของเดือนจากวันที่ UI เช่น 01/08/69 และ 31/08/69"""
+    parts = _date_parts(pv_date.strip())
+    if parts is None:
+        raise ValueError(f"วันที่ใบสำคัญไม่ถูกต้อง: {pv_date}")
+    _day, month, year = parts
+    year2 = _express_year(year)
+    last_day = calendar.monthrange(_ce_year(year), month)[1]
+    start = f"01/{month:02d}/{year2:02d}"
+    end = f"{last_day:02d}/{month:02d}/{year2:02d}"
+    return start, end
+
+
+def express_month_folder_name(pv_date: str) -> str:
+    """โฟลเดอร์เดือนจากวันที่ UI เช่น 08-69"""
+    parts = _date_parts(pv_date.strip())
+    if parts is None:
+        raise ValueError(f"วันที่ใบสำคัญไม่ถูกต้อง: {pv_date}")
+    _day, month, year = parts
+    return f"{month:02d}-{_express_year(year):02d}"

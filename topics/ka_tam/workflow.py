@@ -9,12 +9,17 @@ from constants.routes import (
     ACCOUNT_SERVICE,
     ACCOUNT_VAT,
     ACCOUNT_WT,
+    MENU_LEDGER_REPORT_PATH,
     MENU_PAYMENT_JOURNAL_PATH,
     PV_NEW_FILE_KEYS,
 )
 from models.ka_tam_row import KaTamRow
 from models.run_config import RunConfig
 from models.window_focus_settings import WindowFocusSettings
+from services.account_report_capture_service import (
+    build_account_report_jobs,
+    capture_account_reports,
+)
 from services.image_service import ImageService
 from services.company_switch_service import (
     CompanySwitchSettings,
@@ -40,7 +45,8 @@ class KaTamWorkflow:
     STEP_VAT = 5
     STEP_TAX_INVOICE = 6
     STEP_WT = 7
-    STEP_FINISH = 8
+    STEP_REPORT = 8
+    STEP_FINISH = 9
 
     def __init__(
         self,
@@ -248,6 +254,7 @@ class KaTamWorkflow:
         self.image.press("enter", presses=5)
 
         self._fill_tax_invoice_via_f2_f9(config, row)
+        self._capture_account_reports(config, row)
 
         if prepare_next:
             self._step(self.STEP_FINISH, "กลับ dialog เลือกข้อมูล", "Shift+F11 → Tab → Enter")
@@ -256,6 +263,21 @@ class KaTamWorkflow:
             self.image.press("tab")
             self.image.press("enter")
             self.image.wait(0.4)
+
+    def _capture_account_reports(self, config: RunConfig, row: KaTamRow) -> None:
+        if self.template_click is None:
+            raise RuntimeError("ต้องเปิด template_click และจับภาพเมนูรายงานบัญชี")
+        jobs = build_account_report_jobs(config, row)
+        self._step(self.STEP_REPORT, "แคปรายงานแยกประเภท", MENU_LEDGER_REPORT_PATH)
+        capture_account_reports(
+            self.image,
+            self.template_click,
+            jobs,
+            on_status=self.on_status,
+            should_stop=self.stop_event.is_set,
+            template_retries=self.lookup_search_settings.template_retries,
+            template_retry_delay=self.lookup_search_settings.template_retry_delay,
+        )
 
     def _fill_tax_invoice_via_f2_f9(self, config: RunConfig, row: KaTamRow) -> None:
         tax_payer_id = resolve_tax_payer_id(config.tax_payer_id)

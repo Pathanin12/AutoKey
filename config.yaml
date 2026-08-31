@@ -26,6 +26,7 @@ accounts:
 defaults:
   pv_date: ""
   start_from_no: 1
+  report_output_dir: ""
 
 lookup_search:
   confirm_enter_count: 2
@@ -65,6 +66,21 @@ template_click:
       template_file: menu_payment_journal.png
       match_threshold: 0.80
       search_region: [520, 35, 980, 140]
+    menu_account_report:
+      label: 5. รายงานบัญชี
+      template_file: menu_account_report.png
+      match_threshold: 0.88
+      search_region: [20, 20, 1400, 900]
+    menu_general_ledger:
+      label: 4. แยกประเภท
+      template_file: menu_general_ledger.png
+      match_threshold: 0.88
+      search_region: [20, 20, 1400, 900]
+    menu_report_normal:
+      label: 1. แบบปกติ
+      template_file: menu_report_normal.png
+      match_threshold: 0.88
+      search_region: [20, 20, 1400, 900]
 
 company_switch:
   menu_others: "8"

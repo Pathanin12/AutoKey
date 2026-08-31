@@ -25,12 +25,19 @@ ACCOUNT_SERVICE = "5330-05"
 ACCOUNT_VAT = "1154-00"
 ACCOUNT_WT = "2132-02"
 ACCOUNT_CASH = "1111-00"
+ACCOUNT_REPORT_CODES = (ACCOUNT_SERVICE, ACCOUNT_VAT, ACCOUNT_WT)
+REPORT_SCREENSHOT_FILENAME = "report.png"
+ACCOUNT_REPORT_CAPTURE_WAIT = 1.5
 
 # เส้นทางเมนู 5 > 1 > 2 — คลิกจับภาพ (Express ไม่มีคีย์ลัด)
 MENU_ACCOUNT_LABEL = "5.บัญชี"
 MENU_DAILY_ENTRY_LABEL = "1.ลงประจำวัน"
 MENU_PAYMENT_JOURNAL_LABEL = "2.สมุดรายวันจ่าย"
 MENU_PAYMENT_JOURNAL_PATH = "5 > 1 > 2"
+MENU_ACCOUNT_REPORT_LABEL = "5. รายงานบัญชี"
+MENU_GENERAL_LEDGER_LABEL = "4. แยกประเภท"
+MENU_REPORT_NORMAL_LABEL = "1. แบบปกติ"
+MENU_LEDGER_REPORT_PATH = "F12 > 5. รายงานบัญชี > 4. แยกประเภท > 1. แบบปกติ"
 PV_NEW_FILE_KEYS = ("alt", "a")
 MENU_OTHERS = "8"
 MENU_OTHERS_CHANGE_COMPANY = "8"
@@ -51,6 +58,9 @@ UI_TEXT = {
     "description_hint": "ใช้เหมือนกันทุกแถวในรอบนั้น — พิมพ์ในช่องรายละเอียดหลัง Alt+A",
     "tax_payer_id": "เลขผู้เสียภาษี",
     "tax_payer_id_hint": "ใช้ค่าจากช่องนี้ทุกแถวตอนกรอกใบกำกับ — ไม่ได้อ่านจาก Excel",
+    "report_output_dir": "โฟลเดอร์เก็บไฟล์",
+    "choose_folder": "เลือก...",
+    "report_output_dir_hint": "เก็บแคปรายงานเป็น โฟลเดอร์หลัก / นิติ / เดือน / รหัสบัญชี / report.png",
     "start": "เริ่มทำงาน",
     "stop": "หยุด ({hotkey})",
     "cancel_hotkey_hint": "กด {hotkey} เพื่อยกเลิกขณะทำงาน",
