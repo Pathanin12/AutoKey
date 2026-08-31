@@ -9,6 +9,8 @@ from models.ka_tam_row import KaTamRow
 from models.report_output_layout import ReportOutputLayout
 from models.run_config import RunConfig
 from services.image_service import ImageService
+from services.menu_navigation_service import open_ledger_normal_report_menu
+from services.template_click_service import TemplateClickService
 
 
 def build_account_report_jobs(config: RunConfig, row: KaTamRow) -> tuple[AccountReportCaptureJob, ...]:
@@ -31,21 +33,38 @@ def build_account_report_jobs(config: RunConfig, row: KaTamRow) -> tuple[Account
     )
 
 
+def should_expand_ledger_report_tree(job_index: int, *, tree_already_open: bool) -> bool:
+    return not tree_already_open and job_index == 0
+
+
 def capture_account_reports(
     image: ImageService,
+    template_click: TemplateClickService,
     jobs: tuple[AccountReportCaptureJob, ...],
     *,
+    expand_tree_first: bool = True,
     on_status: Callable[[str], None] | None = None,
     should_stop: Callable[[], bool] | None = None,
+    template_retries: int = 4,
+    template_retry_delay: float = 0.15,
     capture_wait: float = ACCOUNT_REPORT_CAPTURE_WAIT,
 ) -> None:
-    for job in jobs:
+    for index, job in enumerate(jobs):
         if should_stop and should_stop():
             raise InterruptedError("หยุดโดยผู้ใช้")
         if on_status:
             on_status(f"แคปรายงาน {job.account_code}")
-        image.press("f12")
-        image.wait(0.45)
+        open_ledger_normal_report_menu(
+            image,
+            template_click,
+            expand_tree=should_expand_ledger_report_tree(
+                index,
+                tree_already_open=not expand_tree_first,
+            ),
+            on_status=on_status,
+            template_retries=template_retries,
+            template_retry_delay=template_retry_delay,
+        )
         image.type_text(job.account_code, clear_first=True)
         image.press("enter")
         image.type_text(job.account_code, clear_first=True)

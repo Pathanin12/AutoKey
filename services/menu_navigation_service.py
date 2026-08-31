@@ -72,6 +72,7 @@ def open_ledger_normal_report_menu(
     image: ImageService,
     template_click: TemplateClickService,
     *,
+    expand_tree: bool = True,
     on_status: Callable[[str], None] | None = None,
     template_retries: int = 4,
     template_retry_delay: float = 0.15,
@@ -80,10 +81,54 @@ def open_ledger_normal_report_menu(
     if not template_click.enabled:
         raise RuntimeError("ต้องเปิด template_click และจับภาพเมนูรายงานบัญชี")
 
-    _status(on_status, f"เปิดเมนู {MENU_LEDGER_REPORT_PATH}")
     image.press("f12")
     image.wait(0.45)
 
+    if not expand_tree:
+        try:
+            _click_report_normal(
+                image,
+                template_click,
+                None,
+                on_status,
+                template_retries,
+                template_retry_delay,
+                fallback_key=False,
+            )
+            image.wait(menu_wait)
+            return
+        except TemplateNotFoundError:
+            _status(on_status, "ไม่เจอแบบปกติ — เปิดต้นไม้รายงานอีกครั้ง")
+
+    _status(on_status, f"เปิดเมนู {MENU_LEDGER_REPORT_PATH}")
+    _expand_ledger_report_tree(
+        image,
+        template_click,
+        on_status=on_status,
+        template_retries=template_retries,
+        template_retry_delay=template_retry_delay,
+        menu_wait=menu_wait,
+    )
+    _click_report_normal(
+        image,
+        template_click,
+        None,
+        on_status,
+        template_retries,
+        template_retry_delay,
+    )
+    image.wait(menu_wait)
+
+
+def _expand_ledger_report_tree(
+    image: ImageService,
+    template_click: TemplateClickService,
+    *,
+    on_status: Callable[[str], None] | None,
+    template_retries: int,
+    template_retry_delay: float,
+    menu_wait: float,
+) -> None:
     _status(on_status, f"คลิกเมนู {MENU_ACCOUNT_REPORT_LABEL}")
     try:
         _retry_action(
@@ -110,16 +155,6 @@ def open_ledger_normal_report_menu(
         image.press("4")
     image.wait(menu_wait)
 
-    _click_report_normal(
-        image,
-        template_click,
-        None,
-        on_status,
-        template_retries,
-        template_retry_delay,
-    )
-    image.wait(menu_wait)
-
 
 def _click_report_normal(
     image: ImageService,
@@ -128,6 +163,7 @@ def _click_report_normal(
     on_status: Callable[[str], None] | None,
     template_retries: int,
     template_retry_delay: float,
+    fallback_key: bool = True,
 ) -> None:
     _status(on_status, f"คลิกเมนู {MENU_REPORT_NORMAL_LABEL}")
     try:
@@ -137,6 +173,7 @@ def _click_report_normal(
             retries=template_retries,
             retry_delay=template_retry_delay,
         )
+        return
     except TemplateNotFoundError:
         if search_region is not None:
             try:
@@ -149,6 +186,8 @@ def _click_report_normal(
                 return
             except TemplateNotFoundError:
                 pass
+        if not fallback_key:
+            raise
         _status(on_status, "จับภาพไม่เจอ — กด 1")
         image.press("1")
 

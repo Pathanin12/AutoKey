@@ -7,7 +7,10 @@ from constants.routes import ACCOUNT_SERVICE, ACCOUNT_VAT, ACCOUNT_WT, REPORT_SC
 from models.ka_tam_row import KaTamRow
 from models.report_output_layout import ReportOutputLayout, safe_folder_name
 from models.run_config import RunConfig
-from services.account_report_capture_service import build_account_report_jobs
+from services.account_report_capture_service import (
+    build_account_report_jobs,
+    should_expand_ledger_report_tree,
+)
 
 
 class AccountReportTests(unittest.TestCase):
@@ -70,6 +73,11 @@ class AccountReportTests(unittest.TestCase):
             self.assertEqual(jobs[0].end_date, "31/08/69")
             expected = tmp_path / "reports" / "บริษัท ตัวอย่าง จำกัด" / "08-69" / "5330-05" / "report.png"
             self.assertEqual(jobs[0].output_file, expected)
+
+    def test_expand_tree_only_on_first_job_until_opened(self) -> None:
+        self.assertTrue(should_expand_ledger_report_tree(0, tree_already_open=False))
+        self.assertFalse(should_expand_ledger_report_tree(1, tree_already_open=False))
+        self.assertFalse(should_expand_ledger_report_tree(0, tree_already_open=True))
 
 
 if __name__ == "__main__":

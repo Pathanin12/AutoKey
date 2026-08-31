@@ -71,6 +71,7 @@ class KaTamWorkflow:
         self.lookup_search_settings = lookup_search_settings or LookupSearchSettings()
         self.template_click = template_click_service
         self.express_focus_settings = express_focus_settings or WindowFocusSettings()
+        self._ledger_report_tree_open = False
 
     def run(
         self,
@@ -81,6 +82,7 @@ class KaTamWorkflow:
         open_payment_journal: bool = False,
     ) -> None:
         report_progress = progress_callback or self.on_progress
+        self._ledger_report_tree_open = False
         if open_payment_journal:
             self._step(self.STEP_OPEN_MENU, "เปิดเมนูสมุดรายวันจ่าย", MENU_PAYMENT_JOURNAL_PATH)
             self._open_payment_journal()
@@ -265,14 +267,21 @@ class KaTamWorkflow:
             self.image.wait(0.4)
 
     def _capture_account_reports(self, config: RunConfig, row: KaTamRow) -> None:
+        if self.template_click is None:
+            raise RuntimeError("ต้องเปิด template_click และจับภาพเมนูรายงานบัญชี")
         jobs = build_account_report_jobs(config, row)
         self._step(self.STEP_REPORT, "แคปรายงานแยกประเภท", ACCOUNT_REPORT_FLOW_PATH)
         capture_account_reports(
             self.image,
+            self.template_click,
             jobs,
+            expand_tree_first=not self._ledger_report_tree_open,
             on_status=self.on_status,
             should_stop=self.stop_event.is_set,
+            template_retries=self.lookup_search_settings.template_retries,
+            template_retry_delay=self.lookup_search_settings.template_retry_delay,
         )
+        self._ledger_report_tree_open = True
 
     def _fill_tax_invoice_via_f2_f9(self, config: RunConfig, row: KaTamRow) -> None:
         tax_payer_id = resolve_tax_payer_id(config.tax_payer_id)
