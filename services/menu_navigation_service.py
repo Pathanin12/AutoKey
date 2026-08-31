@@ -76,13 +76,13 @@ def open_ledger_normal_report_menu(
     on_status: Callable[[str], None] | None = None,
     template_retries: int = 4,
     template_retry_delay: float = 0.15,
-    menu_wait: float = 0.35,
+    menu_wait: float = 0.55,
 ) -> None:
     if not template_click.enabled:
         raise RuntimeError("ต้องเปิด template_click และจับภาพเมนูรายงานบัญชี")
 
     image.press("f12")
-    image.wait(0.45)
+    image.wait(menu_wait)
 
     if not expand_tree:
         try:

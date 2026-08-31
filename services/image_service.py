@@ -12,20 +12,24 @@ except ImportError:  # pragma: no cover - dev on non-runtime env
 from services.clipboard_service import copy_text
 from services.window_paste_service import paste_to_foreground
 
+_SETTLE_KEYS = frozenset({"enter", "return", "tab"})
+
 
 class ImageService:
     """ส่งคีย์/คลิก/จับภาพหน้าจอผ่าน pyautogui"""
 
     def __init__(
         self,
-        action_delay: float = 0.05,
+        action_delay: float = 0.15,
         type_interval: float = 0.02,
+        key_settle_wait: float = 0.45,
         fail_safe: bool = True,
         screen_width: int = 1920,
         screen_height: int = 1080,
     ) -> None:
         self.action_delay = action_delay
         self.type_interval = type_interval
+        self.key_settle_wait = key_settle_wait
         self.screen_width = screen_width
         self.screen_height = screen_height
         self._ensure_runtime()
@@ -63,27 +67,31 @@ class ImageService:
     def click_at(self, x: int, y: int) -> None:
         self._ensure_runtime()
         pyautogui.click(x, y)
-        self.wait(0.03)
+        self.wait()
 
     def move_to(self, x: int, y: int) -> None:
         self._ensure_runtime()
         pyautogui.moveTo(x, y)
-        self.wait(0.03)
+        self.wait()
 
     def press(self, *keys: str, presses: int = 1) -> None:
         self._ensure_runtime()
-        if len(keys) > 1:
-            for _ in range(presses):
+        for _ in range(presses):
+            if len(keys) > 1:
                 if sys.platform == "win32" and any(key.lower() == "alt" for key in keys):
                     from services.windows_input_service import send_hotkey
 
                     send_hotkey(*keys)
                 else:
                     pyautogui.hotkey(*keys)
-                self.wait(0.03)
-            return
-        pyautogui.press(keys[0], presses=presses, interval=0.03)
-        self.wait(0.03)
+            else:
+                pyautogui.press(keys[0])
+            self.wait(self._wait_after_keys(keys))
+
+    def _wait_after_keys(self, keys: tuple[str, ...]) -> float:
+        if any(key.lower() in _SETTLE_KEYS for key in keys):
+            return self.key_settle_wait
+        return self.action_delay
 
     def type_text(self, text: str, clear_first: bool = True) -> None:
         self._paste_text(text, clear_first=clear_first)
@@ -98,9 +106,9 @@ class ImageService:
         self._ensure_runtime()
         if clear_first:
             pyautogui.hotkey("ctrl", "a")
-            time.sleep(0.04)
+            self.wait()
         pyautogui.typewrite(text, interval=self.type_interval)
-        self.wait(0.05)
+        self.wait()
 
     def paste_clipboard(self, *, clear_first: bool = False) -> None:
         """วางจาก clipboard — ช่องค้นหา Express หลังคลิก ค้นหา"""
@@ -109,7 +117,7 @@ class ImageService:
     def paste_from_clipboard(self, clear_first: bool = False) -> None:
         self._ensure_runtime()
         paste_to_foreground(clear_first=clear_first)
-        self.wait(0.05)
+        self.wait()
 
     def _paste_text(self, text: str, clear_first: bool = True) -> None:
         if not text:
@@ -117,8 +125,8 @@ class ImageService:
         self._ensure_runtime()
         if clear_first:
             pyautogui.hotkey("ctrl", "a")
-            time.sleep(0.04)
+            self.wait()
         copy_text(text)
         time.sleep(0.1 if sys.platform == "win32" else 0.04)
         pyautogui.hotkey("ctrl", "v")
-        self.wait(0.05)
+        self.wait()

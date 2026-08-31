@@ -3,7 +3,12 @@ from __future__ import annotations
 from typing import Callable
 
 from constants.date_utils import express_month_date_range, express_month_folder_name
-from constants.routes import ACCOUNT_REPORT_CAPTURE_WAIT, ACCOUNT_REPORT_CODES
+from constants.routes import (
+    ACCOUNT_REPORT_CAPTURE_WAIT,
+    ACCOUNT_REPORT_CODES,
+    ACCOUNT_REPORT_FIELD_WAIT,
+    ACCOUNT_REPORT_MENU_WAIT,
+)
 from models.account_report_capture_job import AccountReportCaptureJob
 from models.ka_tam_row import KaTamRow
 from models.report_output_layout import ReportOutputLayout
@@ -48,6 +53,7 @@ def capture_account_reports(
     template_retries: int = 4,
     template_retry_delay: float = 0.15,
     capture_wait: float = ACCOUNT_REPORT_CAPTURE_WAIT,
+    field_wait: float = ACCOUNT_REPORT_FIELD_WAIT,
 ) -> None:
     for index, job in enumerate(jobs):
         if should_stop and should_stop():
@@ -64,18 +70,21 @@ def capture_account_reports(
             on_status=on_status,
             template_retries=template_retries,
             template_retry_delay=template_retry_delay,
+            menu_wait=ACCOUNT_REPORT_MENU_WAIT,
         )
-        image.type_text(job.account_code, clear_first=True)
-        image.press("enter")
-        image.type_text(job.account_code, clear_first=True)
-        image.press("enter")
-        image.type_keys(job.start_date, clear_first=True)
-        image.press("enter")
-        image.type_keys(job.end_date, clear_first=True)
-        image.press("enter")
+        image.wait(field_wait)
+        _type_report_field(image, job.account_code)
+        _type_report_field(image, job.account_code)
+        _type_report_field(image, job.start_date)
+        _type_report_field(image, job.end_date)
         image.press("f5")
         image.press("enter")
         image.wait(capture_wait)
         saved = image.save_screenshot(job.output_file)
         if on_status:
             on_status(f"บันทึกแคป {job.account_code}: {saved}")
+
+
+def _type_report_field(image: ImageService, text: str) -> None:
+    image.type_keys(text, clear_first=True)
+    image.press("enter")

@@ -4,8 +4,9 @@ screen:
   scale: 100
 
 automation:
-  action_delay: 0.05
+  action_delay: 0.15
   type_interval: 0.02
+  key_settle_wait: 0.45
   fail_safe: true
 
 ui:
