@@ -8,7 +8,7 @@ from models.ka_tam_row import KaTamRow
 from models.run_config import ExcelSheetSummary
 from services.lookup_match_service import tidy_vendor_name
 from services.tax_reference_service import build_nrg_tax_reference
-from topics.ka_tam.sheet_configs import SheetColumnMap, get_sheet_column_map
+from topics.ka_tam.sheet_configs import SheetColumnMap, detect_column_map
 
 
 def _to_float(value) -> float:
@@ -47,12 +47,18 @@ def _to_tax_id(value) -> str:
     return _to_text(value)
 
 
+def _cell_at(raw_values: tuple, index: int | None):
+    if index is None or index < 0 or index >= len(raw_values):
+        return None
+    return raw_values[index]
+
+
 def _credit_amount(row_values: tuple, column_map: SheetColumnMap) -> float:
-    service = _to_float(row_values[column_map.service_amount])
-    vat = _to_float(row_values[column_map.vat_amount])
+    service = _to_float(_cell_at(row_values, column_map.service_amount))
+    vat = _to_float(_cell_at(row_values, column_map.vat_amount))
 
     if column_map.credit_amount is not None:
-        credit = _to_float(row_values[column_map.credit_amount])
+        credit = _to_float(_cell_at(row_values, column_map.credit_amount))
         if credit > 0:
             return credit
 
@@ -89,6 +95,7 @@ def _parse_row(
     column_map: SheetColumnMap,
     excel_row_number: int,
     sheet_name: str,
+    period_text: str,
 ) -> KaTamRow | None:
     if not _is_data_row(raw_values):
         return None
@@ -97,63 +104,66 @@ def _parse_row(
     if sequence is None:
         return None
 
-    legal_name = tidy_vendor_name(_to_text(raw_values[column_map.legal_name]))
+    legal_name = tidy_vendor_name(_to_text(_cell_at(raw_values, column_map.legal_name)))
     if not legal_name:
         return None
 
-    invoice_number = ""
-    if column_map.invoice_number is not None:
-        invoice_number = _to_text(raw_values[column_map.invoice_number])
+    invoice_number = _to_text(_cell_at(raw_values, column_map.invoice_number))
 
-    nrg_tax_reference = (
-        invoice_number
-        if invoice_number.upper().startswith("NRG")
-        else build_nrg_tax_reference(sheet_name, sequence)
-    )
+    if invoice_number.upper().startswith("NRG"):
+        nrg_tax_reference = invoice_number
+    else:
+        nrg_tax_reference = build_nrg_tax_reference(period_text, sequence)
 
     return KaTamRow(
         row_number=excel_row_number,
         sequence=sequence,
         sheet_name=sheet_name,
         legal_name=legal_name,
-        month=_to_text(raw_values[column_map.month]),
-        tax_id=_to_tax_id(raw_values[column_map.tax_id]),
-        service_amount=_to_float(raw_values[column_map.service_amount]),
-        vat_amount=_to_float(raw_values[column_map.vat_amount]),
+        month=_to_text(_cell_at(raw_values, column_map.month)),
+        tax_id=_to_tax_id(_cell_at(raw_values, column_map.tax_id)),
+        service_amount=_to_float(_cell_at(raw_values, column_map.service_amount)),
+        vat_amount=_to_float(_cell_at(raw_values, column_map.vat_amount)),
         credit_amount=_credit_amount(raw_values, column_map),
-        wt_amount=_to_float(raw_values[column_map.wt_amount]),
+        wt_amount=_to_float(_cell_at(raw_values, column_map.wt_amount)),
         invoice_number=invoice_number,
         nrg_tax_reference=nrg_tax_reference,
+        legal_name_column=column_map.legal_name,
     )
 
 
 class ExcelService:
     @staticmethod
     def load_workbook(excel_path: Path) -> tuple[list[ExcelSheetSummary], dict[str, list[KaTamRow]]]:
-        from topics.ka_tam.sheet_configs import SHEET_COLUMN_MAPS
-
         workbook = pd.ExcelFile(excel_path)
-        supported = [name for name in workbook.sheet_names if name in SHEET_COLUMN_MAPS]
-        summaries: list[ExcelSheetSummary] = []
-        rows_by_sheet: dict[str, list[KaTamRow]] = {}
-
-        for sheet_name in supported:
-            dataframe = pd.read_excel(workbook, sheet_name=sheet_name, header=None)
-            rows = ExcelService._rows_from_dataframe(dataframe, sheet_name)
-            if rows:
-                summaries.append(ExcelSheetSummary(name=sheet_name, row_count=len(rows)))
-                rows_by_sheet[sheet_name] = rows
-
-        return summaries, rows_by_sheet
+        if not workbook.sheet_names:
+            raise ValueError("ไฟล์ Excel ไม่มีชีต")
+        sheet_name = workbook.sheet_names[0]
+        dataframe = pd.read_excel(workbook, sheet_name=sheet_name, header=None)
+        rows = ExcelService._rows_from_dataframe(
+            dataframe,
+            sheet_name,
+            period_text=f"{sheet_name} {excel_path.stem}",
+        )
+        if not rows:
+            raise ValueError("ไม่พบรายการในไฟล์ Excel")
+        return [ExcelSheetSummary(name=sheet_name, row_count=len(rows))], {sheet_name: rows}
 
     @staticmethod
-    def _rows_from_dataframe(dataframe: pd.DataFrame, sheet_name: str) -> list[KaTamRow]:
-        column_map = get_sheet_column_map(sheet_name)
+    def _rows_from_dataframe(
+        dataframe: pd.DataFrame,
+        sheet_name: str,
+        *,
+        period_text: str = "",
+    ) -> list[KaTamRow]:
+        preview = [tuple(dataframe.iloc[index].tolist()) for index in range(min(8, len(dataframe)))]
+        column_map = detect_column_map(preview)
         rows: list[KaTamRow] = []
+        source = period_text or sheet_name
 
         for index in range(column_map.data_start_row, len(dataframe)):
             raw_values = tuple(dataframe.iloc[index].tolist())
-            parsed = _parse_row(raw_values, column_map, index + 1, sheet_name)
+            parsed = _parse_row(raw_values, column_map, index + 1, sheet_name, source)
             if parsed is not None:
                 rows.append(parsed)
 
@@ -162,14 +172,18 @@ class ExcelService:
     @staticmethod
     def load_ka_tam_rows(excel_path: Path, sheet_name: str) -> list[KaTamRow]:
         dataframe = pd.read_excel(excel_path, sheet_name=sheet_name, header=None)
-        return ExcelService._rows_from_dataframe(dataframe, sheet_name)
+        return ExcelService._rows_from_dataframe(
+            dataframe,
+            sheet_name,
+            period_text=f"{sheet_name} {excel_path.stem}",
+        )
 
     @staticmethod
     def list_supported_sheets(excel_path: Path) -> list[str]:
-        from topics.ka_tam.sheet_configs import SHEET_COLUMN_MAPS
-
         workbook = pd.ExcelFile(excel_path)
-        return [sheet for sheet in workbook.sheet_names if sheet in SHEET_COLUMN_MAPS]
+        if not workbook.sheet_names:
+            return []
+        return [workbook.sheet_names[0]]
 
     @staticmethod
     def load_sheet_summaries(excel_path: Path) -> list[ExcelSheetSummary]:

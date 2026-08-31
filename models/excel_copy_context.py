@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from models.ka_tam_row import KaTamRow
-from topics.ka_tam.sheet_configs import get_sheet_column_map
 
 
 @dataclass(frozen=True)
@@ -17,13 +16,12 @@ class ExcelCopyContext:
 
     @classmethod
     def from_row(cls, excel_path: Path, row: KaTamRow) -> ExcelCopyContext:
-        column_map = get_sheet_column_map(row.sheet_name)
         return cls(
             excel_path=excel_path,
             sheet_name=row.sheet_name,
             row_number=row.row_number,
             legal_name=row.legal_name.strip(),
-            legal_name_column=column_map.legal_name,
+            legal_name_column=row.legal_name_column,
         )
 
     @property

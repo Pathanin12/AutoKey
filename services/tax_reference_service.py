@@ -3,18 +3,18 @@ from __future__ import annotations
 import re
 
 
-_SHEET_PERIOD_PATTERN = re.compile(r"(\d{4})\s+(\d{2})\s*$")
+_PERIOD_PATTERN = re.compile(r"(\d{4})\s+(\d{2})")
 
 
-def parse_sheet_period(sheet_name: str) -> tuple[int, int]:
-    match = _SHEET_PERIOD_PATTERN.search(sheet_name.strip())
+def parse_sheet_period(text: str) -> tuple[int, int]:
+    match = _PERIOD_PATTERN.search(text.strip())
     if not match:
-        raise ValueError(f"ไม่สามารถอ่านปี/เดือนจาก Sheet: {sheet_name}")
+        raise ValueError(f"ไม่สามารถอ่านปี/เดือนจาก: {text}")
     return int(match.group(1)), int(match.group(2))
 
 
-def build_nrg_tax_reference(sheet_name: str, sequence: int) -> str:
-    year, month = parse_sheet_period(sheet_name)
+def build_nrg_tax_reference(period_text: str, sequence: int) -> str:
+    year, month = parse_sheet_period(period_text)
     return f"NRG{year}{month:02d}{int(sequence):04d}"
 
 

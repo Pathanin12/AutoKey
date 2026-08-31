@@ -15,6 +15,7 @@ class KaTamRow:
     wt_amount: float
     invoice_number: str = ""
     nrg_tax_reference: str = ""
+    legal_name_column: int = 2
 
     @property
     def has_vat(self) -> bool:
