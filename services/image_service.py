@@ -20,9 +20,9 @@ class ImageService:
 
     def __init__(
         self,
-        action_delay: float = 0.15,
+        action_delay: float = 0.05,
         type_interval: float = 0.02,
-        key_settle_wait: float = 0.45,
+        key_settle_wait: float = 0.08,
         fail_safe: bool = True,
         screen_width: int = 1920,
         screen_height: int = 1080,
@@ -67,12 +67,12 @@ class ImageService:
     def click_at(self, x: int, y: int) -> None:
         self._ensure_runtime()
         pyautogui.click(x, y)
-        self.wait()
+        self.wait(0.03)
 
     def move_to(self, x: int, y: int) -> None:
         self._ensure_runtime()
         pyautogui.moveTo(x, y)
-        self.wait()
+        self.wait(0.03)
 
     def press(self, *keys: str, presses: int = 1) -> None:
         self._ensure_runtime()
