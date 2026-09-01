@@ -4,9 +4,6 @@ import unicodedata
 from difflib import SequenceMatcher
 
 
-_NBSP = "\u00a0"
-
-
 def tidy_vendor_name(value: str) -> str:
     """ช่องว่างทุกแบบ → ช่องว่างปกติ แล้วตัดซ้ำ (ใช้เทียบชื่อ ไม่ใช่ตอนวาง Express)"""
     text = "".join(" " if unicodedata.category(ch) == "Zs" else ch for ch in (value or ""))
@@ -14,11 +11,8 @@ def tidy_vendor_name(value: str) -> str:
 
 
 def to_express_vendor_name(value: str) -> str:
-    """Express คั่นคำด้วย NBSP — วางช่องว่างปกติแล้วค้น 1/2 ไม่ขึ้น ไปแถวแรก"""
-    collapsed = " ".join((value or "").split())
-    if not collapsed:
-        return ""
-    return collapsed.replace(" ", _NBSP)
+    """วางชื่อตาม Excel — ไม่ยุบช่องว่าง ไม่แปลงเป็น NBSP"""
+    return (value or "").strip()
 
 
 def normalize_name(value: str) -> str:

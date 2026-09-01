@@ -6,7 +6,6 @@ import pandas as pd
 
 from models.ka_tam_row import KaTamRow
 from models.run_config import ExcelSheetSummary
-from services.lookup_match_service import tidy_vendor_name
 from services.tax_reference_service import build_nrg_tax_reference
 from topics.ka_tam.sheet_configs import SheetColumnMap, detect_column_map
 
@@ -104,7 +103,7 @@ def _parse_row(
     if sequence is None:
         return None
 
-    legal_name = tidy_vendor_name(_to_text(_cell_at(raw_values, column_map.legal_name)))
+    legal_name = _to_text(_cell_at(raw_values, column_map.legal_name))
     if not legal_name:
         return None
 
