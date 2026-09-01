@@ -41,6 +41,7 @@ MENU_GENERAL_LEDGER_LABEL = "4. แยกประเภท"
 MENU_REPORT_NORMAL_LABEL = "1. แบบปกติ"
 MENU_LEDGER_REPORT_PATH = "F12 > 5. รายงานบัญชี > 4. แยกประเภท > 1. แบบปกติ"
 ACCOUNT_REPORT_FLOW_PATH = "F12 → รายงานบัญชี → แยกประเภท → แบบปกติ → กรอก → F5 → แคป"
+ACCOUNT_REPORT_CAPTURE_ENABLED = False
 PV_NEW_FILE_KEYS = ("alt", "a")
 MENU_OTHERS = "8"
 MENU_OTHERS_CHANGE_COMPANY = "8"

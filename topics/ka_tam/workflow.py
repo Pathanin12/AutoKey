@@ -6,6 +6,7 @@ from typing import Callable
 from constants.flow_model import FLOW_1_END_LABEL, FLOW_1_LABEL
 from constants.date_utils import format_express_pv_date
 from constants.routes import (
+    ACCOUNT_REPORT_CAPTURE_ENABLED,
     ACCOUNT_REPORT_FLOW_PATH,
     ACCOUNT_SERVICE,
     ACCOUNT_VAT,
@@ -256,7 +257,8 @@ class KaTamWorkflow:
         self.image.press("enter", presses=5)
 
         self._fill_tax_invoice_via_f2_f9(config, row)
-        self._capture_account_reports(config, row)
+        if ACCOUNT_REPORT_CAPTURE_ENABLED:
+            self._capture_account_reports(config, row)
 
         if prepare_next:
             self._step(self.STEP_FINISH, "กลับ dialog เลือกข้อมูล", "Shift+F11 → Tab → Enter")

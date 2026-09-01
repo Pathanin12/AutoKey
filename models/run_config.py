@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from constants.routes import ACCOUNT_REPORT_CAPTURE_ENABLED
 from models.ka_tam_row import KaTamRow
 
 
@@ -30,10 +31,11 @@ class RunConfig:
             errors.append(f"ไม่พบไฟล์ Excel: {self.excel_path}")
         if not self.pv_date.strip():
             errors.append("กรุณากรอกวันที่ใบสำคัญ")
-        if self.report_output_dir is None or not str(self.report_output_dir).strip():
-            errors.append("กรุณาเลือกโฟลเดอร์เก็บไฟล์รายงาน")
-        elif self.report_output_dir.exists() and not self.report_output_dir.is_dir():
-            errors.append("โฟลเดอร์เก็บไฟล์รายงานต้องเป็นโฟลเดอร์")
+        if ACCOUNT_REPORT_CAPTURE_ENABLED:
+            if self.report_output_dir is None or not str(self.report_output_dir).strip():
+                errors.append("กรุณาเลือกโฟลเดอร์เก็บไฟล์รายงาน")
+            elif self.report_output_dir.exists() and not self.report_output_dir.is_dir():
+                errors.append("โฟลเดอร์เก็บไฟล์รายงานต้องเป็นโฟลเดอร์")
         if self.start_from_no < 1:
             errors.append("เริ่มที่ No. ต้อง ≥ 1")
         if self.sheet_summaries is not None and not self.sheet_summaries:
