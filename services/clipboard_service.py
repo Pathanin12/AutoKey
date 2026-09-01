@@ -15,8 +15,18 @@ def normalize_pasted_cell(value: str) -> str:
     return " ".join(text.split()) if text.strip() else ""
 
 
+def clear_clipboard() -> None:
+    if sys.platform == "win32":
+        _clear_windows_clipboard()
+        return
+    copy_text("")
+
+
 def copy_text(text: str) -> None:
     if sys.platform == "win32":
+        if text == "":
+            _clear_windows_clipboard()
+            return
         _copy_windows_express(text)
         return
 
@@ -30,6 +40,22 @@ def copy_text(text: str) -> None:
 
     if sys.platform == "darwin":
         _copy_pbpaste(text)
+
+
+def _clear_windows_clipboard() -> None:
+    from ctypes import wintypes
+
+    user32 = ctypes.windll.user32
+    user32.OpenClipboard.argtypes = [wintypes.HWND]
+    user32.OpenClipboard.restype = wintypes.BOOL
+    user32.EmptyClipboard.restype = wintypes.BOOL
+    user32.CloseClipboard.restype = wintypes.BOOL
+    if not user32.OpenClipboard(None):
+        return
+    try:
+        user32.EmptyClipboard()
+    finally:
+        user32.CloseClipboard()
 
 
 def _copy_windows_express(text: str) -> None:

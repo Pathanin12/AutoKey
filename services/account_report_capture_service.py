@@ -86,5 +86,5 @@ def capture_account_reports(
 
 
 def _type_report_field(image: ImageService, text: str) -> None:
-    image.type_keys(text, clear_first=True)
+    image.type_keys(text, clear_first=False)
     image.press("enter")

@@ -9,7 +9,7 @@ try:
 except ImportError:  # pragma: no cover - dev on non-runtime env
     pyautogui = None
 
-from services.clipboard_service import copy_text
+from services.clipboard_service import clear_clipboard, copy_text
 from services.window_paste_service import paste_to_foreground
 
 _SETTLE_KEYS = frozenset({"enter", "return", "tab"})
@@ -130,3 +130,4 @@ class ImageService:
         time.sleep(0.1 if sys.platform == "win32" else 0.04)
         pyautogui.hotkey("ctrl", "v")
         self.wait()
+        clear_clipboard()
