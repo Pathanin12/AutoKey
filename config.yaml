@@ -6,7 +6,7 @@ screen:
 automation:
   action_delay: 0.05
   type_interval: 0.02
-  key_settle_wait: 0.08
+  key_settle_wait: 0.03
   fail_safe: true
 
 ui:

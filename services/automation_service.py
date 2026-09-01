@@ -131,7 +131,7 @@ class AutomationService:
         return ImageService(
             action_delay=float(settings.get("action_delay", 0.05)),
             type_interval=float(settings.get("type_interval", 0.03)),
-            key_settle_wait=float(settings.get("key_settle_wait", 0.08)),
+            key_settle_wait=float(settings.get("key_settle_wait", 0.03)),
             fail_safe=bool(settings.get("fail_safe", True)),
             screen_width=int(screen.get("width", SCREEN_WIDTH)),
             screen_height=int(screen.get("height", SCREEN_HEIGHT)),

@@ -22,7 +22,7 @@ class ImageService:
         self,
         action_delay: float = 0.05,
         type_interval: float = 0.02,
-        key_settle_wait: float = 0.08,
+        key_settle_wait: float = 0.03,
         fail_safe: bool = True,
         screen_width: int = 1920,
         screen_height: int = 1080,
