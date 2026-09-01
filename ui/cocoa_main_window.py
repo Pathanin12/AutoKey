@@ -55,7 +55,7 @@ from services.hotkey_service import HotkeyService
 from ui.app_icon import icon_dir
 
 WIN_W = 560
-WIN_H = 720
+WIN_H = 640
 
 
 class FlippedView(NSView):
@@ -156,13 +156,12 @@ class MainWindow:
             str(defaults.get("pv_date", "")).strip() or default_work_date()
         )
         initial_start_from_no = str(defaults.get("start_from_no", 1) or 1).strip() or "1"
-        initial_report_output_dir = str(defaults.get("report_output_dir", "") or "").strip()
 
         self._app = NSApplication.sharedApplication()
         self._app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
         _install_standard_edit_menu()
         self._set_app_icon()
-        self._build_window(initial_pv_date, initial_start_from_no, initial_report_output_dir)
+        self._build_window(initial_pv_date, initial_start_from_no)
         self._bind_shortcuts()
         self._load_excel()
 
@@ -180,7 +179,7 @@ class MainWindow:
         if image is not None:
             self._app.setApplicationIconImage_(image)
 
-    def _build_window(self, initial_pv_date: str, initial_start_from_no: str, initial_report_output_dir: str) -> None:
+    def _build_window(self, initial_pv_date: str, initial_start_from_no: str) -> None:
         style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable
         self.window = MainNSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
             NSMakeRect(0, 0, WIN_W, WIN_H),
@@ -203,7 +202,7 @@ class MainWindow:
         title = _static_label(root, f"{UI_TEXT['app_title']} v{__version__}", 16, y, WIN_W - 32, 22, size=15, bold=True)
         y = 42
 
-        settings_box, settings = _box(root, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 380)
+        settings_box, settings = _box(root, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 310)
         sy = 8
         _static_label(settings, UI_TEXT["excel_file"], 8, sy, 90, 18)
         self.excel_path_field = _edit_field(settings, 100, sy, 280)
@@ -242,24 +241,8 @@ class MainWindow:
         self.tax_payer_id_field.setDelegate_(self._plain_delegate)
         sy += 22
         _static_label(settings, UI_TEXT["tax_payer_id_hint"], 8, sy, 500, 28, size=11, gray=True)
-        sy += 32
-        _static_label(settings, UI_TEXT["report_output_dir"], 8, sy, 110, 18)
-        self.report_output_dir_field = _edit_field(settings, 120, sy, 256)
-        self.report_output_dir_field.setStringValue_(initial_report_output_dir)
-        self.report_output_dir_field.setDelegate_(self._plain_delegate)
-        choose_dir = _button(
-            settings,
-            UI_TEXT["choose_folder"],
-            386,
-            sy - 2,
-            90,
-            24,
-            self._keep(self._choose_report_dir),
-        )
-        sy += 22
-        _static_label(settings, UI_TEXT["report_output_dir_hint"], 8, sy, 500, 28, size=11, gray=True)
 
-        y = 432
+        y = 360
         start_btn = _button(
             root,
             f"▶ {UI_TEXT['start']}",
@@ -279,13 +262,13 @@ class MainWindow:
             self._keep(self._stop),
         )
 
-        y = 468
+        y = 396
         status_box, status = _box(root, UI_TEXT["status_frame"], 12, y, WIN_W - 24, WIN_H - y - 12)
         self.progress_field = _static_label(status, "0 / 0", 8, 6, 300, 18)
         copy_btn = _button(status, UI_TEXT["copy_log"], 380, 4, 110, 24, self._keep(self._copy_all_log))
         self.log_view = _log_view(status, 8, 32, WIN_W - 56, WIN_H - y - 56)
         self._write_log(UI_TEXT["welcome_log"] + "\n", trim=False)
-        del title, choose, choose_dir, start_btn, copy_btn
+        del title, choose, start_btn, copy_btn
 
         self.window.makeKeyAndOrderFront_(None)
         self.window.makeFirstResponder_(self.description_field)
@@ -368,26 +351,6 @@ class MainWindow:
         self.excel_path_field.setStringValue_(str(urls[0].path()))
         self._load_excel()
 
-    def _choose_report_dir(self) -> None:
-        panel = NSOpenPanel.openPanel()
-        panel.setCanChooseFiles_(False)
-        panel.setCanChooseDirectories_(True)
-        panel.setAllowsMultipleSelection_(False)
-        panel.setCanCreateDirectories_(True)
-        panel.setTitle_(UI_TEXT["choose_folder"])
-        if panel.runModal() != 1:
-            return
-        urls = panel.URLs()
-        if not urls:
-            return
-        self.report_output_dir_field.setStringValue_(str(urls[0].path()))
-
-    def _report_output_dir(self) -> Path | None:
-        raw = self._field_text(self.report_output_dir_field)
-        if not raw:
-            return None
-        return Path(raw).expanduser()
-
     def _start(self) -> None:
         if self.is_running:
             return
@@ -403,7 +366,6 @@ class MainWindow:
             pv_date=format_express_pv_date(self._field_text(self.pv_date_field)),
             description=self._field_text(self.description_field),
             tax_payer_id=self._field_text(self.tax_payer_id_field),
-            report_output_dir=self._report_output_dir(),
             start_from_no=self._parse_start_from_no(),
             sheet_summaries=self.sheet_summaries,
             sheet_rows=self.sheet_rows,

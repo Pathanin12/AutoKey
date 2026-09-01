@@ -20,7 +20,7 @@ class MainWindow:
     def __init__(self) -> None:
         self.root = tk.Tk()
         self.root.title(f"{UI_TEXT['app_title']} v{__version__}")
-        self.root.geometry("560x660")
+        self.root.geometry("560x580")
         self.root.resizable(False, False)
         self._set_window_icon()
 
@@ -42,13 +42,11 @@ class MainWindow:
             str(defaults.get("pv_date", "")).strip() or default_work_date()
         )
         initial_start_from_no = str(defaults.get("start_from_no", 1) or 1).strip() or "1"
-        initial_report_output_dir = str(defaults.get("report_output_dir", "") or "").strip()
         self.excel_path = tk.StringVar(value="")
         self.pv_date = tk.StringVar(value=initial_pv_date)
         self.start_from_no = tk.StringVar(value=initial_start_from_no)
         self.description = tk.StringVar(value="")
         self.tax_payer_id = tk.StringVar(value="")
-        self.report_output_dir = tk.StringVar(value=initial_report_output_dir)
         self.status_text = tk.StringVar(value=UI_TEXT["ready"])
         self.progress_text = tk.StringVar(value="0 / 0")
         self.excel_summary = tk.StringVar(value=UI_TEXT["excel_summary_empty"])
@@ -113,14 +111,6 @@ class MainWindow:
         ttk.Label(form_frame, text=UI_TEXT["tax_payer_id_hint"], wraplength=500, foreground="#555555").grid(
             row=9, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
-
-        ttk.Label(form_frame, text=UI_TEXT["report_output_dir"]).grid(row=10, column=0, sticky="w")
-        self.report_output_dir_entry = ttk.Entry(form_frame, textvariable=self.report_output_dir, width=48)
-        self.report_output_dir_entry.grid(row=10, column=1, sticky="ew")
-        ttk.Button(form_frame, text=UI_TEXT["choose_folder"], command=self._choose_report_dir).grid(row=10, column=2)
-        ttk.Label(form_frame, text=UI_TEXT["report_output_dir_hint"], wraplength=500, foreground="#555555").grid(
-            row=11, column=0, columnspan=3, sticky="w", pady=(2, 0)
-        )
         form_frame.columnconfigure(1, weight=1)
         bind_excel_cell_paste(
             [
@@ -129,7 +119,6 @@ class MainWindow:
                 self.start_from_no_entry,
                 self.description_entry,
                 self.tax_payer_id_entry,
-                self.report_output_dir_entry,
             ],
         )
 
@@ -247,17 +236,6 @@ class MainWindow:
             self.excel_path.set(selected)
             self._load_excel()
 
-    def _report_output_dir(self) -> Path | None:
-        raw = self.report_output_dir.get().strip()
-        if not raw:
-            return None
-        return Path(raw).expanduser()
-
-    def _choose_report_dir(self) -> None:
-        selected = filedialog.askdirectory(title=UI_TEXT["choose_folder"])
-        if selected:
-            self.report_output_dir.set(selected)
-
     def _start(self) -> None:
         if self.is_running:
             return
@@ -278,7 +256,6 @@ class MainWindow:
             pv_date=pv_date,
             description=self.description.get().strip(),
             tax_payer_id=self.tax_payer_id.get().strip(),
-            report_output_dir=self._report_output_dir(),
             start_from_no=self._parse_start_from_no(),
             sheet_summaries=self.sheet_summaries,
             sheet_rows=self.sheet_rows,
