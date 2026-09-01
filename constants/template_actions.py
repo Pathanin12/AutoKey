@@ -74,6 +74,13 @@ MENU_REPORT_NORMAL_TARGET = TemplateTarget(
     match_threshold=0.88,
 )
 
+MENU_REPORT_NORMAL_SELECTED_TARGET = TemplateTarget(
+    step_id="menu_report_normal_selected",
+    label=f"{MENU_REPORT_NORMAL_LABEL} (เลือกอยู่)",
+    template_file="menu_report_normal_selected.png",
+    match_threshold=0.88,
+)
+
 DEFAULT_TEMPLATE_CLICK_ACTIONS: tuple[TemplateClickAction, ...] = (
     TemplateClickAction(
         action_id="lookup_search",
@@ -113,6 +120,11 @@ DEFAULT_TEMPLATE_CLICK_ACTIONS: tuple[TemplateClickAction, ...] = (
     TemplateClickAction(
         action_id="menu_report_normal",
         target=MENU_REPORT_NORMAL_TARGET,
+        search_region=F12_MENU_REGION,
+    ),
+    TemplateClickAction(
+        action_id="menu_report_normal_selected",
+        target=MENU_REPORT_NORMAL_SELECTED_TARGET,
         search_region=F12_MENU_REGION,
     ),
 )

@@ -82,6 +82,11 @@ template_click:
       template_file: menu_report_normal.png
       match_threshold: 0.88
       search_region: [20, 20, 1400, 900]
+    menu_report_normal_selected:
+      label: 1. แบบปกติ (เลือกอยู่)
+      template_file: menu_report_normal_selected.png
+      match_threshold: 0.88
+      search_region: [20, 20, 1400, 900]
 
 company_switch:
   menu_others: "8"

@@ -94,11 +94,12 @@ def open_ledger_normal_report_menu(
                 template_retries,
                 template_retry_delay,
                 fallback_key=False,
+                action_id="menu_report_normal_selected",
             )
             image.wait(menu_wait)
             return
         except TemplateNotFoundError:
-            _status(on_status, "ไม่เจอแบบปกติ — เปิดต้นไม้รายงานอีกครั้ง")
+            _status(on_status, "ไม่เจอแบบปกติกล่องขาว — เปิดต้นไม้รายงานอีกครั้ง")
 
     _status(on_status, f"เปิดเมนู {MENU_LEDGER_REPORT_PATH}")
     _expand_ledger_report_tree(
@@ -164,11 +165,12 @@ def _click_report_normal(
     template_retries: int,
     template_retry_delay: float,
     fallback_key: bool = True,
+    action_id: str = "menu_report_normal",
 ) -> None:
     _status(on_status, f"คลิกเมนู {MENU_REPORT_NORMAL_LABEL}")
     try:
         _retry_action(
-            lambda: template_click.click("menu_report_normal", search_region=search_region),
+            lambda: template_click.click(action_id, search_region=search_region),
             image=image,
             retries=template_retries,
             retry_delay=template_retry_delay,
@@ -178,7 +180,7 @@ def _click_report_normal(
         if search_region is not None:
             try:
                 _retry_action(
-                    lambda: template_click.click("menu_report_normal"),
+                    lambda: template_click.click(action_id),
                     image=image,
                     retries=template_retries,
                     retry_delay=template_retry_delay,
