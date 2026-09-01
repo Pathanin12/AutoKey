@@ -8,12 +8,6 @@ import time
 from ctypes import wintypes
 
 WM_PASTE = 0x0302
-KEYEVENTF_KEYUP = 0x0002
-VK_CONTROL = 0x11
-VK_SHIFT = 0x10
-VK_V = 0x56
-VK_A = 0x41
-VK_INSERT = 0x2D
 
 
 class _GUITHREADINFO(ctypes.Structure):
@@ -65,19 +59,15 @@ def _paste_wm_paste() -> None:
 
 
 def _send_ctrl_v() -> None:
-    user32 = ctypes.windll.user32
-    user32.keybd_event(VK_CONTROL, 0, 0, 0)
-    user32.keybd_event(VK_V, 0, 0, 0)
-    user32.keybd_event(VK_V, 0, KEYEVENTF_KEYUP, 0)
-    user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
+    from services.windows_input_service import send_combo
+
+    send_combo("ctrl", "v")
 
 
 def _send_ctrl_a() -> None:
-    user32 = ctypes.windll.user32
-    user32.keybd_event(VK_CONTROL, 0, 0, 0)
-    user32.keybd_event(VK_A, 0, 0, 0)
-    user32.keybd_event(VK_A, 0, KEYEVENTF_KEYUP, 0)
-    user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
+    from services.windows_input_service import send_combo
+
+    send_combo("ctrl", "a")
 
 
 def _paste_pyautogui(*, clear_first: bool = False) -> None:

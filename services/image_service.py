@@ -61,7 +61,7 @@ class ImageService:
 
     def copy_selection(self) -> None:
         self._ensure_runtime()
-        pyautogui.hotkey("ctrl", "c")
+        self._send_combo("ctrl", "c")
         self.wait(0.1)
 
     def click_at(self, x: int, y: int) -> None:
@@ -77,13 +77,15 @@ class ImageService:
     def press(self, *keys: str, presses: int = 1) -> None:
         self._ensure_runtime()
         for _ in range(presses):
-            if len(keys) > 1:
-                if sys.platform == "win32" and any(key.lower() == "alt" for key in keys):
+            if sys.platform == "win32":
+                if any(key.lower() == "alt" for key in keys):
                     from services.windows_input_service import send_hotkey
 
                     send_hotkey(*keys)
                 else:
-                    pyautogui.hotkey(*keys)
+                    self._send_combo(*keys)
+            elif len(keys) > 1:
+                pyautogui.hotkey(*keys)
             else:
                 pyautogui.press(keys[0])
             self.wait(self._wait_after_keys(keys))
@@ -93,21 +95,44 @@ class ImageService:
             return self.key_settle_wait
         return self.action_delay
 
+    def _send_combo(self, *keys: str) -> None:
+        from services.windows_input_service import send_combo
+
+        send_combo(*keys)
+
     def type_text(self, text: str, clear_first: bool = True) -> None:
+        if sys.platform == "win32":
+            from services.windows_input_service import send_ascii_text, text_is_ascii_keys
+
+            if text_is_ascii_keys(text):
+                self._type_ascii(text, clear_first=clear_first)
+                return
         self._paste_text(text, clear_first=clear_first)
 
     def type_thai(self, text: str, clear_first: bool = True) -> None:
         self._paste_text(text, clear_first=clear_first)
 
     def type_keys(self, text: str, *, clear_first: bool = False) -> None:
-        """พิมพ์ทีละตัว — เหมาะกับช่องวันที่ที่มี input mask"""
+        """พิมพ์ทีละตัว — รหัสบัญชี/วันที่ ไม่ตามแป้นไทย"""
         if not text:
             return
         self._ensure_runtime()
+        if sys.platform == "win32":
+            self._type_ascii(text, clear_first=clear_first)
+            return
         if clear_first:
             pyautogui.hotkey("ctrl", "a")
             self.wait()
         pyautogui.typewrite(text, interval=self.type_interval)
+        self.wait()
+
+    def _type_ascii(self, text: str, *, clear_first: bool) -> None:
+        from services.windows_input_service import send_ascii_text
+
+        if clear_first:
+            self._send_combo("ctrl", "a")
+            self.wait()
+        send_ascii_text(text, interval=self.type_interval)
         self.wait()
 
     def paste_clipboard(self, *, clear_first: bool = False) -> None:
@@ -124,10 +149,13 @@ class ImageService:
             return
         self._ensure_runtime()
         if clear_first:
-            pyautogui.hotkey("ctrl", "a")
+            self._send_combo("ctrl", "a") if sys.platform == "win32" else pyautogui.hotkey("ctrl", "a")
             self.wait()
         copy_text(text)
         time.sleep(0.1 if sys.platform == "win32" else 0.04)
-        pyautogui.hotkey("ctrl", "v")
+        if sys.platform == "win32":
+            self._send_combo("ctrl", "v")
+        else:
+            pyautogui.hotkey("ctrl", "v")
         self.wait()
         clear_clipboard()

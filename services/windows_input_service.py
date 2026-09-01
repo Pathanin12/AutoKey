@@ -54,6 +54,20 @@ def send_combo(*keys: str) -> None:
     time.sleep(0.03)
 
 
+def text_is_ascii_keys(text: str) -> bool:
+    """ตัวเลข วันที่ รหัสบัญชี ยอดเงิน — ส่ง Unicode ได้โดยไม่ตามแป้นไทย/อังกฤษ"""
+    return all(32 <= ord(character) <= 126 for character in text)
+
+
+def send_ascii_text(text: str, *, interval: float = 0.03) -> None:
+    """พิมพ์ ASCII ทีละตัวด้วย Unicode — รีโมตกับนั่งเครื่องได้ค่าเดียวกัน"""
+    if sys.platform != "win32" or not text:
+        return
+    if not text_is_ascii_keys(text):
+        raise ValueError(f"รองรับเฉพาะ ASCII: {text!r}")
+    send_unicode_text(text, interval=interval)
+
+
 def send_unicode_text(text: str, *, interval: float = 0.03) -> None:
     """พิมพ์ตัวอักษรจริงลงช่องที่โฟกัส — ไม่ตามแป้นไทย และไม่ใช้ clipboard"""
     if sys.platform != "win32" or not text:
