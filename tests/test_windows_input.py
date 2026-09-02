@@ -12,6 +12,11 @@ class WindowsInputTests(unittest.TestCase):
     def test_thai_is_not_ascii(self) -> None:
         self.assertFalse(text_is_ascii_keys("ค่าบริการ"))
 
+    def test_unicode_units_cover_thai(self) -> None:
+        from services.windows_input_service import _utf16_units
+
+        self.assertEqual(_utf16_units("ก"), (ord("ก"),))
+
 
 if __name__ == "__main__":
     unittest.main()

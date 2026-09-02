@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import ctypes
 import sys
+import time
 
 CF_TEXT = 1
 CF_UNICODETEXT = 13
 GMEM_MOVEABLE = 0x0002
 THAI_ANSI_ENCODING = "cp874"
+_CLIPBOARD_RETRIES = 25
+_CLIPBOARD_RETRY_WAIT = 0.02
 
 
 def normalize_pasted_cell(value: str) -> str:
@@ -27,7 +30,7 @@ def copy_text(text: str) -> None:
         if text == "":
             _clear_windows_clipboard()
             return
-        _copy_windows_express(text)
+        _copy_windows_express_verified(text)
         return
 
     try:
@@ -50,7 +53,7 @@ def _clear_windows_clipboard() -> None:
     user32.OpenClipboard.restype = wintypes.BOOL
     user32.EmptyClipboard.restype = wintypes.BOOL
     user32.CloseClipboard.restype = wintypes.BOOL
-    if not user32.OpenClipboard(None):
+    if not _open_clipboard(user32):
         return
     try:
         user32.EmptyClipboard()
@@ -81,8 +84,8 @@ def _copy_windows_express(text: str) -> None:
     kernel32.GlobalFree.argtypes = [wintypes.HGLOBAL]
     kernel32.GlobalFree.restype = wintypes.HGLOBAL
 
-    if not user32.OpenClipboard(None):
-        raise RuntimeError("เปิด clipboard ไม่ได้")
+    if not _open_clipboard(user32):
+        raise RuntimeError("เปิด clipboard ไม่ได้ — มีโปรแกรมอื่นล็อกอยู่")
 
     pending_handles: list[wintypes.HGLOBAL] = []
     try:
@@ -114,6 +117,32 @@ def _copy_windows_express(text: str) -> None:
         user32.CloseClipboard()
 
 
+def _copy_windows_express_verified(text: str) -> None:
+    last_error: Exception | None = None
+    for _ in range(5):
+        try:
+            _copy_windows_express(text)
+        except Exception as exc:
+            last_error = exc
+            time.sleep(_CLIPBOARD_RETRY_WAIT)
+            continue
+        if clipboard_holds(text):
+            return
+        time.sleep(_CLIPBOARD_RETRY_WAIT)
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("คลิปบอร์ดถูกแย่ง — ตั้งข้อความไม่สำเร็จ")
+
+
+def clipboard_holds(expected: str) -> bool:
+    actual = read_text()
+    if not expected:
+        return not actual.strip()
+    if actual == expected:
+        return True
+    return actual.replace("\xa0", " ").strip() == expected.replace("\xa0", " ").strip()
+
+
 def _put_clipboard_format(
     user32,
     kernel32,
@@ -138,6 +167,18 @@ def _put_clipboard_format(
         raise RuntimeError("ตั้งค่า clipboard ไม่ได้")
 
     pending_handles.append(handle)
+
+
+def _open_clipboard(user32, hwnd=None) -> bool:
+    """รอให้โปรแกรมอื่นปล่อย clipboard — คล้ายคลิปบอร์ดตอนรีโมตที่ไม่โดนแย่ง"""
+    owner = hwnd if hwnd else user32.GetForegroundWindow()
+    for _ in range(_CLIPBOARD_RETRIES):
+        if user32.OpenClipboard(owner):
+            return True
+        if owner and user32.OpenClipboard(None):
+            return True
+        time.sleep(_CLIPBOARD_RETRY_WAIT)
+    return False
 
 
 def read_text() -> str:
@@ -194,7 +235,7 @@ def _read_windows_clipboard() -> str:
     kernel32.GlobalUnlock.argtypes = [wintypes.HGLOBAL]
     kernel32.GlobalUnlock.restype = wintypes.BOOL
 
-    if not user32.OpenClipboard(None):
+    if not _open_clipboard(user32):
         return ""
 
     try:

@@ -25,9 +25,16 @@ _VK = {
     "f11": 0x7A,
 }
 
+INPUT_MOUSE = 0
 INPUT_KEYBOARD = 1
 KEYEVENTF_KEYUP = 0x0002
 KEYEVENTF_UNICODE = 0x0004
+MOUSEEVENTF_MOVE = 0x0001
+MOUSEEVENTF_LEFTDOWN = 0x0002
+MOUSEEVENTF_LEFTUP = 0x0004
+MOUSEEVENTF_ABSOLUTE = 0x8000
+SM_CXSCREEN = 0
+SM_CYSCREEN = 1
 
 
 def send_hotkey(*keys: str) -> None:
@@ -79,6 +86,37 @@ def send_unicode_text(text: str, *, interval: float = 0.03) -> None:
             time.sleep(interval)
 
 
+def move_to(x: int, y: int) -> None:
+    if sys.platform != "win32":
+        return
+    ax, ay = _absolute_point(x, y)
+    _send_mouse_events([(ax, ay, MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE)])
+
+
+def click_at(x: int, y: int) -> None:
+    if sys.platform != "win32":
+        return
+    move_to(x, y)
+    _send_mouse_events(
+        [
+            (0, 0, MOUSEEVENTF_LEFTDOWN),
+            (0, 0, MOUSEEVENTF_LEFTUP),
+        ]
+    )
+    time.sleep(0.03)
+
+
+def cursor_position() -> tuple[int, int]:
+    if sys.platform != "win32":
+        return (0, 0)
+    import ctypes
+    from ctypes import wintypes
+
+    point = wintypes.POINT()
+    ctypes.windll.user32.GetCursorPos(ctypes.byref(point))
+    return int(point.x), int(point.y)
+
+
 def _utf16_units(char: str) -> tuple[int, ...]:
     code = ord(char)
     if code <= 0xFFFF:
@@ -120,7 +158,24 @@ def _send_unicode_unit(unit: int) -> None:
     )
 
 
-def _send_key_events(events: list[tuple[int, int, int]]) -> None:
+def _absolute_point(x: int, y: int) -> tuple[int, int]:
+    import ctypes
+
+    width = max(int(ctypes.windll.user32.GetSystemMetrics(SM_CXSCREEN)), 1)
+    height = max(int(ctypes.windll.user32.GetSystemMetrics(SM_CYSCREEN)), 1)
+    norm_x = int(round(x * 65535 / max(width - 1, 1)))
+    norm_y = int(round(y * 65535 / max(height - 1, 1)))
+    return norm_x, norm_y
+
+
+_INPUT_TYPE = None
+
+
+def _input_structs():
+    global _INPUT_TYPE
+    if _INPUT_TYPE is not None:
+        return _INPUT_TYPE
+
     import ctypes
     from ctypes import wintypes
 
@@ -151,7 +206,44 @@ def _send_key_events(events: list[tuple[int, int, int]]) -> None:
     class INPUT(ctypes.Structure):
         _fields_ = [("type", wintypes.DWORD), ("union", INPUTUNION)]
 
-    payload_events: list[INPUT] = []
+    _INPUT_TYPE = INPUT
+    return INPUT
+
+
+def _send_inputs(payload_events) -> None:
+    import ctypes
+
+    if not payload_events:
+        return
+    INPUT = payload_events[0].__class__
+    array_type = INPUT * len(payload_events)
+    payload = array_type(*payload_events)
+    sent = ctypes.windll.user32.SendInput(
+        len(payload_events), ctypes.byref(payload), ctypes.sizeof(INPUT)
+    )
+    if sent != len(payload_events):
+        raise RuntimeError("ส่ง input ไป Express ไม่ครบ")
+
+
+def _send_mouse_events(events: list[tuple[int, int, int]]) -> None:
+    INPUT = _input_structs()
+    payload_events = []
+    for dx, dy, flags in events:
+        item = INPUT()
+        item.type = INPUT_MOUSE
+        item.union.mi.dx = dx
+        item.union.mi.dy = dy
+        item.union.mi.mouseData = 0
+        item.union.mi.dwFlags = flags
+        item.union.mi.time = 0
+        item.union.mi.dwExtraInfo = 0
+        payload_events.append(item)
+    _send_inputs(payload_events)
+
+
+def _send_key_events(events: list[tuple[int, int, int]]) -> None:
+    INPUT = _input_structs()
+    payload_events = []
     for vk, scan, flags in events:
         item = INPUT()
         item.type = INPUT_KEYBOARD
@@ -161,11 +253,4 @@ def _send_key_events(events: list[tuple[int, int, int]]) -> None:
         item.union.ki.time = 0
         item.union.ki.dwExtraInfo = 0
         payload_events.append(item)
-
-    array_type = INPUT * len(payload_events)
-    payload = array_type(*payload_events)
-    sent = ctypes.windll.user32.SendInput(
-        len(payload_events), ctypes.byref(payload), ctypes.sizeof(INPUT)
-    )
-    if sent != len(payload_events):
-        raise RuntimeError("ส่งคีย์ไป Express ไม่ครบ")
+    _send_inputs(payload_events)
