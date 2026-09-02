@@ -21,6 +21,9 @@ SCREEN_HEIGHT = 1080
 TOPIC_PAYMENT_JOURNAL = "payment_journal"
 TOPIC_LABEL = "สมุดรายวันจ่าย"
 
+PAGE_MENU = "menu"
+PAGE_KA_TAM = "ka_tam"
+
 ACCOUNT_SERVICE = "5330-05"
 ACCOUNT_VAT = "1154-00"
 ACCOUNT_WT = "2132-02"
@@ -49,7 +52,13 @@ VENDOR_LOOKUP_KEY = "f8"
 EXCEL_OPEN_EXTENSIONS = ("xlsx", "xlsm")
 
 UI_TEXT = {
-    "app_title": "AutoKey — สมุดรายวันจ่าย",
+    "app_title": "AutoKey",
+    "menu_title": "เลือกเมนู",
+    "menu_hint": "เลือกงานที่ต้องการทำ",
+    "menu_ka_tam": "ค่าทำ",
+    "menu_ka_tam_hint": "สมุดรายวันจ่าย — ค้นหาบริษัทแล้วกรอก PV",
+    "menu_unavailable": "เมนูนี้ยังไม่พร้อมใช้",
+    "back_to_menu": "กลับเมนู",
     "settings_frame": "ตั้งค่าก่อนรัน",
     "excel_file": "ไฟล์ Excel",
     "choose_file": "เลือกไฟล์...",

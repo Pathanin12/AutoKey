@@ -44,10 +44,18 @@ from constants.date_utils import (
     format_express_pv_date,
     mask_express_pv_date,
 )
-from constants.routes import EXCEL_OPEN_EXTENSIONS, TOPIC_PAYMENT_JOURNAL, UI_TEXT
+from constants.routes import (
+    EXCEL_OPEN_EXTENSIONS,
+    PAGE_KA_TAM,
+    PAGE_MENU,
+    TOPIC_PAYMENT_JOURNAL,
+    UI_TEXT,
+)
+from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
 from models.ka_tam_row import KaTamRow
 from models.run_config import ExcelSheetSummary, RunConfig
+from models.topic_menu_item import TopicMenuItem
 from services.automation_service import AutomationService
 from services.clipboard_service import normalize_pasted_cell
 from services.excel_service import ExcelService
@@ -55,7 +63,8 @@ from services.hotkey_service import HotkeyService
 from ui.app_icon import icon_dir
 
 WIN_W = 560
-WIN_H = 640
+MENU_WIN_H = 480
+KA_TAM_WIN_H = 700
 
 
 class FlippedView(NSView):
@@ -161,8 +170,10 @@ class MainWindow:
         self._app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
         _install_standard_edit_menu()
         self._set_app_icon()
+        self._current_page = PAGE_MENU
         self._build_window(initial_pv_date, initial_start_from_no)
         self._bind_shortcuts()
+        self._show_page(PAGE_MENU)
         self._load_excel()
 
     def _keep(self, callback) -> _CallbackTarget:
@@ -182,7 +193,7 @@ class MainWindow:
     def _build_window(self, initial_pv_date: str, initial_start_from_no: str) -> None:
         style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable
         self.window = MainNSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
-            NSMakeRect(0, 0, WIN_W, WIN_H),
+            NSMakeRect(0, 0, WIN_W, MENU_WIN_H),
             style,
             2,
             False,
@@ -194,22 +205,64 @@ class MainWindow:
         self.window.setDelegate_(delegate)
         self._window_delegate = delegate
 
-        root = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, WIN_H))
+        root = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, MENU_WIN_H))
         self.window.setContentView_(root)
         self._root = root
 
-        y = 12
-        title = _static_label(root, f"{UI_TEXT['app_title']} v{__version__}", 16, y, WIN_W - 32, 22, size=15, bold=True)
-        y = 42
+        self._menu_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, MENU_WIN_H))
+        self._ka_tam_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, KA_TAM_WIN_H))
+        root.addSubview_(self._menu_view)
+        root.addSubview_(self._ka_tam_view)
 
-        settings_box, settings = _box(root, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 310)
+        self._build_menu_page(self._menu_view)
+        self._build_ka_tam_page(self._ka_tam_view, initial_pv_date, initial_start_from_no)
+        self.window.makeKeyAndOrderFront_(None)
+
+    def _build_menu_page(self, page) -> None:
+        y = 36
+        _static_label(page, UI_TEXT["menu_title"], 24, y, WIN_W - 48, 28, size=18, bold=True)
+        y = 72
+        _static_label(page, UI_TEXT["menu_hint"], 24, y, WIN_W - 48, 22, size=13, gray=True)
+        y = 118
+        button_w = 220
+        button_h = 76
+        for item in TOPIC_MENU_ITEMS:
+            _button(
+                page,
+                item.title,
+                24,
+                y,
+                button_w,
+                button_h,
+                self._keep(lambda selected=item: self._open_topic(selected)),
+                font_size=17,
+            )
+            y += button_h + 12
+            _static_label(page, item.hint, 28, y, WIN_W - 56, 22, size=13, gray=True)
+            y += 36
+
+    def _build_ka_tam_page(self, page, initial_pv_date: str, initial_start_from_no: str) -> None:
+        y = 24
+        _button(
+            page,
+            f"← {UI_TEXT['back_to_menu']}",
+            16,
+            y,
+            160,
+            36,
+            self._keep(self._back_to_menu),
+        )
+        _static_label(page, UI_TEXT["menu_ka_tam"], 188, y + 6, WIN_W - 212, 24, size=16, bold=True)
+        y = 76
+
+        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 310)
         sy = 8
-        _static_label(settings, UI_TEXT["excel_file"], 8, sy, 90, 18)
-        self.excel_path_field = _edit_field(settings, 100, sy, 280)
-        choose = _button(settings, UI_TEXT["choose_file"], 386, sy - 2, 90, 24, self._keep(self._choose_excel))
+        _static_label(settings, UI_TEXT["excel_file"], 8, sy, 90, 22)
+        self.excel_path_field = _edit_field(settings, 100, sy, 268)
+        _button(settings, UI_TEXT["choose_file"], 376, sy - 2, 108, 28, self._keep(self._choose_excel))
         self._plain_delegate = _PlainFieldDelegate.alloc().init()
         self.excel_path_field.setDelegate_(self._plain_delegate)
-        sy += 26
+        sy += 30
         self.excel_summary_field = _static_label(settings, UI_TEXT["excel_summary_empty"], 8, sy, 500, 32, size=11, gray=True)
         self.excel_summary_field.setUsesSingleLineMode_(False)
         sy += 34
@@ -242,36 +295,65 @@ class MainWindow:
         sy += 22
         _static_label(settings, UI_TEXT["tax_payer_id_hint"], 8, sy, 500, 28, size=11, gray=True)
 
-        y = 360
-        start_btn = _button(
-            root,
+        y = 400
+        _button(
+            page,
             f"▶ {UI_TEXT['start']}",
             16,
             y,
-            140,
-            28,
+            150,
+            32,
             self._keep(self._start),
         )
         self.stop_button = _button(
-            root,
+            page,
             f"■ {UI_TEXT['stop'].format(hotkey=self.hotkey_label)}",
-            164,
+            176,
             y,
-            180,
-            28,
+            200,
+            32,
             self._keep(self._stop),
         )
 
-        y = 396
-        status_box, status = _box(root, UI_TEXT["status_frame"], 12, y, WIN_W - 24, WIN_H - y - 12)
-        self.progress_field = _static_label(status, "0 / 0", 8, 6, 300, 18)
-        copy_btn = _button(status, UI_TEXT["copy_log"], 380, 4, 110, 24, self._keep(self._copy_all_log))
-        self.log_view = _log_view(status, 8, 32, WIN_W - 56, WIN_H - y - 56)
+        y = 448
+        _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, KA_TAM_WIN_H - y - 12)
+        self.progress_field = _static_label(status, "0 / 0", 8, 8, 300, 22)
+        _button(status, UI_TEXT["copy_log"], 368, 4, 120, 28, self._keep(self._copy_all_log))
+        self.log_view = _log_view(status, 8, 36, WIN_W - 56, KA_TAM_WIN_H - y - 64)
         self._write_log(UI_TEXT["welcome_log"] + "\n", trim=False)
-        del title, choose, start_btn, copy_btn
+        del settings_box, _status_box
 
-        self.window.makeKeyAndOrderFront_(None)
-        self.window.makeFirstResponder_(self.description_field)
+    def _open_topic(self, item: TopicMenuItem) -> None:
+        if not item.enabled:
+            _alert(UI_TEXT["app_title"], UI_TEXT["menu_unavailable"])
+            return
+        self._show_page(item.page_route)
+
+    def _back_to_menu(self) -> None:
+        if self.is_running:
+            return
+        self._show_page(PAGE_MENU)
+
+    def _show_page(self, page_route: str) -> None:
+        if self.is_running and page_route == PAGE_MENU:
+            return
+        self._current_page = page_route
+        on_menu = page_route == PAGE_MENU
+        self._menu_view.setHidden_(not on_menu)
+        self._ka_tam_view.setHidden_(on_menu)
+        height = MENU_WIN_H if on_menu else KA_TAM_WIN_H
+        self._resize_window(height)
+        if on_menu:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} v{__version__}")
+        else:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_ka_tam']} v{__version__}")
+            self.window.makeFirstResponder_(self.description_field)
+
+    def _resize_window(self, height: int) -> None:
+        self.window.setContentSize_((WIN_W, height))
+        self._root.setFrame_(NSMakeRect(0, 0, WIN_W, height))
+        self._menu_view.setFrame_(NSMakeRect(0, 0, WIN_W, MENU_WIN_H))
+        self._ka_tam_view.setFrame_(NSMakeRect(0, 0, WIN_W, KA_TAM_WIN_H))
 
     def _bind_shortcuts(self) -> None:
         def monitor(event):
@@ -352,7 +434,7 @@ class MainWindow:
         self._load_excel()
 
     def _start(self) -> None:
-        if self.is_running:
+        if self.is_running or self._current_page != PAGE_KA_TAM:
             return
         if not self.sheet_summaries:
             self._load_excel()
@@ -516,10 +598,11 @@ def _edit_field(parent, x, y, w, h: float = 22):
     return field
 
 
-def _button(parent, title: str, x, y, w, h, target: _CallbackTarget):
+def _button(parent, title: str, x, y, w, h, target: _CallbackTarget, *, font_size: float = 13):
     button = NSButton.alloc().initWithFrame_(NSMakeRect(x, y, w, h))
     button.setBezelStyle_(NSBezelStyleRounded)
     button.setTitle_(title)
+    button.setFont_(NSFont.systemFontOfSize_(font_size))
     button.setTarget_(target)
     button.setAction_("invoke:")
     parent.addSubview_(button)

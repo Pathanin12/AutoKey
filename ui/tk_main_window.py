@@ -5,22 +5,34 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from constants.date_utils import default_work_date, format_express_pv_date
-from constants.routes import EXCEL_OPEN_EXTENSIONS, TOPIC_PAYMENT_JOURNAL, UI_TEXT
+from constants.routes import (
+    EXCEL_OPEN_EXTENSIONS,
+    PAGE_KA_TAM,
+    PAGE_MENU,
+    TOPIC_PAYMENT_JOURNAL,
+    UI_TEXT,
+)
+from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
 from models.ka_tam_row import KaTamRow
 from models.run_config import ExcelSheetSummary, RunConfig
+from models.topic_menu_item import TopicMenuItem
 from services.automation_service import AutomationService
 from services.excel_service import ExcelService
 from services.hotkey_service import HotkeyService
 from ui.app_icon import apply_window_icon, load_title_photo
 from ui.entry_excel_paste import bind_excel_cell_paste
 
+WIN_W = 560
+MENU_WIN_H = 460
+KA_TAM_WIN_H = 620
+
 
 class MainWindow:
     def __init__(self) -> None:
         self.root = tk.Tk()
         self.root.title(f"{UI_TEXT['app_title']} v{__version__}")
-        self.root.geometry("560x580")
+        self.root.geometry(f"{WIN_W}x{MENU_WIN_H}")
         self.root.resizable(False, False)
         self._set_window_icon()
 
@@ -52,26 +64,67 @@ class MainWindow:
         self.excel_summary = tk.StringVar(value=UI_TEXT["excel_summary_empty"])
         self.sheet_summaries: list[ExcelSheetSummary] = []
         self.sheet_rows: dict[str, list[KaTamRow]] = {}
+        self._current_page = PAGE_MENU
 
         self._build_ui()
         self._bind_shortcuts()
+        self._show_page(PAGE_MENU)
         self._load_excel()
 
     def _build_ui(self) -> None:
-        padding = {"padx": 12, "pady": 6}
+        self.menu_frame = ttk.Frame(self.root)
+        self.ka_tam_frame = ttk.Frame(self.root)
+        self._build_menu_page(self.menu_frame)
+        self._build_ka_tam_page(self.ka_tam_frame)
 
-        header = ttk.Frame(self.root)
-        header.pack(fill="x", padx=12, pady=(10, 0))
-        self._title_icon = load_title_photo(44)
-        if self._title_icon is not None:
-            ttk.Label(header, image=self._title_icon).pack(side="left", padx=(0, 8))
+    def _build_menu_page(self, page: ttk.Frame) -> None:
+        header = ttk.Frame(page)
+        header.pack(fill="x", padx=12, pady=(16, 0))
+        self._menu_title_icon = load_title_photo(44)
+        if self._menu_title_icon is not None:
+            ttk.Label(header, image=self._menu_title_icon).pack(side="left", padx=(0, 8))
         ttk.Label(
             header,
             text=f"{UI_TEXT['app_title']} v{__version__}",
             font=("Tahoma", 12, "bold"),
         ).pack(side="left")
 
-        form_frame = ttk.LabelFrame(self.root, text=UI_TEXT["settings_frame"])
+        ttk.Label(page, text=UI_TEXT["menu_title"], font=("Tahoma", 11, "bold")).pack(
+            anchor="w", padx=16, pady=(18, 4)
+        )
+        ttk.Label(page, text=UI_TEXT["menu_hint"], foreground="#555555").pack(
+            anchor="w", padx=16, pady=(0, 12)
+        )
+
+        for item in TOPIC_MENU_ITEMS:
+            ttk.Button(
+                page,
+                text=item.title,
+                command=lambda selected=item: self._open_topic(selected),
+                width=18,
+            ).pack(anchor="w", padx=24, pady=(0, 8), ipady=18)
+            ttk.Label(page, text=item.hint, foreground="#555555").pack(
+                anchor="w", padx=28, pady=(0, 16)
+            )
+
+    def _build_ka_tam_page(self, page: ttk.Frame) -> None:
+        padding = {"padx": 12, "pady": 6}
+
+        header = ttk.Frame(page)
+        header.pack(fill="x", padx=12, pady=(10, 0))
+        ttk.Button(header, text=f"← {UI_TEXT['back_to_menu']}", command=self._back_to_menu).pack(
+            side="left"
+        )
+        self._title_icon = load_title_photo(44)
+        if self._title_icon is not None:
+            ttk.Label(header, image=self._title_icon).pack(side="left", padx=(8, 8))
+        ttk.Label(
+            header,
+            text=UI_TEXT["menu_ka_tam"],
+            font=("Tahoma", 12, "bold"),
+        ).pack(side="left")
+
+        form_frame = ttk.LabelFrame(page, text=UI_TEXT["settings_frame"])
         form_frame.pack(fill="x", **padding)
 
         ttk.Label(form_frame, text=UI_TEXT["excel_file"]).grid(row=0, column=0, sticky="w")
@@ -122,7 +175,7 @@ class MainWindow:
             ],
         )
 
-        action_frame = ttk.Frame(self.root)
+        action_frame = ttk.Frame(page)
         action_frame.pack(fill="x", **padding)
         ttk.Button(action_frame, text=f"▶ {UI_TEXT['start']}", command=self._start).pack(side="left", padx=4)
         self.stop_button = ttk.Button(
@@ -132,7 +185,7 @@ class MainWindow:
         )
         self.stop_button.pack(side="left", padx=4)
 
-        status_frame = ttk.LabelFrame(self.root, text=UI_TEXT["status_frame"])
+        status_frame = ttk.LabelFrame(page, text=UI_TEXT["status_frame"])
         status_frame.pack(fill="both", expand=True, **padding)
         ttk.Label(status_frame, textvariable=self.progress_text).pack(anchor="w", padx=8, pady=4)
 
@@ -164,6 +217,32 @@ class MainWindow:
         welcome = UI_TEXT["welcome_log"]
         self._write_log(welcome + "\n", trim=False)
         self._set_log_readonly(True)
+
+    def _open_topic(self, item: TopicMenuItem) -> None:
+        if not item.enabled:
+            messagebox.showinfo(UI_TEXT["app_title"], UI_TEXT["menu_unavailable"])
+            return
+        self._show_page(item.page_route)
+
+    def _back_to_menu(self) -> None:
+        if self.is_running:
+            return
+        self._show_page(PAGE_MENU)
+
+    def _show_page(self, page_route: str) -> None:
+        if self.is_running and page_route == PAGE_MENU:
+            return
+        self._current_page = page_route
+        self.menu_frame.pack_forget()
+        self.ka_tam_frame.pack_forget()
+        if page_route == PAGE_MENU:
+            self.root.geometry(f"{WIN_W}x{MENU_WIN_H}")
+            self.root.title(f"{UI_TEXT['app_title']} v{__version__}")
+            self.menu_frame.pack(fill="both", expand=True)
+            return
+        self.root.geometry(f"{WIN_W}x{KA_TAM_WIN_H}")
+        self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_ka_tam']} v{__version__}")
+        self.ka_tam_frame.pack(fill="both", expand=True)
 
     def _bind_shortcuts(self) -> None:
         self.hotkey_service.bind_tk_shortcuts(self.root, self._stop)
@@ -237,7 +316,7 @@ class MainWindow:
             self._load_excel()
 
     def _start(self) -> None:
-        if self.is_running:
+        if self.is_running or self._current_page != PAGE_KA_TAM:
             return
 
         if not self.sheet_summaries:
