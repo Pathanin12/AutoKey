@@ -71,23 +71,6 @@ def focus_window_by_title(
     return True
 
 
-def keep_express_foreground(title_contains: str = "Express") -> bool:
-    """ดึงโฟกัสกลับ Express ถ้าหน้าต่างอื่นแย่งไป — ไม่ยุ่งเมาส์"""
-    if sys.platform != "win32":
-        return True
-    hwnd = _find_visible_window(title_contains)
-    if hwnd is None:
-        return False
-
-    import ctypes
-
-    current = int(ctypes.windll.user32.GetForegroundWindow() or 0)
-    if current == hwnd:
-        return True
-    _activate_window(hwnd)
-    return True
-
-
 def _status(on_status: Callable[[str], None] | None, message: str) -> None:
     if on_status:
         on_status(message)
