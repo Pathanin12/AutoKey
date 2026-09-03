@@ -16,7 +16,7 @@ _SETTLE_KEYS = frozenset({"enter", "return", "tab"})
 
 
 class ImageService:
-    """ส่งคีย์/คลิก/จับภาพหน้าจอผ่าน pyautogui"""
+    """ส่งคีย์/คลิกด้วย Windows SendInput — จับภาพหน้าจอผ่าน pyautogui"""
 
     def __init__(
         self,
@@ -30,11 +30,14 @@ class ImageService:
         self.action_delay = action_delay
         self.type_interval = type_interval
         self.key_settle_wait = key_settle_wait
+        self.fail_safe = fail_safe
         self.screen_width = screen_width
         self.screen_height = screen_height
-        self._ensure_runtime()
-        pyautogui.FAILSAFE = fail_safe
-        pyautogui.PAUSE = 0
+        if sys.platform != "win32":
+            self._ensure_runtime()
+        if pyautogui is not None:
+            pyautogui.FAILSAFE = fail_safe
+            pyautogui.PAUSE = 0
 
     def _ensure_runtime(self) -> None:
         if pyautogui is None:
@@ -59,23 +62,49 @@ class ImageService:
         shot.save(dest)
         return dest
 
-    def copy_selection(self) -> None:
+    def _check_failsafe(self) -> None:
+        if not self.fail_safe:
+            return
+        if sys.platform == "win32":
+            from services.windows_input_service import cursor_position
+
+            x, y = cursor_position()
+            if x <= 1 and y <= 1:
+                raise RuntimeError("หยุดแล้ว — เลื่อนเมาส์ไปมุมซ้ายบน")
+            return
         self._ensure_runtime()
+
+    def copy_selection(self) -> None:
+        self._check_failsafe()
         self._send_combo("ctrl", "c")
         self.wait(0.1)
 
     def click_at(self, x: int, y: int) -> None:
+        self._check_failsafe()
+        if sys.platform == "win32":
+            from services.windows_input_service import click_at as send_click
+
+            send_click(x, y)
+            self.wait(0.03)
+            return
         self._ensure_runtime()
         pyautogui.click(x, y)
         self.wait(0.03)
 
     def move_to(self, x: int, y: int) -> None:
+        self._check_failsafe()
+        if sys.platform == "win32":
+            from services.windows_input_service import move_to as send_move
+
+            send_move(x, y)
+            self.wait(0.03)
+            return
         self._ensure_runtime()
         pyautogui.moveTo(x, y)
         self.wait(0.03)
 
     def press(self, *keys: str, presses: int = 1) -> None:
-        self._ensure_runtime()
+        self._check_failsafe()
         for _ in range(presses):
             if sys.platform == "win32":
                 if any(key.lower() == "alt" for key in keys):
@@ -84,10 +113,12 @@ class ImageService:
                     send_hotkey(*keys)
                 else:
                     self._send_combo(*keys)
-            elif len(keys) > 1:
-                pyautogui.hotkey(*keys)
             else:
-                pyautogui.press(keys[0])
+                self._ensure_runtime()
+                if len(keys) > 1:
+                    pyautogui.hotkey(*keys)
+                else:
+                    pyautogui.press(keys[0])
             self.wait(self._wait_after_keys(keys))
 
     def _wait_after_keys(self, keys: tuple[str, ...]) -> float:
@@ -102,24 +133,24 @@ class ImageService:
 
     def type_text(self, text: str, clear_first: bool = True) -> None:
         if sys.platform == "win32":
-            from services.windows_input_service import send_ascii_text, text_is_ascii_keys
-
-            if text_is_ascii_keys(text):
-                self._type_ascii(text, clear_first=clear_first)
-                return
+            self._type_unicode(text, clear_first=clear_first)
+            return
         self._paste_text(text, clear_first=clear_first)
 
     def type_thai(self, text: str, clear_first: bool = True) -> None:
+        if sys.platform == "win32":
+            self._type_unicode(text, clear_first=clear_first)
+            return
         self._paste_text(text, clear_first=clear_first)
 
     def type_keys(self, text: str, *, clear_first: bool = False) -> None:
         """พิมพ์ทีละตัว — รหัสบัญชี/วันที่ ไม่ตามแป้นไทย"""
         if not text:
             return
-        self._ensure_runtime()
         if sys.platform == "win32":
             self._type_ascii(text, clear_first=clear_first)
             return
+        self._ensure_runtime()
         if clear_first:
             pyautogui.hotkey("ctrl", "a")
             self.wait()
@@ -129,10 +160,23 @@ class ImageService:
     def _type_ascii(self, text: str, *, clear_first: bool) -> None:
         from services.windows_input_service import send_ascii_text
 
+        self._check_failsafe()
         if clear_first:
             self._send_combo("ctrl", "a")
             self.wait()
         send_ascii_text(text, interval=self.type_interval)
+        self.wait()
+
+    def _type_unicode(self, text: str, *, clear_first: bool) -> None:
+        from services.windows_input_service import send_unicode_text
+
+        if not text:
+            return
+        self._check_failsafe()
+        if clear_first:
+            self._send_combo("ctrl", "a")
+            self.wait()
+        send_unicode_text(text, interval=self.type_interval)
         self.wait()
 
     def paste_clipboard(self, *, clear_first: bool = False) -> None:
