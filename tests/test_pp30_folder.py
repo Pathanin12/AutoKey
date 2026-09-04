@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from models.pp30_form_config import Pp30FormConfig
+from models.pp30_form_values import Pp30FormValues
 from models.pp30_matched_job import Pp30PdfRecord
 from services.pp30_folder_service import Pp30FolderService
 from services.pp30_match_service import Pp30MatchService
@@ -33,11 +34,13 @@ class Pp30FormConfigTests(unittest.TestCase):
             jv_date="",
             jv_description="",
             pv_description="",
+            report_output_dir=Path(""),
         )
         errors = config.validate()
         self.assertTrue(any("โฟลเดอร์ PDF" in item for item in errors))
         self.assertTrue(any("Excel" in item for item in errors))
         self.assertTrue(any("วันที่ JV" in item for item in errors))
+        self.assertTrue(any("โฟลเดอร์เก็บไฟล์" in item for item in errors))
 
 
 _SAMPLE_PP30_TEXT = """
@@ -50,24 +53,68 @@ _SAMPLE_PP30_TEXT = """
 """
 
 
-class Pp30PdfServiceTests(unittest.TestCase):
-    def test_extracts_company_name_from_form_text(self) -> None:
-        name = Pp30PdfService.extract_company_name(_SAMPLE_PP30_TEXT)
-        self.assertEqual(name, "ห้างหุ้นส่วนจำกัด ฐานพัฒน์ 88")
+_SAMPLE_FORM_VALUES = Pp30FormValues(
+    vat_sale=51235.94,
+    vat_purchase=168.00,
+    amount_due=51067.94,
+    pv_date="13/08/69",
+)
 
-    def test_extracts_company_name_from_rd_form_layout(self) -> None:
-        name = Pp30PdfService.extract_company_name(
-            """
+_SAMPLE_RD_FORM_TEXT = """
 ห้างหุ้นส่วนจำกัด เจนสิริการค้า
 มาหักในการคำนวณภาษีเดือนนี้
 แบบแสดงรายการภาษีมูลค่าเพิ่ม
 ชื่อผู้ประกอบการ
 สาขาที่
 ห้างหุ้นส่วนจำกัด เจนสิริการค้า
-ชื่อสถานประกอบการ
+5. ภาษีขายเดือนนี้
+7. ภาษีซื้อเดือนนี้
+11. ต้องชำระ
+731,941.96
+731,941.96
+51,235.94
+2,400.00
+168.00
+51,067.94
+51,067.94
+ยื่นวันที่่ 13 เดือน สิงหาคม พ.ศ. 2569
+วันที่: 13/08/2569
+จำนวนเงิน 51,067.00 บาท
+"""
+
+
+class Pp30PdfServiceTests(unittest.TestCase):
+    def test_extracts_company_name_from_form_text(self) -> None:
+        name = Pp30PdfService.extract_company_name(_SAMPLE_PP30_TEXT)
+        self.assertEqual(name, "ห้างหุ้นส่วนจำกัด ฐานพัฒน์ 88")
+
+    def test_extracts_company_name_from_rd_form_layout(self) -> None:
+        name = Pp30PdfService.extract_company_name(_SAMPLE_RD_FORM_TEXT)
+        self.assertEqual(name, "ห้างหุ้นส่วนจำกัด เจนสิริการค้า")
+
+    def test_extracts_line_5_7_11_and_filing_date(self) -> None:
+        values = Pp30PdfService.extract_form_values(_SAMPLE_RD_FORM_TEXT)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.vat_sale, 51235.94)
+        self.assertEqual(values.vat_purchase, 168.00)
+        self.assertEqual(values.amount_due, 51067.94)
+        self.assertEqual(values.pv_date, "13/08/69")
+        self.assertEqual(values.amount_due_decimal, 0.94)
+
+    def test_extracts_date_from_thai_month_when_slash_missing(self) -> None:
+        values = Pp30PdfService.extract_form_values(
+            """
+731,941.96
+51,235.94
+168.00
+51,067.94
+ยื่นวันที่่ 13 เดือน สิงหาคม พ.ศ. 2569
 """
         )
-        self.assertEqual(name, "ห้างหุ้นส่วนจำกัด เจนสิริการค้า")
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.pv_date, "13/08/69")
 
 
 class Pp30MatchServiceTests(unittest.TestCase):
@@ -116,25 +163,45 @@ class Pp30MatchServiceTests(unittest.TestCase):
 
     def test_match_jobs_uses_excel_name(self) -> None:
         records = [
-            Pp30PdfRecord(pdf_path=Path("a.pdf"), company_name="ห้างหุ้นส่วนจำกัด ฐานพัฒน์ 88"),
+            Pp30PdfRecord(
+                pdf_path=Path("a.pdf"),
+                company_name="ห้างหุ้นส่วนจำกัด ฐานพัฒน์ 88",
+                form_values=_SAMPLE_FORM_VALUES,
+            ),
         ]
         jobs = Pp30MatchService.match_jobs(records, ["ห้างหุ้นส่วนจำกัด ฐานพัฒน์ 88"])
         self.assertEqual(jobs[0].excel_name, "ห้างหุ้นส่วนจำกัด ฐานพัฒน์ 88")
+        self.assertEqual(jobs[0].form_values.vat_sale, 51235.94)
 
     def test_match_jobs_uses_filename_when_pdf_prefix_differs(self) -> None:
         records = [
             Pp30PdfRecord(
                 pdf_path=Path("ฉัตราภัทร์ 2569 07 P30 Form 01.pdf"),
                 company_name="ห้างหุ้นส่วนจำกัด ฉัตราภัทร์",
+                form_values=_SAMPLE_FORM_VALUES,
             ),
         ]
         jobs = Pp30MatchService.match_jobs(records, ["หจก.ฉัตราภัทร์"])
         self.assertEqual(jobs[0].excel_name, "หจก.ฉัตราภัทร์")
 
     def test_unmatched_name_raises(self) -> None:
-        records = [Pp30PdfRecord(pdf_path=Path("a.pdf"), company_name="บริษัท ไม่มีในลิสต์ จำกัด")]
+        records = [
+            Pp30PdfRecord(
+                pdf_path=Path("a.pdf"),
+                company_name="บริษัท ไม่มีในลิสต์ จำกัด",
+                form_values=_SAMPLE_FORM_VALUES,
+            )
+        ]
         with self.assertRaises(ValueError):
             Pp30MatchService.match_jobs(records, ["ห้างหุ้นส่วนจำกัด ฐานพัฒน์ 88"])
+
+    def test_missing_form_values_raises(self) -> None:
+        records = [
+            Pp30PdfRecord(pdf_path=Path("a.pdf"), company_name="ห้างหุ้นส่วนจำกัด เจนสิริการค้า"),
+        ]
+        with self.assertRaises(ValueError) as raised:
+            Pp30MatchService.match_jobs(records, ["หจก.เจนสิริการค้า"])
+        self.assertIn("ข้อ 5/7/11", str(raised.exception))
 
     def test_filename_hint_strips_p30_suffix(self) -> None:
         from services.pp30_pdf_service import company_hint_from_filename

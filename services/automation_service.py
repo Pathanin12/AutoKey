@@ -340,7 +340,7 @@ class AutomationService:
                     company_switch_settings=self.company_switch_settings,
                     template_click_service=template_click,
                 )
-                workflow.search_companies(jobs)
+                workflow.search_companies(jobs, form_config)
                 on_finished(True, UI_TEXT["pp30_done"].format(count=len(jobs)))
             except InterruptedError:
                 on_finished(False, "หยุดโดยผู้ใช้")

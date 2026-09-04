@@ -11,6 +11,7 @@ class Pp30FormConfig:
     jv_date: str
     jv_description: str
     pv_description: str
+    report_output_dir: Path
     pdf_files: list[Path] = field(default_factory=list)
 
     def validate(self) -> list[str]:
@@ -24,4 +25,11 @@ class Pp30FormConfig:
             errors.append("กรุณาเลือกไฟล์ Excel สำหรับเทียบชื่อ")
         if not self.jv_date.strip():
             errors.append("กรุณากรอกวันที่ JV")
+        raw_output = str(self.report_output_dir).strip()
+        if not raw_output or raw_output in {".", "./"}:
+            errors.append("กรุณาเลือกโฟลเดอร์เก็บไฟล์")
+        else:
+            output = self.report_output_dir.expanduser()
+            if output.exists() and not output.is_dir():
+                errors.append("โฟลเดอร์เก็บไฟล์ต้องเป็นโฟลเดอร์")
         return errors

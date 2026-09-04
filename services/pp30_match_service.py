@@ -21,6 +21,9 @@ class Pp30MatchService:
             if not record.company_name:
                 errors.append(UI_TEXT["pp30_pdf_name_missing"].format(path=record.pdf_path.name))
                 continue
+            if record.form_values is None:
+                errors.append(UI_TEXT["pp30_pdf_values_missing"].format(path=record.pdf_path.name))
+                continue
             excel_name = Pp30MatchService.match_name(record.company_name, excel_names)
             if excel_name is None:
                 excel_name = Pp30MatchService.match_name(
@@ -40,6 +43,7 @@ class Pp30MatchService:
                     pdf_path=record.pdf_path,
                     pdf_name=record.company_name,
                     excel_name=excel_name,
+                    form_values=record.form_values,
                 )
             )
         if errors:

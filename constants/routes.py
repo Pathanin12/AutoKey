@@ -30,7 +30,16 @@ ACCOUNT_SERVICE = "5330-05"
 ACCOUNT_VAT = "1154-00"
 ACCOUNT_WT = "2132-02"
 ACCOUNT_CASH = "1111-00"
+ACCOUNT_PP30_VAT_SALE = "2135-00"
+ACCOUNT_PP30_VAT_PURCHASE = ACCOUNT_VAT
+ACCOUNT_PP30_VAT_PAYABLE = "2137-00"
+ACCOUNT_PP30_DECIMAL = "4200-03"
 ACCOUNT_REPORT_CODES = (ACCOUNT_SERVICE, ACCOUNT_VAT, ACCOUNT_WT)
+PP30_ACCOUNT_REPORT_CODES = (
+    ACCOUNT_PP30_VAT_PURCHASE,
+    ACCOUNT_PP30_VAT_SALE,
+    ACCOUNT_PP30_VAT_PAYABLE,
+)
 REPORT_SCREENSHOT_FILENAME = "report.png"
 ACCOUNT_REPORT_CAPTURE_WAIT = 1.5
 ACCOUNT_REPORT_FIELD_WAIT = 0.08
@@ -122,17 +131,21 @@ UI_TEXT = {
     "pp30_pv_description": "รายละเอียด PV",
     "pp30_welcome_log": (
         "Express อยู่ dialog เลือกข้อมูล → กดเริ่ม\n"
-        "AutoKey: อ่านชื่อใน PDF เทียบ Excel แล้วค้นห้างใน Express\n"
+        "AutoKey: อ่าน ภพ.30 → ค้นห้าง → JV 5-1-1 → PV 5-1-2 → แคปรายงาน\n"
         "กด Ctrl+F9 หรือ Esc เพื่อยกเลิกขณะทำงาน"
     ),
     "pp30_confirm_message": (
         "Express ต้องเปิดอยู่ที่ dialog เลือกข้อมูล\n"
-        "AutoKey จะเทียบชื่อใน PDF กับ Excel แล้วใช้ชื่อ Excel ไปค้นใน Express\n"
+        "AutoKey จะเทียบชื่อ PDF กับ Excel แล้วทำ JV / PV / แคปรายงานทีละห้าง\n"
         "ต้องการเริ่มหรือไม่?"
     ),
     "pp30_match_log": "เทียบชื่อ — PDF: {pdf_name} → Excel: {excel_name}",
     "pp30_pdf_name_missing": "อ่านชื่อจาก PDF ไม่ได้: {path}",
     "pp30_unmatched": "เทียบชื่อกับ Excel ไม่ได้: {pdf_name} ({path})",
     "pp30_search_log": "ค้นหาห้าง: {name}",
-    "pp30_done": "ค้นหาห้างครบ {count} รายการ",
+    "pp30_done": "ทำ ภพ.30 ครบ {count} รายการ",
+    "pp30_pdf_values_missing": "อ่านข้อ 5/7/11 หรือวันที่จาก PDF ไม่ได้: {path}",
+    "pp30_jv_log": "กรอก JV {date} — 2135-00={sale} 1154-00={purchase}",
+    "pp30_pv_log": "กรอก PV {date} — 2137-00={due} 4200-03={decimal}",
+    "pp30_report_log": "แคปรายงาน {codes}",
 }

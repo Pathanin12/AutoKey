@@ -68,7 +68,7 @@ from ui.app_icon import icon_dir
 WIN_W = 560
 MENU_WIN_H = 520
 KA_TAM_WIN_H = 700
-PP30_WIN_H = 620
+PP30_WIN_H = 660
 
 
 class FlippedView(NSView):
@@ -267,7 +267,7 @@ class MainWindow:
         _static_label(page, UI_TEXT["menu_pp30"], 188, y + 6, WIN_W - 212, 24, size=16, bold=True)
         y = 76
 
-        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 210)
+        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 248)
         sy = 8
         _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
         self.pp30_folder_field = _edit_field(settings, 120, sy, 248)
@@ -300,8 +300,26 @@ class MainWindow:
         _static_label(settings, UI_TEXT["pp30_pv_description"], 8, sy, 110, 22)
         self.pp30_pv_description_field = _edit_field(settings, 120, sy, 356)
         self.pp30_pv_description_field.setDelegate_(self._plain_delegate)
+        sy += 30
+        _static_label(settings, UI_TEXT["report_output_dir"], 8, sy, 110, 22)
+        self.pp30_report_dir_field = _edit_field(settings, 120, sy, 248)
+        _button(
+            settings,
+            UI_TEXT["choose_folder"],
+            376,
+            sy - 2,
+            108,
+            28,
+            self._keep(self._choose_pp30_report_dir),
+        )
+        self.pp30_report_dir_field.setDelegate_(self._plain_delegate)
+        initial_report_dir = str(
+            self.automation_service.default_settings.get("report_output_dir", "") or ""
+        ).strip()
+        if initial_report_dir:
+            self.pp30_report_dir_field.setStringValue_(initial_report_dir)
 
-        y = 302
+        y = 340
         _button(
             page,
             f"▶ {UI_TEXT['start']}",
@@ -321,7 +339,7 @@ class MainWindow:
             self._keep(self._stop),
         )
 
-        y = 346
+        y = 384
         _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, PP30_WIN_H - y - 12)
         self.pp30_progress_field = _static_label(status, "0 / 0", 8, 8, 300, 22)
         _button(status, UI_TEXT["copy_log"], 368, 4, 120, 28, self._keep(self._copy_all_log))
@@ -535,6 +553,18 @@ class MainWindow:
         self.pp30_folder_field.setStringValue_(str(urls[0].path()))
         self._load_pp30_folder()
 
+    def _choose_pp30_report_dir(self) -> None:
+        panel = NSOpenPanel.openPanel()
+        panel.setCanChooseFiles_(False)
+        panel.setCanChooseDirectories_(True)
+        panel.setAllowsMultipleSelection_(False)
+        if panel.runModal() != 1:
+            return
+        urls = panel.URLs()
+        if not urls:
+            return
+        self.pp30_report_dir_field.setStringValue_(str(urls[0].path()))
+
     def _choose_pp30_excel(self) -> None:
         panel = NSOpenPanel.openPanel()
         panel.setAllowedFileTypes_(list(EXCEL_OPEN_EXTENSIONS))
@@ -583,6 +613,7 @@ class MainWindow:
             jv_date=format_express_pv_date(self._field_text(self.pp30_jv_date_field)),
             jv_description=self._field_text(self.pp30_jv_description_field),
             pv_description=self._field_text(self.pp30_pv_description_field),
+            report_output_dir=Path(self._field_text(self.pp30_report_dir_field)).expanduser(),
             pdf_files=list(self.pp30_pdf_files),
         )
 

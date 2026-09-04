@@ -7,6 +7,21 @@ from datetime import date
 PV_DATE_EXAMPLE = "25/07/69"
 _SEPARATORS = re.compile(r"[/\-.\s]+")
 
+THAI_MONTHS = {
+    "มกราคม": 1,
+    "กุมภาพันธ์": 2,
+    "มีนาคม": 3,
+    "เมษายน": 4,
+    "พฤษภาคม": 5,
+    "มิถุนายน": 6,
+    "กรกฎาคม": 7,
+    "สิงหาคม": 8,
+    "กันยายน": 9,
+    "ตุลาคม": 10,
+    "พฤศจิกายน": 11,
+    "ธันวาคม": 12,
+}
+
 
 def default_work_date() -> str:
     today = date.today()

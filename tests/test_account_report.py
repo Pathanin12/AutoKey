@@ -3,12 +3,19 @@ import unittest
 from pathlib import Path
 
 from constants.date_utils import express_month_date_range, express_month_folder_name
-from constants.routes import ACCOUNT_SERVICE, ACCOUNT_VAT, ACCOUNT_WT, REPORT_SCREENSHOT_FILENAME
+from constants.routes import (
+    ACCOUNT_SERVICE,
+    ACCOUNT_VAT,
+    ACCOUNT_WT,
+    PP30_ACCOUNT_REPORT_CODES,
+    REPORT_SCREENSHOT_FILENAME,
+)
 from models.ka_tam_row import KaTamRow
 from models.report_output_layout import ReportOutputLayout, safe_folder_name
 from models.run_config import RunConfig
 from services.account_report_capture_service import (
     build_account_report_jobs,
+    build_ledger_report_jobs,
     should_expand_ledger_report_tree,
 )
 
@@ -72,6 +79,23 @@ class AccountReportTests(unittest.TestCase):
             self.assertEqual(jobs[0].start_date, "01/08/69")
             self.assertEqual(jobs[0].end_date, "31/08/69")
             expected = tmp_path / "reports" / "บริษัท ตัวอย่าง จำกัด" / "08-69" / "5330-05" / "report.png"
+            self.assertEqual(jobs[0].output_file, expected)
+
+    def test_build_pp30_ledger_report_jobs_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            tmp_path = Path(raw)
+            jobs = build_ledger_report_jobs(
+                report_output_dir=tmp_path / "reports",
+                legal_name="หจก.เจนสิริการค้า",
+                month_date="10/10/69",
+                account_codes=PP30_ACCOUNT_REPORT_CODES,
+            )
+            self.assertEqual(tuple(job.account_code for job in jobs), PP30_ACCOUNT_REPORT_CODES)
+            self.assertEqual(jobs[0].start_date, "01/10/69")
+            self.assertEqual(jobs[0].end_date, "31/10/69")
+            expected = (
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "10-69" / "1154-00" / REPORT_SCREENSHOT_FILENAME
+            )
             self.assertEqual(jobs[0].output_file, expected)
 
     def test_expand_tree_only_on_first_job_until_opened(self) -> None:

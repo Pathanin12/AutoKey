@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Callable
 
 from constants.date_utils import express_month_date_range, express_month_folder_name
@@ -21,11 +22,26 @@ from services.template_click_service import TemplateClickService
 def build_account_report_jobs(config: RunConfig, row: KaTamRow) -> tuple[AccountReportCaptureJob, ...]:
     if config.report_output_dir is None:
         raise RuntimeError("ยังไม่ได้เลือกโฟลเดอร์เก็บไฟล์รายงาน")
-    start_date, end_date = express_month_date_range(config.pv_date)
-    layout = ReportOutputLayout(
-        base_dir=config.report_output_dir,
+    return build_ledger_report_jobs(
+        report_output_dir=config.report_output_dir,
         legal_name=row.legal_name,
-        month_folder=express_month_folder_name(config.pv_date),
+        month_date=config.pv_date,
+        account_codes=ACCOUNT_REPORT_CODES,
+    )
+
+
+def build_ledger_report_jobs(
+    *,
+    report_output_dir: Path,
+    legal_name: str,
+    month_date: str,
+    account_codes: tuple[str, ...],
+) -> tuple[AccountReportCaptureJob, ...]:
+    start_date, end_date = express_month_date_range(month_date)
+    layout = ReportOutputLayout(
+        base_dir=report_output_dir,
+        legal_name=legal_name,
+        month_folder=express_month_folder_name(month_date),
     )
     return tuple(
         AccountReportCaptureJob(
@@ -34,7 +50,7 @@ def build_account_report_jobs(config: RunConfig, row: KaTamRow) -> tuple[Account
             end_date=end_date,
             output_file=layout.screenshot_path(code),
         )
-        for code in ACCOUNT_REPORT_CODES
+        for code in account_codes
     )
 
 

@@ -29,7 +29,7 @@ from ui.entry_excel_paste import bind_excel_cell_paste
 WIN_W = 560
 MENU_WIN_H = 500
 KA_TAM_WIN_H = 620
-PP30_WIN_H = 560
+PP30_WIN_H = 600
 
 
 class MainWindow:
@@ -71,6 +71,9 @@ class MainWindow:
         self.pp30_jv_date = tk.StringVar(value=initial_pv_date)
         self.pp30_jv_description = tk.StringVar(value="")
         self.pp30_pv_description = tk.StringVar(value="")
+        self.pp30_report_dir = tk.StringVar(
+            value=str(defaults.get("report_output_dir", "") or "").strip()
+        )
         self.pp30_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
         self.pp30_excel_summary = tk.StringVar(value=UI_TEXT["excel_summary_empty"])
         self.pp30_progress_text = tk.StringVar(value="0 / 0")
@@ -285,6 +288,13 @@ class MainWindow:
             form_frame, textvariable=self.pp30_pv_description, width=48
         )
         self.pp30_pv_description_entry.grid(row=6, column=1, columnspan=2, sticky="ew", pady=(8, 0))
+
+        ttk.Label(form_frame, text=UI_TEXT["report_output_dir"]).grid(row=7, column=0, sticky="w", pady=(8, 0))
+        self.pp30_report_dir_entry = ttk.Entry(form_frame, textvariable=self.pp30_report_dir, width=48)
+        self.pp30_report_dir_entry.grid(row=7, column=1, sticky="ew", pady=(8, 0))
+        ttk.Button(form_frame, text=UI_TEXT["choose_folder"], command=self._choose_pp30_report_dir).grid(
+            row=7, column=2, pady=(8, 0)
+        )
         form_frame.columnconfigure(1, weight=1)
         bind_excel_cell_paste(
             [
@@ -293,6 +303,7 @@ class MainWindow:
                 self.pp30_jv_date_entry,
                 self.pp30_jv_description_entry,
                 self.pp30_pv_description_entry,
+                self.pp30_report_dir_entry,
             ],
         )
 
@@ -445,6 +456,11 @@ class MainWindow:
             self.pp30_pdf_folder.set(selected)
             self._load_pp30_folder()
 
+    def _choose_pp30_report_dir(self) -> None:
+        selected = filedialog.askdirectory(title=UI_TEXT["choose_folder"])
+        if selected:
+            self.pp30_report_dir.set(selected)
+
     def _choose_pp30_excel(self) -> None:
         excel_types = " ".join(f"*.{ext}" for ext in EXCEL_OPEN_EXTENSIONS)
         selected = filedialog.askopenfilename(
@@ -492,6 +508,7 @@ class MainWindow:
             jv_date=format_express_pv_date(self.pp30_jv_date.get()),
             jv_description=self.pp30_jv_description.get().strip(),
             pv_description=self.pp30_pv_description.get().strip(),
+            report_output_dir=Path(self.pp30_report_dir.get().strip()).expanduser(),
             pdf_files=list(self.pp30_pdf_files),
         )
 
