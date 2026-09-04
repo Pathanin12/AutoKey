@@ -161,7 +161,7 @@ class Pp30Workflow:
         self.image.press("shift", "f11")
         self.image.wait(0.3)
         self.image.press("tab")
-        self.image.press("enter")
+        self.image.press("enter", presses=2)
         self.image.wait(0.6)
 
     def _new_voucher(self, voucher_date: str, description: str) -> None:
