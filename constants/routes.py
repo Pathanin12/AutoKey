@@ -126,7 +126,7 @@ UI_TEXT = {
     "pp30_pdf_folder": "โฟลเดอร์ PDF",
     "pp30_pdf_summary_empty": "ยังไม่ได้เลือกโฟลเดอร์ PDF",
     "pp30_pdf_total": "พบ {count} ไฟล์ PDF",
-    "pp30_jv_date": "วันที่ JV",
+    "pp30_jv_date": "วันที่ JV 31/08/69",
     "pp30_jv_description": "รายละเอียด JV",
     "pp30_pv_description": "รายละเอียด PV",
     "pp30_welcome_log": (

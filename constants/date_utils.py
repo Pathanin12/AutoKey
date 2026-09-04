@@ -4,7 +4,7 @@ import calendar
 import re
 from datetime import date
 
-PV_DATE_EXAMPLE = "25/07/69"
+PV_DATE_EXAMPLE = "31/08/69"
 _SEPARATORS = re.compile(r"[/\-.\s]+")
 
 THAI_MONTHS = {
@@ -42,7 +42,7 @@ def mask_express_pv_date(value: str) -> str:
 
 
 def format_express_pv_date(value: str) -> str:
-    """Express PV: วัน/เดือน/ปี(2 หลัก) เช่น 25/07/69"""
+    """Express PV: วัน/เดือน/ปี(2 หลัก) เช่น 31/08/69"""
     text = value.strip()
     if not text:
         return ""
@@ -88,16 +88,22 @@ def _ce_year(year: int) -> int:
     return 2500 + (year % 100) - 543
 
 
-def express_month_date_range(pv_date: str) -> tuple[str, str]:
-    """วันแรกและวันสุดท้ายของเดือนจากวันที่ UI เช่น 01/08/69 และ 31/08/69"""
+def express_month_date_range(pv_date: str, *, end_month_offset: int = 0) -> tuple[str, str]:
+    """วันแรกของเดือน UI และวันสุดท้ายของเดือน (+ offset) เช่น 15/07/69 → 01/07/69 และ offset 1 → 31/08/69"""
     parts = _date_parts(pv_date.strip())
     if parts is None:
         raise ValueError(f"วันที่ใบสำคัญไม่ถูกต้อง: {pv_date}")
     _day, month, year = parts
     year2 = _express_year(year)
-    last_day = calendar.monthrange(_ce_year(year), month)[1]
+    ce_year = _ce_year(year)
     start = f"01/{month:02d}/{year2:02d}"
-    end = f"{last_day:02d}/{month:02d}/{year2:02d}"
+    end_month = month + end_month_offset
+    end_ce = ce_year
+    while end_month > 12:
+        end_month -= 12
+        end_ce += 1
+    last_day = calendar.monthrange(end_ce, end_month)[1]
+    end = f"{last_day:02d}/{end_month:02d}/{_express_year(end_ce):02d}"
     return start, end
 
 

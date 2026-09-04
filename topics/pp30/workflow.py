@@ -20,7 +20,7 @@ from models.pp30_form_config import Pp30FormConfig
 from models.pp30_form_values import Pp30FormValues
 from models.pp30_matched_job import Pp30MatchedJob
 from services.account_report_capture_service import build_ledger_report_jobs, capture_account_reports
-from services.company_switch_service import CompanySwitchSettings, open_change_company_menu
+from services.company_switch_service import CompanySwitchSettings
 from services.image_service import ImageService
 from services.lookup_search_service import LookupSearchSettings, search_and_select
 from services.menu_navigation_service import open_general_journal_menu, open_payment_journal_menu
@@ -54,8 +54,6 @@ class Pp30Workflow:
             self.on_status(
                 UI_TEXT["pp30_match_log"].format(pdf_name=job.pdf_name, excel_name=job.excel_name)
             )
-            if index > 1:
-                self._open_next_company_dialog()
             self._search_company(job.excel_name)
             self._open_general_journal()
             self._fill_jv(form_config, job.form_values)
@@ -65,11 +63,6 @@ class Pp30Workflow:
             if index < total:
                 self._return_to_company_dialog()
             self.on_status(f"✓ [{index}/{total}] {job.excel_name}")
-
-    def _open_next_company_dialog(self) -> None:
-        if self.company_switch_settings is None:
-            raise RuntimeError("ยังไม่ได้ตั้งค่าการเปลี่ยนบริษัท")
-        open_change_company_menu(self.image, self.company_switch_settings)
 
     def _search_company(self, excel_name: str) -> None:
         name = excel_name.strip()
@@ -151,6 +144,7 @@ class Pp30Workflow:
             legal_name=job.excel_name,
             month_date=form_config.jv_date,
             account_codes=PP30_ACCOUNT_REPORT_CODES,
+            end_month_offset=1,
         )
         capture_account_reports(
             self.image,
@@ -168,7 +162,7 @@ class Pp30Workflow:
         self.image.wait(0.3)
         self.image.press("tab")
         self.image.press("enter")
-        self.image.wait(0.4)
+        self.image.wait(0.6)
 
     def _new_voucher(self, voucher_date: str, description: str) -> None:
         self.image.press(*PV_NEW_FILE_KEYS)

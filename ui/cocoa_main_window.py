@@ -287,8 +287,8 @@ class MainWindow:
             settings, UI_TEXT["excel_summary_empty"], 8, sy, 500, 20, size=11, gray=True
         )
         sy += 28
-        _static_label(settings, UI_TEXT["pp30_jv_date"], 8, sy, 110, 22)
-        self.pp30_jv_date_field = _edit_field(settings, 120, sy, 160)
+        _static_label(settings, UI_TEXT["pp30_jv_date"], 8, sy, 148, 22)
+        self.pp30_jv_date_field = _edit_field(settings, 160, sy, 160)
         self.pp30_jv_date_field.setStringValue_(initial_jv_date)
         self.pp30_jv_date_field.setPlaceholderString_(PV_DATE_EXAMPLE)
         self.pp30_jv_date_field.setDelegate_(self._date_delegate)

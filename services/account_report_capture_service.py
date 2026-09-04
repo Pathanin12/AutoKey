@@ -36,8 +36,9 @@ def build_ledger_report_jobs(
     legal_name: str,
     month_date: str,
     account_codes: tuple[str, ...],
+    end_month_offset: int = 0,
 ) -> tuple[AccountReportCaptureJob, ...]:
-    start_date, end_date = express_month_date_range(month_date)
+    start_date, end_date = express_month_date_range(month_date, end_month_offset=end_month_offset)
     layout = ReportOutputLayout(
         base_dir=report_output_dir,
         legal_name=legal_name,

@@ -36,7 +36,21 @@ class AccountReportTests(unittest.TestCase):
         self.assertEqual(start, "01/02/67")
         self.assertEqual(end, "29/02/67")
 
-    def test_express_month_folder_name(self) -> None:
+    def test_express_month_date_range_july_plus_one_is_end_of_august(self) -> None:
+        start, end = express_month_date_range("15/7/69", end_month_offset=1)
+        self.assertEqual(start, "01/07/69")
+        self.assertEqual(end, "31/08/69")
+
+    def test_express_month_date_range_december_plus_one_wraps_year(self) -> None:
+        start, end = express_month_date_range("15/12/69", end_month_offset=1)
+        self.assertEqual(start, "01/12/69")
+        self.assertEqual(end, "31/01/70")
+
+    def test_format_express_pv_date_zero_pads(self) -> None:
+        from constants.date_utils import format_express_pv_date
+
+        self.assertEqual(format_express_pv_date("15/7/69"), "15/07/69")
+        self.assertEqual(format_express_pv_date("31/8/69"), "31/08/69")
         self.assertEqual(express_month_folder_name("15/08/69"), "08-69")
 
     def test_safe_folder_name_strips_invalid_chars(self) -> None:
@@ -87,14 +101,15 @@ class AccountReportTests(unittest.TestCase):
             jobs = build_ledger_report_jobs(
                 report_output_dir=tmp_path / "reports",
                 legal_name="หจก.เจนสิริการค้า",
-                month_date="10/10/69",
+                month_date="15/07/69",
                 account_codes=PP30_ACCOUNT_REPORT_CODES,
+                end_month_offset=1,
             )
             self.assertEqual(tuple(job.account_code for job in jobs), PP30_ACCOUNT_REPORT_CODES)
-            self.assertEqual(jobs[0].start_date, "01/10/69")
-            self.assertEqual(jobs[0].end_date, "31/10/69")
+            self.assertEqual(jobs[0].start_date, "01/07/69")
+            self.assertEqual(jobs[0].end_date, "31/08/69")
             expected = (
-                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "10-69" / "1154-00" / REPORT_SCREENSHOT_FILENAME
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "07-69" / "1154-00" / REPORT_SCREENSHOT_FILENAME
             )
             self.assertEqual(jobs[0].output_file, expected)
 
