@@ -8,6 +8,8 @@ from constants.routes import (
     MENU_ACCOUNT_LABEL,
     MENU_ACCOUNT_REPORT_LABEL,
     MENU_DAILY_ENTRY_LABEL,
+    MENU_GENERAL_JOURNAL_LABEL,
+    MENU_GENERAL_JOURNAL_PATH,
     MENU_GENERAL_LEDGER_LABEL,
     MENU_LEDGER_REPORT_PATH,
     MENU_PAYMENT_JOURNAL_LABEL,
@@ -65,6 +67,53 @@ def open_payment_journal_menu(
     except TemplateNotFoundError:
         _status(on_status, "จับภาพไม่เจอ — เลือกรายการที่ 2 ใน submenu")
         image.press("2")
+    image.wait(menu_wait)
+
+
+def open_general_journal_menu(
+    image: ImageService,
+    template_click: TemplateClickService,
+    *,
+    on_status: Callable[[str], None] | None = None,
+    template_retries: int = 4,
+    template_retry_delay: float = 0.15,
+    menu_wait: float = 0.25,
+) -> None:
+    if not template_click.enabled:
+        raise RuntimeError("ต้องเปิด template_click และจับภาพเมนู 5-1-1")
+
+    _status(on_status, f"เปิดเมนู {MENU_GENERAL_JOURNAL_PATH} (คลิกจับภาพ)")
+
+    _status(on_status, f"คลิกเมนู {MENU_ACCOUNT_LABEL}")
+    _retry_action(
+        lambda: template_click.click("menu_account"),
+        image=image,
+        retries=template_retries,
+        retry_delay=template_retry_delay,
+    )
+    image.wait(menu_wait)
+
+    _status(on_status, f"ชี้เมนู {MENU_DAILY_ENTRY_LABEL} (เปิด submenu)")
+    daily_match = _retry_action(
+        lambda: template_click.hover("menu_daily_entry"),
+        image=image,
+        retries=template_retries,
+        retry_delay=template_retry_delay,
+    )
+    image.wait(0.4)
+
+    flyout_region = _flyout_search_region(daily_match)
+    _status(on_status, f"คลิกเมนู {MENU_GENERAL_JOURNAL_LABEL}")
+    try:
+        _retry_action(
+            lambda: template_click.click("menu_general_journal", search_region=flyout_region),
+            image=image,
+            retries=template_retries,
+            retry_delay=template_retry_delay,
+        )
+    except TemplateNotFoundError:
+        _status(on_status, "จับภาพไม่เจอ — เลือกรายการที่ 1 ใน submenu")
+        image.press("1")
     image.wait(menu_wait)
 
 

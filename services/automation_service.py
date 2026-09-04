@@ -9,6 +9,7 @@ import yaml
 from constants.routes import CONFIG_PATH, SCREEN_HEIGHT, SCREEN_WIDTH, TOPIC_LABEL, UI_TEXT
 from constants.template_actions import DEFAULT_TEMPLATE_CLICK_ACTIONS
 from models.ka_tam_row import KaTamRow
+from models.pp30_form_config import Pp30FormConfig
 from models.run_config import ExcelSheetSummary, RunConfig
 from models.run_failure import RunFailureError
 from models.template_click_settings import TemplateClickAction, TemplateClickSettings
@@ -18,9 +19,13 @@ from services.company_switch_service import CompanySwitchSettings
 from services.excel_service import ExcelService
 from services.image_service import ImageService
 from services.lookup_search_service import LookupSearchSettings, LookupSelectionMismatchError
+from services.pp30_folder_service import Pp30FolderService
+from services.pp30_match_service import Pp30MatchService
+from services.pp30_pdf_service import Pp30PdfService
 from services.template_click_service import TemplateClickService
 from services.window_focus_service import focus_express_window
 from topics.ka_tam.workflow import KaTamWorkflow
+from topics.pp30.workflow import Pp30Workflow
 
 
 class AutomationService:
@@ -284,6 +289,67 @@ class AutomationService:
         self._thread = threading.Thread(target=worker, daemon=True)
         self._thread.start()
 
+    def run_pp30_async(
+        self,
+        form_config: Pp30FormConfig,
+        on_status: Callable[[str], None],
+        on_progress: Callable[[int, int], None],
+        on_finished: Callable[[bool, str], None],
+        on_step: Callable[[int, str, str], None] | None = None,
+        verbose_log: bool = False,
+    ) -> None:
+        del on_step, verbose_log
+        if self.is_running():
+            on_finished(False, "ระบบกำลังทำงานอยู่")
+            return
+
+        errors = form_config.validate()
+        if errors:
+            on_finished(False, "\n".join(errors))
+            return
+
+        self.reset_stop()
+
+        def worker() -> None:
+            try:
+                on_status(UI_TEXT["starting"])
+                excel_names = ExcelService.load_express_names(form_config.excel_path)
+                on_status(UI_TEXT["excel_loaded"].format(path=form_config.excel_path.name))
+                on_status(UI_TEXT["excel_total"].format(rows=len(excel_names)))
+                self._check_stop()
+
+                pdf_files = form_config.pdf_files or Pp30FolderService.list_pdfs(form_config.pdf_folder)
+                records = Pp30PdfService.load_records(pdf_files)
+                jobs = Pp30MatchService.match_jobs(records, excel_names)
+                on_status(UI_TEXT["pp30_pdf_total"].format(count=len(jobs)))
+                self._check_stop()
+
+                image = self.create_image_service()
+                self._warmup_automation(image, on_status=on_status)
+                self._check_stop()
+                focus_express_window(self.window_focus_settings, on_status=on_status)
+                self._check_stop()
+
+                template_click = self.create_template_click_service(image, on_status=on_status)
+                workflow = Pp30Workflow(
+                    image_service=image,
+                    stop_event=self._stop_event,
+                    on_status=on_status,
+                    on_progress=on_progress,
+                    lookup_search_settings=self.lookup_search_settings,
+                    company_switch_settings=self.company_switch_settings,
+                    template_click_service=template_click,
+                )
+                workflow.search_companies(jobs)
+                on_finished(True, UI_TEXT["pp30_done"].format(count=len(jobs)))
+            except InterruptedError:
+                on_finished(False, "หยุดโดยผู้ใช้")
+            except Exception as exc:
+                on_finished(False, str(exc))
+
+        self._thread = threading.Thread(target=worker, daemon=True)
+        self._thread.start()
+
     def _warmup_automation(
         self,
         image: ImageService,
@@ -306,6 +372,7 @@ class AutomationService:
                 "menu_account",
                 "menu_daily_entry",
                 "menu_payment_journal",
+                "menu_general_journal",
             ):
                 action = self.template_click_settings.get_action(action_id)
                 load_step_template(action.target)

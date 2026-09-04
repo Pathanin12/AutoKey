@@ -48,23 +48,27 @@ from constants.routes import (
     EXCEL_OPEN_EXTENSIONS,
     PAGE_KA_TAM,
     PAGE_MENU,
+    PAGE_PP30,
     TOPIC_PAYMENT_JOURNAL,
     UI_TEXT,
 )
 from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
 from models.ka_tam_row import KaTamRow
+from models.pp30_form_config import Pp30FormConfig
 from models.run_config import ExcelSheetSummary, RunConfig
 from models.topic_menu_item import TopicMenuItem
 from services.automation_service import AutomationService
 from services.clipboard_service import normalize_pasted_cell
 from services.excel_service import ExcelService
 from services.hotkey_service import HotkeyService
+from services.pp30_folder_service import Pp30FolderService
 from ui.app_icon import icon_dir
 
 WIN_W = 560
-MENU_WIN_H = 480
+MENU_WIN_H = 520
 KA_TAM_WIN_H = 700
+PP30_WIN_H = 620
 
 
 class FlippedView(NSView):
@@ -156,6 +160,7 @@ class MainWindow:
         self._total_rows = 0
         self.sheet_summaries: list[ExcelSheetSummary] = []
         self.sheet_rows: dict[str, list[KaTamRow]] = {}
+        self.pp30_pdf_files: list[Path] = []
         self._targets: list[_CallbackTarget] = []
         self._key_monitor = None
         self._status_value = UI_TEXT["ready"]
@@ -208,38 +213,121 @@ class MainWindow:
         root = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, MENU_WIN_H))
         self.window.setContentView_(root)
         self._root = root
+        self._plain_delegate = _PlainFieldDelegate.alloc().init()
+        self._date_delegate = _DateFieldDelegate.alloc().init()
 
         self._menu_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, MENU_WIN_H))
         self._ka_tam_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, KA_TAM_WIN_H))
+        self._pp30_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PP30_WIN_H))
         root.addSubview_(self._menu_view)
         root.addSubview_(self._ka_tam_view)
+        root.addSubview_(self._pp30_view)
 
         self._build_menu_page(self._menu_view)
         self._build_ka_tam_page(self._ka_tam_view, initial_pv_date, initial_start_from_no)
+        self._build_pp30_page(self._pp30_view, initial_pv_date)
         self.window.makeKeyAndOrderFront_(None)
 
     def _build_menu_page(self, page) -> None:
+        margin = 24
+        content_w = WIN_W - margin * 2
         y = 36
-        _static_label(page, UI_TEXT["menu_title"], 24, y, WIN_W - 48, 28, size=18, bold=True)
+        _static_label(page, UI_TEXT["menu_title"], margin, y, content_w, 28, size=18, bold=True)
         y = 72
-        _static_label(page, UI_TEXT["menu_hint"], 24, y, WIN_W - 48, 22, size=13, gray=True)
-        y = 118
-        button_w = 220
-        button_h = 76
+        _static_label(page, UI_TEXT["menu_hint"], margin, y, content_w, 22, size=13, gray=True)
+        y = 110
+        button_h = 56
+        gap = 8
         for item in TOPIC_MENU_ITEMS:
             _button(
                 page,
                 item.title,
-                24,
+                margin,
                 y,
-                button_w,
+                content_w,
                 button_h,
                 self._keep(lambda selected=item: self._open_topic(selected)),
-                font_size=17,
+                font_size=16,
             )
-            y += button_h + 12
-            _static_label(page, item.hint, 28, y, WIN_W - 56, 22, size=13, gray=True)
-            y += 36
+            y += button_h + gap
+            _static_label(page, item.hint, margin + 4, y, content_w - 8, 20, size=12, gray=True)
+            y += 28
+
+    def _build_pp30_page(self, page, initial_jv_date: str) -> None:
+        y = 24
+        _button(
+            page,
+            f"← {UI_TEXT['back_to_menu']}",
+            16,
+            y,
+            160,
+            36,
+            self._keep(self._back_to_menu),
+        )
+        _static_label(page, UI_TEXT["menu_pp30"], 188, y + 6, WIN_W - 212, 24, size=16, bold=True)
+        y = 76
+
+        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 210)
+        sy = 8
+        _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
+        self.pp30_folder_field = _edit_field(settings, 120, sy, 248)
+        _button(settings, UI_TEXT["choose_folder"], 376, sy - 2, 108, 28, self._keep(self._choose_pp30_folder))
+        self.pp30_folder_field.setDelegate_(self._plain_delegate)
+        sy += 26
+        self.pp30_folder_summary_field = _static_label(
+            settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
+        )
+        sy += 28
+        _static_label(settings, UI_TEXT["excel_file"], 8, sy, 110, 22)
+        self.pp30_excel_path_field = _edit_field(settings, 120, sy, 248)
+        _button(settings, UI_TEXT["choose_file"], 376, sy - 2, 108, 28, self._keep(self._choose_pp30_excel))
+        self.pp30_excel_path_field.setDelegate_(self._plain_delegate)
+        sy += 26
+        self.pp30_excel_summary_field = _static_label(
+            settings, UI_TEXT["excel_summary_empty"], 8, sy, 500, 20, size=11, gray=True
+        )
+        sy += 28
+        _static_label(settings, UI_TEXT["pp30_jv_date"], 8, sy, 110, 22)
+        self.pp30_jv_date_field = _edit_field(settings, 120, sy, 160)
+        self.pp30_jv_date_field.setStringValue_(initial_jv_date)
+        self.pp30_jv_date_field.setPlaceholderString_(PV_DATE_EXAMPLE)
+        self.pp30_jv_date_field.setDelegate_(self._date_delegate)
+        sy += 30
+        _static_label(settings, UI_TEXT["pp30_jv_description"], 8, sy, 110, 22)
+        self.pp30_jv_description_field = _edit_field(settings, 120, sy, 356)
+        self.pp30_jv_description_field.setDelegate_(self._plain_delegate)
+        sy += 30
+        _static_label(settings, UI_TEXT["pp30_pv_description"], 8, sy, 110, 22)
+        self.pp30_pv_description_field = _edit_field(settings, 120, sy, 356)
+        self.pp30_pv_description_field.setDelegate_(self._plain_delegate)
+
+        y = 302
+        _button(
+            page,
+            f"▶ {UI_TEXT['start']}",
+            16,
+            y,
+            150,
+            32,
+            self._keep(self._start),
+        )
+        self.pp30_stop_button = _button(
+            page,
+            f"■ {UI_TEXT['stop'].format(hotkey=self.hotkey_label)}",
+            176,
+            y,
+            200,
+            32,
+            self._keep(self._stop),
+        )
+
+        y = 346
+        _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, PP30_WIN_H - y - 12)
+        self.pp30_progress_field = _static_label(status, "0 / 0", 8, 8, 300, 22)
+        _button(status, UI_TEXT["copy_log"], 368, 4, 120, 28, self._keep(self._copy_all_log))
+        self.pp30_log_view = _log_view(status, 8, 36, WIN_W - 56, PP30_WIN_H - y - 64)
+        self.pp30_log_view.setString_(UI_TEXT["pp30_welcome_log"] + "\n")
+        del settings_box, _status_box
 
     def _build_ka_tam_page(self, page, initial_pv_date: str, initial_start_from_no: str) -> None:
         y = 24
@@ -260,7 +348,6 @@ class MainWindow:
         _static_label(settings, UI_TEXT["excel_file"], 8, sy, 90, 22)
         self.excel_path_field = _edit_field(settings, 100, sy, 268)
         _button(settings, UI_TEXT["choose_file"], 376, sy - 2, 108, 28, self._keep(self._choose_excel))
-        self._plain_delegate = _PlainFieldDelegate.alloc().init()
         self.excel_path_field.setDelegate_(self._plain_delegate)
         sy += 30
         self.excel_summary_field = _static_label(settings, UI_TEXT["excel_summary_empty"], 8, sy, 500, 32, size=11, gray=True)
@@ -270,9 +357,7 @@ class MainWindow:
         self.pv_date_field = _edit_field(settings, 120, sy, 160)
         self.pv_date_field.setStringValue_(initial_pv_date)
         self.pv_date_field.setPlaceholderString_(PV_DATE_EXAMPLE)
-        date_delegate = _DateFieldDelegate.alloc().init()
-        self.pv_date_field.setDelegate_(date_delegate)
-        self._date_delegate = date_delegate
+        self.pv_date_field.setDelegate_(self._date_delegate)
         sy += 22
         _static_label(settings, UI_TEXT["pv_date_hint"], 8, sy, 500, 28, size=11, gray=True)
         sy += 32
@@ -338,22 +423,26 @@ class MainWindow:
         if self.is_running and page_route == PAGE_MENU:
             return
         self._current_page = page_route
-        on_menu = page_route == PAGE_MENU
-        self._menu_view.setHidden_(not on_menu)
-        self._ka_tam_view.setHidden_(on_menu)
-        height = MENU_WIN_H if on_menu else KA_TAM_WIN_H
-        self._resize_window(height)
-        if on_menu:
+        self._menu_view.setHidden_(page_route != PAGE_MENU)
+        self._ka_tam_view.setHidden_(page_route != PAGE_KA_TAM)
+        self._pp30_view.setHidden_(page_route != PAGE_PP30)
+        heights = {PAGE_MENU: MENU_WIN_H, PAGE_KA_TAM: KA_TAM_WIN_H, PAGE_PP30: PP30_WIN_H}
+        self._resize_window(heights.get(page_route, MENU_WIN_H))
+        if page_route == PAGE_MENU:
             self.window.setTitle_(f"{UI_TEXT['app_title']} v{__version__}")
-        else:
+        elif page_route == PAGE_KA_TAM:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_ka_tam']} v{__version__}")
             self.window.makeFirstResponder_(self.description_field)
+        elif page_route == PAGE_PP30:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pp30']} v{__version__}")
+            self.window.makeFirstResponder_(self.pp30_jv_description_field)
 
     def _resize_window(self, height: int) -> None:
         self.window.setContentSize_((WIN_W, height))
         self._root.setFrame_(NSMakeRect(0, 0, WIN_W, height))
         self._menu_view.setFrame_(NSMakeRect(0, 0, WIN_W, MENU_WIN_H))
         self._ka_tam_view.setFrame_(NSMakeRect(0, 0, WIN_W, KA_TAM_WIN_H))
+        self._pp30_view.setFrame_(NSMakeRect(0, 0, WIN_W, PP30_WIN_H))
 
     def _bind_shortcuts(self) -> None:
         def monitor(event):
@@ -433,8 +522,112 @@ class MainWindow:
         self.excel_path_field.setStringValue_(str(urls[0].path()))
         self._load_excel()
 
+    def _choose_pp30_folder(self) -> None:
+        panel = NSOpenPanel.openPanel()
+        panel.setCanChooseFiles_(False)
+        panel.setCanChooseDirectories_(True)
+        panel.setAllowsMultipleSelection_(False)
+        if panel.runModal() != 1:
+            return
+        urls = panel.URLs()
+        if not urls:
+            return
+        self.pp30_folder_field.setStringValue_(str(urls[0].path()))
+        self._load_pp30_folder()
+
+    def _choose_pp30_excel(self) -> None:
+        panel = NSOpenPanel.openPanel()
+        panel.setAllowedFileTypes_(list(EXCEL_OPEN_EXTENSIONS))
+        panel.setCanChooseFiles_(True)
+        panel.setCanChooseDirectories_(False)
+        if panel.runModal() != 1:
+            return
+        urls = panel.URLs()
+        if not urls:
+            return
+        self.pp30_excel_path_field.setStringValue_(str(urls[0].path()))
+        self._load_pp30_excel()
+
+    def _load_pp30_folder(self) -> None:
+        raw_path = self._field_text(self.pp30_folder_field)
+        if not raw_path:
+            self.pp30_pdf_files = []
+            self.pp30_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
+            return
+        folder = Path(raw_path).expanduser()
+        self.pp30_pdf_files = Pp30FolderService.list_pdfs(folder)
+        if not folder.exists() or not folder.is_dir():
+            self.pp30_pdf_files = []
+            self.pp30_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
+            return
+        self.pp30_folder_summary_field.setStringValue_(
+            UI_TEXT["pp30_pdf_total"].format(count=len(self.pp30_pdf_files))
+        )
+
+    def _load_pp30_excel(self) -> None:
+        raw_path = self._field_text(self.pp30_excel_path_field)
+        if not raw_path:
+            self.pp30_excel_summary_field.setStringValue_(UI_TEXT["excel_summary_empty"])
+            return
+        excel_path = Path(raw_path).expanduser()
+        if not excel_path.exists():
+            self.pp30_excel_summary_field.setStringValue_(UI_TEXT["excel_summary_empty"])
+            return
+        self.pp30_excel_summary_field.setStringValue_(UI_TEXT["excel_loaded"].format(path=excel_path.name))
+
+    def _pp30_form_config(self) -> Pp30FormConfig:
+        folder = Path(self._field_text(self.pp30_folder_field)).expanduser()
+        return Pp30FormConfig(
+            pdf_folder=folder,
+            excel_path=Path(self._field_text(self.pp30_excel_path_field)).expanduser(),
+            jv_date=format_express_pv_date(self._field_text(self.pp30_jv_date_field)),
+            jv_description=self._field_text(self.pp30_jv_description_field),
+            pv_description=self._field_text(self.pp30_pv_description_field),
+            pdf_files=list(self.pp30_pdf_files),
+        )
+
+    def _start_pp30(self) -> None:
+        self._load_pp30_folder()
+        config = self._pp30_form_config()
+        if config.jv_date:
+            self.pp30_jv_date_field.setStringValue_(config.jv_date)
+        errors = config.validate()
+        if errors:
+            _alert("AutoKey", "\n".join(errors))
+            return
+        self._append_log(UI_TEXT["pp30_pdf_total"].format(count=len(config.pdf_files)))
+        self._append_log(UI_TEXT["excel_loaded"].format(path=config.excel_path.name))
+        if not _confirm(
+            UI_TEXT["confirm_title"],
+            f"{UI_TEXT['pp30_confirm_message']}\n\nจะค้นหา {len(config.pdf_files)} ห้าง",
+        ):
+            return
+
+        self.is_running = True
+        self._total_rows = len(config.pdf_files)
+        if self.clear_log_on_start:
+            self._clear_log()
+        self._append_log(UI_TEXT["cancel_hotkey_hint"].format(hotkey=self.hotkey_label))
+        self.hotkey_service.start_listening(self._stop)
+        if self.hide_on_start:
+            self.window.orderOut_(None)
+
+        self.automation_service.run_pp30_async(
+            form_config=config,
+            on_status=self._set_status,
+            on_progress=self._set_progress,
+            on_step=self._set_step,
+            on_finished=self._on_finished,
+            verbose_log=self.verbose_log,
+        )
+
     def _start(self) -> None:
-        if self.is_running or self._current_page != PAGE_KA_TAM:
+        if self.is_running:
+            return
+        if self._current_page == PAGE_PP30:
+            self._start_pp30()
+            return
+        if self._current_page != PAGE_KA_TAM:
             return
         if not self.sheet_summaries:
             self._load_excel()
@@ -493,7 +686,8 @@ class MainWindow:
             self.window.makeKeyAndOrderFront_(None)
             NSApp.activateIgnoringOtherApps_(True)
             self._append_log(UI_TEXT["window_restored"])
-        self.log_view.scrollRangeToVisible_((len(self.log_view.string()), 0))
+        view = self._active_log_view()
+        view.scrollRangeToVisible_((len(view.string()), 0))
 
     def _cleanup_run(self) -> None:
         self.is_running = False
@@ -507,7 +701,7 @@ class MainWindow:
 
     def _set_progress(self, current: int, total: int) -> None:
         progress = f"{current} / {total}"
-        self._call_main(lambda: self.progress_field.setStringValue_(progress))
+        self._call_main(lambda: self._active_progress_field().setStringValue_(progress))
 
     def _set_step(self, step_index: int, step_label: str, detail: str) -> None:
         del step_index, step_label, detail
@@ -525,23 +719,34 @@ class MainWindow:
 
         self._call_main(update)
 
+    def _active_log_view(self):
+        if self._current_page == PAGE_PP30:
+            return self.pp30_log_view
+        return self.log_view
+
+    def _active_progress_field(self):
+        if self._current_page == PAGE_PP30:
+            return self.pp30_progress_field
+        return self.progress_field
+
     def _write_log(self, text: str, *, trim: bool = True) -> None:
-        current = str(self.log_view.string() or "")
+        view = self._active_log_view()
+        current = str(view.string() or "")
         current += text
         if trim:
             current = _trim_log_text(current, self.log_max_lines, self.is_running)
-        self.log_view.setString_(current)
-        self.log_view.scrollRangeToVisible_((len(current), 0))
+        view.setString_(current)
+        view.scrollRangeToVisible_((len(current), 0))
 
     def _append_log(self, message: str, *, trim: bool = True) -> None:
         self._write_log(message + "\n", trim=trim)
         self._status_value = message
 
     def _clear_log(self) -> None:
-        self.log_view.setString_("")
+        self._active_log_view().setString_("")
 
     def _copy_all_log(self) -> None:
-        text = str(self.log_view.string() or "")
+        text = str(self._active_log_view().string() or "")
         if not text.strip():
             return
         board = NSPasteboard.generalPasteboard()

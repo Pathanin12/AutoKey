@@ -67,6 +67,11 @@ template_click:
       template_file: menu_payment_journal.png
       match_threshold: 0.80
       search_region: [520, 35, 980, 140]
+    menu_general_journal:
+      label: 1.สมุดรายวันทั่วไป
+      template_file: menu_general_journal.png
+      match_threshold: 0.80
+      search_region: [520, 35, 980, 140]
     menu_account_report:
       label: 5. รายงานบัญชี
       template_file: menu_account_report.png

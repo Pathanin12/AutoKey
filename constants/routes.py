@@ -19,10 +19,12 @@ SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
 
 TOPIC_PAYMENT_JOURNAL = "payment_journal"
+TOPIC_PP30 = "pp30"
 TOPIC_LABEL = "สมุดรายวันจ่าย"
 
 PAGE_MENU = "menu"
 PAGE_KA_TAM = "ka_tam"
+PAGE_PP30 = "pp30"
 
 ACCOUNT_SERVICE = "5330-05"
 ACCOUNT_VAT = "1154-00"
@@ -39,6 +41,8 @@ MENU_ACCOUNT_LABEL = "5.บัญชี"
 MENU_DAILY_ENTRY_LABEL = "1.ลงประจำวัน"
 MENU_PAYMENT_JOURNAL_LABEL = "2.สมุดรายวันจ่าย"
 MENU_PAYMENT_JOURNAL_PATH = "5 > 1 > 2"
+MENU_GENERAL_JOURNAL_LABEL = "1.สมุดรายวันทั่วไป"
+MENU_GENERAL_JOURNAL_PATH = "5 > 1 > 1"
 MENU_ACCOUNT_REPORT_LABEL = "5. รายงานบัญชี"
 MENU_GENERAL_LEDGER_LABEL = "4. แยกประเภท"
 MENU_REPORT_NORMAL_LABEL = "1. แบบปกติ"
@@ -50,6 +54,7 @@ MENU_OTHERS = "8"
 MENU_OTHERS_CHANGE_COMPANY = "8"
 VENDOR_LOOKUP_KEY = "f8"
 EXCEL_OPEN_EXTENSIONS = ("xlsx", "xlsm")
+PDF_OPEN_EXTENSIONS = ("pdf",)
 
 UI_TEXT = {
     "app_title": "AutoKey",
@@ -57,6 +62,8 @@ UI_TEXT = {
     "menu_hint": "เลือกงานที่ต้องการทำ",
     "menu_ka_tam": "ค่าทำ",
     "menu_ka_tam_hint": "สมุดรายวันจ่าย — ค้นหาบริษัทแล้วกรอก PV",
+    "menu_pp30": "ภพ.30",
+    "menu_pp30_hint": "ภาษีมูลค่าเพิ่ม — อ่าน PDF แล้วเทียบชื่อกับ Excel",
     "menu_unavailable": "เมนูนี้ยังไม่พร้อมใช้",
     "back_to_menu": "กลับเมนู",
     "settings_frame": "ตั้งค่าก่อนรัน",
@@ -107,4 +114,25 @@ UI_TEXT = {
     "excel_total": "พบ {rows} รายการ",
     "no_excel_data": "ไม่พบข้อมูลที่รองรับในไฟล์นี้",
     "no_excel_loaded": "กรุณาเลือกไฟล์ Excel ก่อน",
+    "pp30_pdf_folder": "โฟลเดอร์ PDF",
+    "pp30_pdf_summary_empty": "ยังไม่ได้เลือกโฟลเดอร์ PDF",
+    "pp30_pdf_total": "พบ {count} ไฟล์ PDF",
+    "pp30_jv_date": "วันที่ JV",
+    "pp30_jv_description": "รายละเอียด JV",
+    "pp30_pv_description": "รายละเอียด PV",
+    "pp30_welcome_log": (
+        "Express อยู่ dialog เลือกข้อมูล → กดเริ่ม\n"
+        "AutoKey: อ่านชื่อใน PDF เทียบ Excel แล้วค้นห้างใน Express\n"
+        "กด Ctrl+F9 หรือ Esc เพื่อยกเลิกขณะทำงาน"
+    ),
+    "pp30_confirm_message": (
+        "Express ต้องเปิดอยู่ที่ dialog เลือกข้อมูล\n"
+        "AutoKey จะเทียบชื่อใน PDF กับ Excel แล้วใช้ชื่อ Excel ไปค้นใน Express\n"
+        "ต้องการเริ่มหรือไม่?"
+    ),
+    "pp30_match_log": "เทียบชื่อ — PDF: {pdf_name} → Excel: {excel_name}",
+    "pp30_pdf_name_missing": "อ่านชื่อจาก PDF ไม่ได้: {path}",
+    "pp30_unmatched": "เทียบชื่อกับ Excel ไม่ได้: {pdf_name} ({path})",
+    "pp30_search_log": "ค้นหาห้าง: {name}",
+    "pp30_done": "ค้นหาห้างครบ {count} รายการ",
 }

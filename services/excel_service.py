@@ -185,6 +185,61 @@ class ExcelService:
         return [workbook.sheet_names[0]]
 
     @staticmethod
+    def load_express_names(excel_path: Path) -> list[str]:
+        """ชื่อใน Excel ที่ใช้ค้น Express — unique ตามลำดับที่เจอ"""
+        names: list[str] = []
+        seen: set[str] = set()
+        try:
+            _, sheet_rows = ExcelService.load_workbook(excel_path)
+            for rows in sheet_rows.values():
+                for row in rows:
+                    ExcelService._append_unique_name(names, seen, row.legal_name)
+        except Exception:
+            ExcelService._load_legal_name_column(excel_path, names, seen)
+        if not names:
+            ExcelService._load_legal_name_column(excel_path, names, seen)
+        if not names:
+            raise ValueError("ไม่พบชื่อนิติบุคคลในไฟล์ Excel")
+        return names
+
+    @staticmethod
+    def _append_unique_name(names: list[str], seen: set[str], value: str) -> None:
+        name = (value or "").strip()
+        if not name:
+            return
+        key = name.replace(" ", "")
+        if key in seen:
+            return
+        seen.add(key)
+        names.append(name)
+
+    @staticmethod
+    def _load_legal_name_column(excel_path: Path, names: list[str], seen: set[str]) -> None:
+        workbook = pd.ExcelFile(excel_path)
+        if not workbook.sheet_names:
+            return
+        dataframe = pd.read_excel(workbook, sheet_name=workbook.sheet_names[0], header=None)
+        legal_index: int | None = None
+        data_start = 1
+        for index in range(min(8, len(dataframe))):
+            headers = [_to_text(value).lower() for value in dataframe.iloc[index].tolist()]
+            for header_index, header in enumerate(headers):
+                if "นิติบุคคล" in header:
+                    legal_index = header_index
+                    data_start = index + 1
+                    break
+            if legal_index is not None:
+                break
+        if legal_index is None:
+            return
+        for index in range(data_start, len(dataframe)):
+            ExcelService._append_unique_name(
+                names,
+                seen,
+                _to_text(_cell_at(tuple(dataframe.iloc[index].tolist()), legal_index)),
+            )
+
+    @staticmethod
     def load_sheet_summaries(excel_path: Path) -> list[ExcelSheetSummary]:
         summaries, _ = ExcelService.load_workbook(excel_path)
         return summaries

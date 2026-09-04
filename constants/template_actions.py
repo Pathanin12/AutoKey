@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from constants.routes import (
     MENU_ACCOUNT_REPORT_LABEL,
+    MENU_GENERAL_JOURNAL_LABEL,
     MENU_GENERAL_LEDGER_LABEL,
     MENU_REPORT_NORMAL_LABEL,
 )
@@ -48,6 +49,13 @@ MENU_PAYMENT_JOURNAL_TARGET = TemplateTarget(
     step_id="menu_payment_journal",
     label="2.สมุดรายวันจ่าย",
     template_file="menu_payment_journal.png",
+    match_threshold=0.80,
+)
+
+MENU_GENERAL_JOURNAL_TARGET = TemplateTarget(
+    step_id="menu_general_journal",
+    label=MENU_GENERAL_JOURNAL_LABEL,
+    template_file="menu_general_journal.png",
     match_threshold=0.80,
 )
 
@@ -105,6 +113,11 @@ DEFAULT_TEMPLATE_CLICK_ACTIONS: tuple[TemplateClickAction, ...] = (
     TemplateClickAction(
         action_id="menu_payment_journal",
         target=MENU_PAYMENT_JOURNAL_TARGET,
+        search_region=MENU_SUBMENU_REGION,
+    ),
+    TemplateClickAction(
+        action_id="menu_general_journal",
+        target=MENU_GENERAL_JOURNAL_TARGET,
         search_region=MENU_SUBMENU_REGION,
     ),
     TemplateClickAction(
