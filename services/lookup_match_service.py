@@ -4,10 +4,52 @@ import unicodedata
 from difflib import SequenceMatcher
 
 
+_LEGAL_PREFIXES = (
+    "ห้างหุ้นส่วนสามัญนิติบุคคล",
+    "ห้างหุ้นส่วนสามัญ",
+    "ห้างหุ้นส่วนจำกัด",
+    "ห้างหุ้นส่วน",
+    "บริษัทจำกัดมหาชน",
+    "บริษัทมหาชนจำกัด",
+    "บริษัท",
+    "บมจ.",
+    "บมจ",
+    "บจก.",
+    "บจก",
+    "หจก.",
+    "หจก",
+    "หสน.",
+    "หสน",
+)
+
+_LEGAL_SUFFIXES = (
+    "จำกัดมหาชน",
+    "จำกัด",
+)
+
+
 def tidy_vendor_name(value: str) -> str:
     """ช่องว่างทุกแบบ → ช่องว่างปกติ แล้วตัดซ้ำ (ใช้เทียบชื่อ ไม่ใช่ตอนวาง Express)"""
     text = "".join(" " if unicodedata.category(ch) == "Zs" else ch for ch in (value or ""))
     return " ".join(text.split())
+
+
+def core_company_name(value: str) -> str:
+    """ตัดคำนำหน้า/คำลงท้ายนิติบุคคล — ใช้เทียบ PDF ชื่อเต็มกับ Excel แบบ หจก./บจก."""
+    text = tidy_vendor_name(value)
+    changed = True
+    while text and changed:
+        changed = False
+        for prefix in _LEGAL_PREFIXES:
+            if text.startswith(prefix):
+                text = tidy_vendor_name(text[len(prefix):].lstrip(" ."))
+                changed = True
+                break
+    for suffix in _LEGAL_SUFFIXES:
+        if text.endswith(suffix) and len(text) > len(suffix):
+            text = tidy_vendor_name(text[: -len(suffix)].rstrip(" ."))
+            break
+    return text
 
 
 def to_express_vendor_name(value: str) -> str:

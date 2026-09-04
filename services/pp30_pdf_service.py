@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from models.pp30_matched_job import Pp30PdfRecord
 from services.lookup_match_service import is_plausible_vendor_name, tidy_vendor_name
+
+_P30_FILE_SUFFIX = re.compile(r"\s+\d{4}\s+\d{2}\s+P30\s+Form.*$", re.IGNORECASE)
 
 
 _COMPANY_PREFIXES = (
@@ -65,6 +68,11 @@ class Pp30PdfService:
             name = Pp30PdfService.extract_company_name(Pp30PdfService.read_text(pdf_path))
             records.append(Pp30PdfRecord(pdf_path=pdf_path, company_name=name))
         return records
+
+
+def company_hint_from_filename(pdf_path: Path) -> str:
+    """ชื่อจากไฟล์ ภพ.30 เช่น 'ฉัตราภัทร์ 2569 07 P30 Form 01.pdf' → 'ฉัตราภัทร์'"""
+    return tidy_vendor_name(_P30_FILE_SUFFIX.sub("", pdf_path.stem))
 
 
 def _is_company_line(line: str) -> bool:
