@@ -25,6 +25,8 @@ TOPIC_LABEL = "สมุดรายวันจ่าย"
 PAGE_MENU = "menu"
 PAGE_KA_TAM = "ka_tam"
 PAGE_PP30 = "pp30"
+MENU_BUTTON_HEIGHT = 75
+MENU_BUTTON_IPADY = 26
 
 ACCOUNT_SERVICE = "5330-05"
 ACCOUNT_VAT = "1154-00"
@@ -33,11 +35,34 @@ ACCOUNT_CASH = "1111-00"
 ACCOUNT_PP30_VAT_SALE = "2135-00"
 ACCOUNT_PP30_VAT_PURCHASE = ACCOUNT_VAT
 ACCOUNT_PP30_VAT_PAYABLE = "2137-00"
+ACCOUNT_PP30_NEW_SHOP = "1156-00"
+ACCOUNT_PP30_PENALTY = "5390-01"
 ACCOUNT_PP30_DECIMAL = "4200-03"
 ACCOUNT_REPORT_CODES = (ACCOUNT_SERVICE, ACCOUNT_VAT, ACCOUNT_WT)
 PP30_ACCOUNT_REPORT_CODES = (
     ACCOUNT_PP30_VAT_PURCHASE,
     ACCOUNT_PP30_VAT_SALE,
+    ACCOUNT_PP30_VAT_PAYABLE,
+)
+PP30_NEW_SHOP_REPORT_CODES = (
+    ACCOUNT_PP30_VAT_PURCHASE,
+    ACCOUNT_PP30_NEW_SHOP,
+)
+PP30_NO_PAY_NORMAL_REPORT_CODES = (
+    ACCOUNT_PP30_VAT_SALE,
+    ACCOUNT_PP30_VAT_PURCHASE,
+    ACCOUNT_PP30_NEW_SHOP,
+)
+PP30_PAY_REPORT_CODES = (
+    ACCOUNT_PP30_VAT_SALE,
+    ACCOUNT_PP30_VAT_PURCHASE,
+    ACCOUNT_PP30_NEW_SHOP,
+    ACCOUNT_PP30_VAT_PAYABLE,
+)
+PP30_PENALTY_REPORT_CODES = (
+    ACCOUNT_PP30_VAT_SALE,
+    ACCOUNT_PP30_VAT_PURCHASE,
+    ACCOUNT_PP30_PENALTY,
     ACCOUNT_PP30_VAT_PAYABLE,
 )
 REPORT_SCREENSHOT_FILENAME = "report.png"
@@ -64,6 +89,25 @@ MENU_OTHERS_CHANGE_COMPANY = "8"
 VENDOR_LOOKUP_KEY = "f8"
 EXCEL_OPEN_EXTENSIONS = ("xlsx", "xlsm")
 PDF_OPEN_EXTENSIONS = ("pdf",)
+
+PP30_MODE_NORMAL = "normal"
+PP30_MODE_SPECIAL = "special"
+PP30_RUN_MODES = (PP30_MODE_NORMAL, PP30_MODE_SPECIAL)
+
+PP30_KIND_NO_PAY_NORMAL = "no_pay_normal"
+PP30_KIND_NO_PAY_NEW_SHOP = "no_pay_new_shop"
+PP30_KIND_PAY = "pay"
+PP30_KIND_PENALTY = "penalty"
+PP30_KIND_SKIP_ZERO = "skip_zero"
+PP30_KIND_UNKNOWN = "unknown"
+PP30_PAYMENT_KINDS = (
+    PP30_KIND_NO_PAY_NORMAL,
+    PP30_KIND_NO_PAY_NEW_SHOP,
+    PP30_KIND_PAY,
+    PP30_KIND_PENALTY,
+    PP30_KIND_SKIP_ZERO,
+    PP30_KIND_UNKNOWN,
+)
 
 UI_TEXT = {
     "app_title": "AutoKey",
@@ -140,12 +184,31 @@ UI_TEXT = {
         "ต้องการเริ่มหรือไม่?"
     ),
     "pp30_match_log": "เทียบชื่อ — PDF: {pdf_name} → Excel: {excel_name}",
+    "pp30_kind_log": "เงื่อนไข: {kind}",
+    "pp30_kind_no_pay_normal": "ไม่จ่ายตัง — แบบปกติ",
+    "pp30_kind_no_pay_new_shop": "ไม่จ่ายตัง — เปิดร้านใหม่",
+    "pp30_kind_pay": "จ่ายตัง",
+    "pp30_kind_penalty": "เสียค่าปรับ",
+    "pp30_kind_skip_zero": "ข้าม — ยอดเป็น 0 ทั้งหมด",
+    "pp30_kind_unknown": "ยังไม่เข้าเงื่อนไข",
+    "pp30_skip_zero_log": "ข้าม {name} — ไม่กรอก เพราะยอดเป็น 0 ทั้งหมด",
     "pp30_pdf_name_missing": "อ่านชื่อจาก PDF ไม่ได้: {path}",
     "pp30_unmatched": "เทียบชื่อกับ Excel ไม่ได้: {pdf_name} ({path})",
     "pp30_search_log": "ค้นหาห้าง: {name}",
     "pp30_done": "ทำ ภพ.30 ครบ {count} รายการ",
     "pp30_pdf_values_missing": "อ่านข้อ 5/7/11 หรือวันที่จาก PDF ไม่ได้: {path}",
     "pp30_jv_log": "กรอก JV {date} — 2135-00={sale} 1154-00={purchase}",
+    "pp30_jv_new_shop_log": "กรอก JV เปิดร้านใหม่ {date} — 1156-00={purchase}",
+    "pp30_jv_no_pay_normal_log": "กรอก JV ไม่จ่ายตังแบบปกติ {date} — 2135-00={sale} 1154-00={purchase}",
+    "pp30_jv_pay_log": "กรอก JV จ่ายตัง {date} — 2135-00={sale} 1154-00={purchase} 1156-00={carry}",
+    "pp30_pv_pay_log": "กรอก PV จ่ายตัง {date} — 2135-00={due} 1154-00={decimal}",
+    "pp30_jv_penalty_log": "กรอก JV เสียค่าปรับ {date} — 2135-00={sale} 1154-00={purchase} 5390-01={penalty}",
+    "pp30_pv_penalty_log": "กรอก PV เสียค่าปรับ {date} — 2137-00={due} 4200-03={decimal}",
     "pp30_pv_log": "กรอก PV {date} — 2137-00={due} 4200-03={decimal}",
     "pp30_report_log": "แคปรายงาน {codes}",
+    "pp30_run_mode": "รูปแบบ",
+    "pp30_mode_normal": "แบบปกติ",
+    "pp30_mode_special": "แบบพิเศษ",
+    "pp30_mode_log": "รูปแบบ: {mode}",
+    "pp30_mode_invalid": "กรุณาเลือกรูปแบบ แบบปกติ หรือ แบบพิเศษ",
 }

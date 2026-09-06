@@ -5,6 +5,7 @@ from pathlib import Path
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_form_values import Pp30FormValues
 from models.pp30_matched_job import Pp30PdfRecord
+from models.pp30_run_mode import Pp30RunMode
 from services.pp30_folder_service import Pp30FolderService
 from services.pp30_match_service import Pp30MatchService
 from services.pp30_pdf_service import Pp30PdfService
@@ -41,6 +42,23 @@ class Pp30FormConfigTests(unittest.TestCase):
         self.assertTrue(any("Excel" in item for item in errors))
         self.assertTrue(any("วันที่ JV" in item for item in errors))
         self.assertTrue(any("โฟลเดอร์เก็บไฟล์" in item for item in errors))
+
+    def test_default_run_mode_is_normal(self) -> None:
+        config = Pp30FormConfig(
+            pdf_folder=Path("/tmp/missing-pp30"),
+            excel_path=Path("/tmp/missing.xlsx"),
+            jv_date="",
+            jv_description="",
+            pv_description="",
+            report_output_dir=Path(""),
+        )
+        self.assertEqual(config.run_mode.key, Pp30RunMode.normal().key)
+        self.assertFalse(config.run_mode.is_special)
+
+    def test_parse_special_run_mode(self) -> None:
+        mode = Pp30RunMode.parse("special")
+        self.assertTrue(mode.is_special)
+        self.assertEqual(mode.label, "แบบพิเศษ")
 
 
 _SAMPLE_PP30_TEXT = """
@@ -101,6 +119,10 @@ class Pp30PdfServiceTests(unittest.TestCase):
         self.assertEqual(values.amount_due, 51067.94)
         self.assertEqual(values.pv_date, "13/08/69")
         self.assertEqual(values.amount_due_decimal, 0.94)
+        self.assertEqual(values.line_8, 51067.94)
+        self.assertEqual(values.line_10, 0.0)
+        self.assertEqual(values.line_13, 0.0)
+        self.assertEqual(values.line_14, 0.0)
 
     def test_extracts_date_from_thai_month_when_slash_missing(self) -> None:
         values = Pp30PdfService.extract_form_values(

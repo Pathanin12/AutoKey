@@ -7,12 +7,18 @@ from constants.date_utils import format_express_pv_date
 from constants.routes import (
     ACCOUNT_CASH,
     ACCOUNT_PP30_DECIMAL,
+    ACCOUNT_PP30_NEW_SHOP,
+    ACCOUNT_PP30_PENALTY,
     ACCOUNT_PP30_VAT_PAYABLE,
     ACCOUNT_PP30_VAT_PURCHASE,
     ACCOUNT_PP30_VAT_SALE,
     MENU_GENERAL_JOURNAL_PATH,
     MENU_PAYMENT_JOURNAL_PATH,
     PP30_ACCOUNT_REPORT_CODES,
+    PP30_NEW_SHOP_REPORT_CODES,
+    PP30_NO_PAY_NORMAL_REPORT_CODES,
+    PP30_PAY_REPORT_CODES,
+    PP30_PENALTY_REPORT_CODES,
     PV_NEW_FILE_KEYS,
     UI_TEXT,
 )
@@ -20,6 +26,7 @@ from models.pp30_form_config import Pp30FormConfig
 from models.pp30_form_values import Pp30FormValues
 from models.pp30_matched_job import Pp30MatchedJob
 from services.account_report_capture_service import build_ledger_report_jobs, capture_account_reports
+from services.pp30_classify_service import Pp30ClassifyService
 from services.company_switch_service import CompanySwitchSettings
 from services.image_service import ImageService
 from services.lookup_search_service import LookupSearchSettings, search_and_select
@@ -48,21 +55,72 @@ class Pp30Workflow:
 
     def search_companies(self, jobs: list[Pp30MatchedJob], form_config: Pp30FormConfig) -> None:
         total = len(jobs)
+        self.on_status(UI_TEXT["pp30_mode_log"].format(mode=form_config.run_mode.label))
         for index, job in enumerate(jobs, start=1):
             self._check_stop()
             self.on_progress(index, total)
             self.on_status(
                 UI_TEXT["pp30_match_log"].format(pdf_name=job.pdf_name, excel_name=job.excel_name)
             )
-            self._search_company(job.excel_name)
-            self._open_general_journal()
-            self._fill_jv(form_config, job.form_values)
-            self._open_payment_journal()
-            self._fill_pv(form_config, job.form_values)
-            self._capture_reports(form_config, job)
+            if form_config.run_mode.is_special:
+                if not self._run_special(form_config, job):
+                    continue
+            else:
+                self._search_company(job.excel_name)
+                self._run_normal(form_config, job)
             if index < total:
                 self._return_to_company_dialog()
             self.on_status(f"✓ [{index}/{total}] {job.excel_name}")
+
+    def _run_normal(self, form_config: Pp30FormConfig, job: Pp30MatchedJob) -> None:
+        self._open_general_journal()
+        self._fill_jv(form_config, job.form_values)
+        self._open_payment_journal()
+        self._fill_pv(form_config, job.form_values)
+        self._capture_reports(form_config, job)
+
+    def _run_special(self, form_config: Pp30FormConfig, job: Pp30MatchedJob) -> bool:
+        kind = Pp30ClassifyService.classify(job.form_values)
+        self.on_status(UI_TEXT["pp30_kind_log"].format(kind=kind.label))
+        if kind.is_skip:
+            self.on_status(UI_TEXT["pp30_skip_zero_log"].format(name=job.excel_name))
+            return False
+        self._search_company(job.excel_name)
+        if kind.is_new_shop:
+            self._run_new_shop(form_config, job)
+        elif kind.is_no_pay_normal:
+            self._run_no_pay_normal(form_config, job)
+        elif kind.is_pay:
+            self._run_pay(form_config, job)
+        elif kind.is_penalty:
+            self._run_penalty(form_config, job)
+        else:
+            self._open_general_journal()
+        return True
+
+    def _run_penalty(self, form_config: Pp30FormConfig, job: Pp30MatchedJob) -> None:
+        self._open_general_journal()
+        self._fill_jv_penalty(form_config, job.form_values)
+        self._open_payment_journal()
+        self._fill_pv_penalty(form_config, job.form_values)
+        self._capture_reports(form_config, job, account_codes=PP30_PENALTY_REPORT_CODES)
+
+    def _run_pay(self, form_config: Pp30FormConfig, job: Pp30MatchedJob) -> None:
+        self._open_general_journal()
+        self._fill_jv_pay(form_config, job.form_values)
+        self._open_payment_journal()
+        self._fill_pv_pay(form_config, job.form_values)
+        self._capture_reports(form_config, job, account_codes=PP30_PAY_REPORT_CODES)
+
+    def _run_no_pay_normal(self, form_config: Pp30FormConfig, job: Pp30MatchedJob) -> None:
+        self._open_general_journal()
+        self._fill_jv_no_pay_normal(form_config, job.form_values)
+        self._capture_reports(form_config, job, account_codes=PP30_NO_PAY_NORMAL_REPORT_CODES)
+
+    def _run_new_shop(self, form_config: Pp30FormConfig, job: Pp30MatchedJob) -> None:
+        self._open_general_journal()
+        self._fill_jv_new_shop(form_config, job.form_values)
+        self._capture_reports(form_config, job, account_codes=PP30_NEW_SHOP_REPORT_CODES)
 
     def _search_company(self, excel_name: str) -> None:
         name = excel_name.strip()
@@ -120,6 +178,104 @@ class Pp30Workflow:
         self.image.press("esc", presses=2)
         self.image.wait(0.5)
 
+    def _fill_jv_new_shop(self, form_config: Pp30FormConfig, values: Pp30FormValues) -> None:
+        jv_date = format_express_pv_date(form_config.jv_date)
+        purchase = self._format_amount(values.vat_purchase)
+        self.on_status(UI_TEXT["pp30_jv_new_shop_log"].format(date=jv_date, purchase=purchase))
+        self._new_voucher(jv_date, form_config.jv_description)
+        self._type_account(ACCOUNT_PP30_NEW_SHOP, enter_count=2, amount=purchase)
+        self.image.type_text(ACCOUNT_PP30_VAT_PURCHASE, clear_first=False)
+        self.image.press("enter", presses=3)
+        self.image.press("f2")
+        self.image.press("f9")
+        self.image.wait(0.3)
+        self.image.press("esc", presses=1)
+        self.image.wait(0.5)
+
+    def _fill_jv_no_pay_normal(self, form_config: Pp30FormConfig, values: Pp30FormValues) -> None:
+        jv_date = format_express_pv_date(form_config.jv_date)
+        sale = self._format_amount(values.vat_sale)
+        purchase = self._format_amount(values.vat_purchase)
+        self.on_status(UI_TEXT["pp30_jv_no_pay_normal_log"].format(date=jv_date, sale=sale, purchase=purchase))
+        self._new_voucher(jv_date, form_config.jv_description)
+        self._type_account(ACCOUNT_PP30_VAT_SALE, enter_count=2, amount=sale)
+        self._type_account(ACCOUNT_PP30_VAT_PURCHASE, enter_count=3, amount=purchase)
+        self.image.type_text(ACCOUNT_PP30_NEW_SHOP, clear_first=False)
+        self.image.press("enter", presses=3)
+        self.image.press("f2")
+        self.image.press("f9")
+        self.image.wait(0.3)
+
+    def _fill_jv_pay(self, form_config: Pp30FormConfig, values: Pp30FormValues) -> None:
+        jv_date = format_express_pv_date(form_config.jv_date)
+        sale = self._format_amount(values.vat_sale)
+        purchase = self._format_amount(values.vat_purchase)
+        carry = self._format_amount(values.line_10)
+        self.on_status(
+            UI_TEXT["pp30_jv_pay_log"].format(date=jv_date, sale=sale, purchase=purchase, carry=carry)
+        )
+        self._new_voucher(jv_date, form_config.jv_description)
+        self._type_account(ACCOUNT_PP30_VAT_SALE, enter_count=2, amount=sale)
+        self._type_account(ACCOUNT_PP30_VAT_PURCHASE, enter_count=3, amount=purchase)
+        self._type_account(ACCOUNT_PP30_NEW_SHOP, enter_count=3, amount=carry)
+        self.image.type_text(ACCOUNT_PP30_VAT_PAYABLE, clear_first=False)
+        self.image.press("enter", presses=3)
+        self.image.press("f2")
+        self.image.press("f9")
+        self.image.wait(0.3)
+        self.image.press("esc", presses=2)
+        self.image.wait(0.5)
+
+    def _fill_jv_penalty(self, form_config: Pp30FormConfig, values: Pp30FormValues) -> None:
+        jv_date = format_express_pv_date(form_config.jv_date)
+        sale = self._format_amount(values.vat_sale)
+        purchase = self._format_amount(values.vat_purchase)
+        penalty = self._format_amount(values.penalty_amount)
+        self.on_status(
+            UI_TEXT["pp30_jv_penalty_log"].format(
+                date=jv_date, sale=sale, purchase=purchase, penalty=penalty
+            )
+        )
+        self._new_voucher(jv_date, form_config.jv_description)
+        self._type_account(ACCOUNT_PP30_VAT_SALE, enter_count=2, amount=sale)
+        self._type_account(ACCOUNT_PP30_VAT_PURCHASE, enter_count=3, amount=purchase)
+        self._type_account(ACCOUNT_PP30_PENALTY, enter_count=2, amount=penalty)
+        self.image.type_text(ACCOUNT_PP30_VAT_PAYABLE, clear_first=False)
+        self.image.press("enter", presses=3)
+        self.image.press("f2")
+        self.image.press("f9")
+        self.image.wait(0.3)
+        self.image.press("esc", presses=2)
+        self.image.wait(0.5)
+
+    def _fill_pv_pay(self, form_config: Pp30FormConfig, values: Pp30FormValues) -> None:
+        pv_date = format_express_pv_date(values.pv_date)
+        due = self._format_amount(values.amount_due)
+        decimal_amount = self._format_amount(values.amount_due_decimal)
+        self.on_status(UI_TEXT["pp30_pv_pay_log"].format(date=pv_date, due=due, decimal=decimal_amount))
+        self._new_voucher(pv_date, form_config.pv_description)
+        self._type_account(ACCOUNT_PP30_VAT_SALE, enter_count=2, amount=due)
+        self._type_account(ACCOUNT_PP30_VAT_PURCHASE, enter_count=3, amount=decimal_amount)
+        self.image.type_text(ACCOUNT_CASH, clear_first=False)
+        self.image.press("enter", presses=3)
+        self.image.press("f2")
+        self.image.press("f9")
+        self.image.wait(0.3)
+
+    def _fill_pv_penalty(self, form_config: Pp30FormConfig, values: Pp30FormValues) -> None:
+        pv_date = format_express_pv_date(values.pv_date)
+        due = self._format_amount(values.line_15)
+        decimal_amount = self._format_amount(values.line_15_decimal)
+        self.on_status(UI_TEXT["pp30_pv_penalty_log"].format(date=pv_date, due=due, decimal=decimal_amount))
+        self._new_voucher(pv_date, form_config.pv_description)
+        self._type_account(ACCOUNT_PP30_VAT_PAYABLE, enter_count=2, amount=due)
+        self._type_account(ACCOUNT_PP30_DECIMAL, enter_count=3, amount=decimal_amount)
+        self.image.type_text(ACCOUNT_CASH, clear_first=False)
+        self.image.press("enter", presses=3)
+        self.image.press("f2")
+        self.image.press("f9")
+        self.image.wait(0.3)
+
     def _fill_pv(self, form_config: Pp30FormConfig, values: Pp30FormValues) -> None:
         pv_date = format_express_pv_date(values.pv_date)
         due = self._format_amount(values.amount_due)
@@ -134,16 +290,22 @@ class Pp30Workflow:
         self.image.press("f9")
         self.image.wait(0.3)
 
-    def _capture_reports(self, form_config: Pp30FormConfig, job: Pp30MatchedJob) -> None:
+    def _capture_reports(
+        self,
+        form_config: Pp30FormConfig,
+        job: Pp30MatchedJob,
+        *,
+        account_codes: tuple[str, ...] = PP30_ACCOUNT_REPORT_CODES,
+    ) -> None:
         if self.template_click is None:
             raise RuntimeError("ต้องเปิด template_click และจับภาพเมนูรายงานบัญชี")
-        codes = " ".join(PP30_ACCOUNT_REPORT_CODES)
+        codes = " ".join(account_codes)
         self.on_status(UI_TEXT["pp30_report_log"].format(codes=codes))
         jobs = build_ledger_report_jobs(
             report_output_dir=form_config.report_output_dir,
             legal_name=job.excel_name,
             month_date=form_config.jv_date,
-            account_codes=PP30_ACCOUNT_REPORT_CODES,
+            account_codes=account_codes,
             end_month_offset=1,
         )
         capture_account_reports(

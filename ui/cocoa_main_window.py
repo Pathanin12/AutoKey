@@ -9,9 +9,11 @@ from AppKit import (  # type: ignore
     NSApp,
     NSApplication,
     NSApplicationActivationPolicyRegular,
+    NSBezelStyleRegularSquare,
     NSBezelStyleRounded,
     NSBox,
     NSButton,
+    NSButtonTypeRadio,
     NSColor,
     NSEvent,
     NSEventModifierFlagCommand,
@@ -46,9 +48,12 @@ from constants.date_utils import (
 )
 from constants.routes import (
     EXCEL_OPEN_EXTENSIONS,
+    MENU_BUTTON_HEIGHT,
     PAGE_KA_TAM,
     PAGE_MENU,
     PAGE_PP30,
+    PP30_MODE_NORMAL,
+    PP30_MODE_SPECIAL,
     TOPIC_PAYMENT_JOURNAL,
     UI_TEXT,
 )
@@ -56,6 +61,7 @@ from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
 from models.ka_tam_row import KaTamRow
 from models.pp30_form_config import Pp30FormConfig
+from models.pp30_run_mode import Pp30RunMode
 from models.run_config import ExcelSheetSummary, RunConfig
 from models.topic_menu_item import TopicMenuItem
 from services.automation_service import AutomationService
@@ -66,9 +72,9 @@ from services.pp30_folder_service import Pp30FolderService
 from ui.app_icon import icon_dir
 
 WIN_W = 560
-MENU_WIN_H = 520
+MENU_WIN_H = 560
 KA_TAM_WIN_H = 700
-PP30_WIN_H = 660
+PP30_WIN_H = 690
 
 
 class FlippedView(NSView):
@@ -233,11 +239,9 @@ class MainWindow:
         content_w = WIN_W - margin * 2
         y = 36
         _static_label(page, UI_TEXT["menu_title"], margin, y, content_w, 28, size=18, bold=True)
-        y = 72
-        _static_label(page, UI_TEXT["menu_hint"], margin, y, content_w, 22, size=13, gray=True)
-        y = 110
-        button_h = 56
-        gap = 8
+        y = 80
+        button_h = MENU_BUTTON_HEIGHT
+        gap = 16
         for item in TOPIC_MENU_ITEMS:
             _button(
                 page,
@@ -247,11 +251,10 @@ class MainWindow:
                 content_w,
                 button_h,
                 self._keep(lambda selected=item: self._open_topic(selected)),
-                font_size=16,
+                font_size=17,
+                bezel=NSBezelStyleRegularSquare,
             )
             y += button_h + gap
-            _static_label(page, item.hint, margin + 4, y, content_w - 8, 20, size=12, gray=True)
-            y += 28
 
     def _build_pp30_page(self, page, initial_jv_date: str) -> None:
         y = 24
@@ -267,8 +270,29 @@ class MainWindow:
         _static_label(page, UI_TEXT["menu_pp30"], 188, y + 6, WIN_W - 212, 24, size=16, bold=True)
         y = 76
 
-        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 248)
+        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 276)
         sy = 8
+        _static_label(settings, UI_TEXT["pp30_run_mode"], 8, sy, 110, 22)
+        self.pp30_mode_normal = _radio(
+            settings,
+            UI_TEXT["pp30_mode_normal"],
+            120,
+            sy - 2,
+            130,
+            26,
+            self._keep(lambda: self._set_pp30_mode(PP30_MODE_NORMAL)),
+        )
+        self.pp30_mode_special = _radio(
+            settings,
+            UI_TEXT["pp30_mode_special"],
+            260,
+            sy - 2,
+            130,
+            26,
+            self._keep(lambda: self._set_pp30_mode(PP30_MODE_SPECIAL)),
+        )
+        self._set_pp30_mode(PP30_MODE_NORMAL)
+        sy += 28
         _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
         self.pp30_folder_field = _edit_field(settings, 120, sy, 248)
         _button(settings, UI_TEXT["choose_folder"], 376, sy - 2, 108, 28, self._keep(self._choose_pp30_folder))
@@ -319,7 +343,7 @@ class MainWindow:
         if initial_report_dir:
             self.pp30_report_dir_field.setStringValue_(initial_report_dir)
 
-        y = 340
+        y = 368
         _button(
             page,
             f"▶ {UI_TEXT['start']}",
@@ -339,7 +363,7 @@ class MainWindow:
             self._keep(self._stop),
         )
 
-        y = 384
+        y = 412
         _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, PP30_WIN_H - y - 12)
         self.pp30_progress_field = _static_label(status, "0 / 0", 8, 8, 300, 22)
         _button(status, UI_TEXT["copy_log"], 368, 4, 120, 28, self._keep(self._copy_all_log))
@@ -605,6 +629,11 @@ class MainWindow:
             return
         self.pp30_excel_summary_field.setStringValue_(UI_TEXT["excel_loaded"].format(path=excel_path.name))
 
+    def _set_pp30_mode(self, mode: str) -> None:
+        self._pp30_mode = Pp30RunMode.parse(mode)
+        self.pp30_mode_normal.setState_(1 if self._pp30_mode.key == PP30_MODE_NORMAL else 0)
+        self.pp30_mode_special.setState_(1 if self._pp30_mode.key == PP30_MODE_SPECIAL else 0)
+
     def _pp30_form_config(self) -> Pp30FormConfig:
         folder = Path(self._field_text(self.pp30_folder_field)).expanduser()
         return Pp30FormConfig(
@@ -615,6 +644,7 @@ class MainWindow:
             pv_description=self._field_text(self.pp30_pv_description_field),
             report_output_dir=Path(self._field_text(self.pp30_report_dir_field)).expanduser(),
             pdf_files=list(self.pp30_pdf_files),
+            run_mode=self._pp30_mode,
         )
 
     def _start_pp30(self) -> None:
@@ -834,9 +864,31 @@ def _edit_field(parent, x, y, w, h: float = 22):
     return field
 
 
-def _button(parent, title: str, x, y, w, h, target: _CallbackTarget, *, font_size: float = 13):
+def _radio(parent, title: str, x, y, w, h, target: _CallbackTarget):
     button = NSButton.alloc().initWithFrame_(NSMakeRect(x, y, w, h))
-    button.setBezelStyle_(NSBezelStyleRounded)
+    button.setButtonType_(NSButtonTypeRadio)
+    button.setTitle_(title)
+    button.setFont_(NSFont.systemFontOfSize_(13))
+    button.setTarget_(target)
+    button.setAction_("invoke:")
+    parent.addSubview_(button)
+    return button
+
+
+def _button(
+    parent,
+    title: str,
+    x,
+    y,
+    w,
+    h,
+    target: _CallbackTarget,
+    *,
+    font_size: float = 13,
+    bezel=NSBezelStyleRounded,
+):
+    button = NSButton.alloc().initWithFrame_(NSMakeRect(x, y, w, h))
+    button.setBezelStyle_(bezel)
     button.setTitle_(title)
     button.setFont_(NSFont.systemFontOfSize_(font_size))
     button.setTarget_(target)

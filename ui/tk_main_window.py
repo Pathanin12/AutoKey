@@ -7,9 +7,12 @@ from tkinter import filedialog, messagebox, ttk
 from constants.date_utils import default_work_date, format_express_pv_date
 from constants.routes import (
     EXCEL_OPEN_EXTENSIONS,
+    MENU_BUTTON_IPADY,
     PAGE_KA_TAM,
     PAGE_MENU,
     PAGE_PP30,
+    PP30_MODE_NORMAL,
+    PP30_MODE_SPECIAL,
     TOPIC_PAYMENT_JOURNAL,
     UI_TEXT,
 )
@@ -17,6 +20,7 @@ from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
 from models.ka_tam_row import KaTamRow
 from models.pp30_form_config import Pp30FormConfig
+from models.pp30_run_mode import Pp30RunMode
 from models.run_config import ExcelSheetSummary, RunConfig
 from models.topic_menu_item import TopicMenuItem
 from services.automation_service import AutomationService
@@ -27,9 +31,9 @@ from ui.app_icon import apply_window_icon, load_title_photo
 from ui.entry_excel_paste import bind_excel_cell_paste
 
 WIN_W = 560
-MENU_WIN_H = 500
+MENU_WIN_H = 540
 KA_TAM_WIN_H = 620
-PP30_WIN_H = 600
+PP30_WIN_H = 640
 
 
 class MainWindow:
@@ -74,6 +78,7 @@ class MainWindow:
         self.pp30_report_dir = tk.StringVar(
             value=str(defaults.get("report_output_dir", "") or "").strip()
         )
+        self.pp30_run_mode = tk.StringVar(value=PP30_MODE_NORMAL)
         self.pp30_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
         self.pp30_excel_summary = tk.StringVar(value=UI_TEXT["excel_summary_empty"])
         self.pp30_progress_text = tk.StringVar(value="0 / 0")
@@ -108,10 +113,7 @@ class MainWindow:
         ).pack(side="left")
 
         ttk.Label(page, text=UI_TEXT["menu_title"], font=("Tahoma", 12, "bold")).pack(
-            anchor="w", padx=20, pady=(24, 4)
-        )
-        ttk.Label(page, text=UI_TEXT["menu_hint"], foreground="#555555").pack(
-            anchor="w", padx=20, pady=(0, 16)
+            anchor="w", padx=20, pady=(24, 16)
         )
 
         for item in TOPIC_MENU_ITEMS:
@@ -119,10 +121,7 @@ class MainWindow:
                 page,
                 text=item.title,
                 command=lambda selected=item: self._open_topic(selected),
-            ).pack(fill="x", padx=24, pady=(0, 4), ipady=16)
-            ttk.Label(page, text=item.hint, foreground="#777777", font=("Tahoma", 9)).pack(
-                anchor="w", padx=28, pady=(0, 12)
-            )
+            ).pack(fill="x", padx=24, pady=(0, 12), ipady=MENU_BUTTON_IPADY)
 
     def _build_ka_tam_page(self, page: ttk.Frame) -> None:
         padding = {"padx": 12, "pady": 6}
@@ -295,6 +294,22 @@ class MainWindow:
         ttk.Button(form_frame, text=UI_TEXT["choose_folder"], command=self._choose_pp30_report_dir).grid(
             row=7, column=2, pady=(8, 0)
         )
+
+        ttk.Label(form_frame, text=UI_TEXT["pp30_run_mode"]).grid(row=8, column=0, sticky="w", pady=(8, 0))
+        mode_row = ttk.Frame(form_frame)
+        mode_row.grid(row=8, column=1, columnspan=2, sticky="w", pady=(8, 0))
+        ttk.Radiobutton(
+            mode_row,
+            text=UI_TEXT["pp30_mode_normal"],
+            variable=self.pp30_run_mode,
+            value=PP30_MODE_NORMAL,
+        ).pack(side="left")
+        ttk.Radiobutton(
+            mode_row,
+            text=UI_TEXT["pp30_mode_special"],
+            variable=self.pp30_run_mode,
+            value=PP30_MODE_SPECIAL,
+        ).pack(side="left", padx=(16, 0))
         form_frame.columnconfigure(1, weight=1)
         bind_excel_cell_paste(
             [
@@ -510,6 +525,7 @@ class MainWindow:
             pv_description=self.pp30_pv_description.get().strip(),
             report_output_dir=Path(self.pp30_report_dir.get().strip()).expanduser(),
             pdf_files=list(self.pp30_pdf_files),
+            run_mode=Pp30RunMode.parse(self.pp30_run_mode.get()),
         )
 
     def _start_pp30(self) -> None:

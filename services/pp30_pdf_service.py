@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from pathlib import Path
 
 from constants.date_utils import THAI_MONTHS, format_express_pv_date
@@ -27,6 +28,21 @@ _COMPANY_PREFIXES = (
     "บจก.",
     "หจก.",
 )
+
+_AMOUNT_TOLERANCE = 0.005
+_NUMBERED_LINE_RE = re.compile(r"^\s*(\d{1,2})[\.\)\s]")
+_LINE_KEYWORDS = {
+    5: ("ภาษีขาย",),
+    7: ("ภาษีซื้อ",),
+    8: ("ภาษีที่ต้องชำระ",),
+    9: ("ภาษีที่ชำระเกินเดือนนี้", "ชำระเกินเดือนนี้"),
+    10: ("ยกมา",),
+    11: ("ต้องชำระ",),
+    12: ("ชำระเกิน",),
+    13: ("เงินเพิ่ม",),
+    14: ("เบี้ยปรับ",),
+    15: ("รวมภาษีที่ต้องชำระ",),
+}
 
 _SKIP_LINES = {
     "แบบแสดงรายการภาษีมูลค่าเพิ่ม",
@@ -78,17 +94,11 @@ class Pp30PdfService:
 
     @staticmethod
     def extract_form_values(text: str) -> Pp30FormValues | None:
-        amounts = _extract_line_5_7_11(text)
         pv_date = _extract_pv_date(text)
-        if amounts is None or not pv_date:
+        lines = _extract_tax_lines(text)
+        if lines is None or not pv_date:
             return None
-        vat_sale, vat_purchase, amount_due = amounts
-        return Pp30FormValues(
-            vat_sale=vat_sale,
-            vat_purchase=vat_purchase,
-            amount_due=amount_due,
-            pv_date=pv_date,
-        )
+        return Pp30FormValues(pv_date=pv_date, **lines)
 
     @staticmethod
     def load_records(pdf_files: list[Path]) -> list[Pp30PdfRecord]:
@@ -129,6 +139,147 @@ def _money_amounts(text: str) -> list[float]:
             continue
         amounts.append(round(value, 2))
     return amounts
+
+
+def _eq_amount(left: float, right: float) -> bool:
+    return abs(left - right) < _AMOUNT_TOLERANCE
+
+
+def _has_amount(value: float) -> bool:
+    return value > _AMOUNT_TOLERANCE
+
+
+def _line_money(line: str, *, allow_zero: bool) -> float | None:
+    matches = list(_MONEY_RE.finditer(line or ""))
+    if not matches:
+        return None
+    value = _parse_money(matches[-1].group(0))
+    if value < 0:
+        return None
+    if not allow_zero and value <= 0:
+        return None
+    return round(value, 2)
+
+
+def _labeled_line_amounts(text: str) -> dict[int, float]:
+    found: dict[int, float] = {}
+    for raw in (text or "").splitlines():
+        match = _NUMBERED_LINE_RE.match(raw)
+        if not match:
+            continue
+        number = int(match.group(1))
+        keywords = _LINE_KEYWORDS.get(number)
+        if not keywords or not any(key in raw for key in keywords):
+            continue
+        amount = _line_money(raw, allow_zero=True)
+        if amount is None:
+            continue
+        found[number] = amount
+    return found
+
+
+def _infer_new_shop_lines(text: str, labeled: dict[int, float]) -> tuple[float, float] | None:
+    line5 = labeled.get(5)
+    if line5 is not None and _has_amount(line5):
+        return None
+    line7 = labeled.get(7)
+    line9 = labeled.get(9)
+    line12 = labeled.get(12)
+    if line7 is not None and line9 is not None and _eq_amount(line7, line9):
+        if line12 is None or _eq_amount(line7, line12):
+            return 0.0, line7
+    if line7 is not None and line5 is not None and _eq_amount(line5, 0.0):
+        return 0.0, line7
+    triples = sorted(
+        (amount for amount, count in Counter(_money_amounts(text)).items() if count >= 3),
+        reverse=True,
+    )
+    if triples:
+        return 0.0, triples[0]
+    return None
+
+
+def _complete_tax_lines(
+    line5: float,
+    line7: float,
+    labeled: dict[int, float],
+    derived_11: float | None,
+) -> dict[str, float]:
+    if line5 > line7:
+        line8 = labeled.get(8, round(line5 - line7, 2))
+        line9 = labeled.get(9, 0.0)
+    else:
+        line8 = labeled.get(8, 0.0)
+        line9 = labeled.get(9, round(line7 - line5, 2))
+
+    line10 = labeled.get(10)
+    line11 = labeled.get(11, derived_11)
+    if line11 is None:
+        if line10 is not None:
+            line11 = round(max(0.0, line8 - line10), 2)
+        else:
+            line11 = line8
+
+    if line10 is None:
+        if _has_amount(line8) and line11 + _AMOUNT_TOLERANCE < line8:
+            line10 = round(line8 - line11, 2)
+        else:
+            line10 = 0.0
+
+    line12 = labeled.get(12)
+    if line12 is None:
+        if line10 > line8:
+            line12 = round(line10 - line8, 2)
+        elif not _has_amount(line8) and _has_amount(line9) and not _has_amount(line10):
+            line12 = line9
+        else:
+            line12 = 0.0
+
+    line13 = labeled.get(13, 0.0)
+    line14 = labeled.get(14, 0.0)
+    line15 = labeled.get(15)
+    if line15 is None:
+        line15 = round(line11 + line13 + line14, 2)
+
+    return {
+        "vat_sale": line5,
+        "vat_purchase": line7,
+        "amount_due": line11,
+        "line_8": line8,
+        "line_9": line9,
+        "line_10": line10,
+        "line_12": line12,
+        "line_13": line13,
+        "line_14": line14,
+        "line_15": line15,
+    }
+
+
+def _extract_tax_lines(text: str) -> dict[str, float] | None:
+    labeled = _labeled_line_amounts(text)
+    pair = _extract_line_5_7_11(text)
+    line5 = labeled.get(5)
+    line7 = labeled.get(7)
+    derived_11 = labeled.get(11)
+
+    if pair is not None:
+        if line5 is None:
+            line5 = pair[0]
+        if line7 is None:
+            line7 = pair[1]
+        if derived_11 is None:
+            derived_11 = pair[2]
+    else:
+        inferred = _infer_new_shop_lines(text, labeled)
+        if inferred is not None:
+            if line5 is None:
+                line5 = inferred[0]
+            if line7 is None:
+                line7 = inferred[1]
+
+    if line5 is None or line7 is None:
+        return None
+    return _complete_tax_lines(line5, line7, labeled, derived_11)
 
 
 def _extract_line_5_7_11(text: str) -> tuple[float, float, float] | None:

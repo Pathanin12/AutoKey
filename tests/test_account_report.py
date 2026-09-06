@@ -7,7 +7,13 @@ from constants.routes import (
     ACCOUNT_SERVICE,
     ACCOUNT_VAT,
     ACCOUNT_WT,
+    ACCOUNT_PP30_NEW_SHOP,
     PP30_ACCOUNT_REPORT_CODES,
+    PP30_NEW_SHOP_REPORT_CODES,
+    PP30_NO_PAY_NORMAL_REPORT_CODES,
+    ACCOUNT_PP30_PENALTY,
+    PP30_PAY_REPORT_CODES,
+    PP30_PENALTY_REPORT_CODES,
     REPORT_SCREENSHOT_FILENAME,
 )
 from models.ka_tam_row import KaTamRow
@@ -112,6 +118,89 @@ class AccountReportTests(unittest.TestCase):
                 tmp_path / "reports" / "หจก.เจนสิริการค้า" / "07-69" / "1154-00" / REPORT_SCREENSHOT_FILENAME
             )
             self.assertEqual(jobs[0].output_file, expected)
+
+    def test_build_new_shop_ledger_report_jobs_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            tmp_path = Path(raw)
+            jobs = build_ledger_report_jobs(
+                report_output_dir=tmp_path / "reports",
+                legal_name="หจก.เจนสิริการค้า",
+                month_date="10/10/69",
+                account_codes=PP30_NEW_SHOP_REPORT_CODES,
+                end_month_offset=1,
+            )
+            self.assertEqual(tuple(job.account_code for job in jobs), ("1154-00", ACCOUNT_PP30_NEW_SHOP))
+            self.assertEqual(jobs[0].start_date, "01/10/69")
+            self.assertEqual(jobs[0].end_date, "30/11/69")
+            self.assertEqual(
+                jobs[0].output_file,
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "10-69" / "1154-00" / REPORT_SCREENSHOT_FILENAME,
+            )
+            self.assertEqual(
+                jobs[1].output_file,
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "10-69" / "1156-00" / REPORT_SCREENSHOT_FILENAME,
+            )
+
+    def test_build_no_pay_normal_ledger_report_jobs_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            tmp_path = Path(raw)
+            jobs = build_ledger_report_jobs(
+                report_output_dir=tmp_path / "reports",
+                legal_name="หจก.เจนสิริการค้า",
+                month_date="10/10/69",
+                account_codes=PP30_NO_PAY_NORMAL_REPORT_CODES,
+                end_month_offset=1,
+            )
+            self.assertEqual(
+                tuple(job.account_code for job in jobs),
+                ("2135-00", "1154-00", ACCOUNT_PP30_NEW_SHOP),
+            )
+            self.assertEqual(jobs[0].start_date, "01/10/69")
+            self.assertEqual(jobs[0].end_date, "30/11/69")
+            self.assertEqual(
+                jobs[2].output_file,
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "10-69" / "1156-00" / REPORT_SCREENSHOT_FILENAME,
+            )
+
+    def test_build_pay_ledger_report_jobs_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            tmp_path = Path(raw)
+            jobs = build_ledger_report_jobs(
+                report_output_dir=tmp_path / "reports",
+                legal_name="หจก.เจนสิริการค้า",
+                month_date="10/10/69",
+                account_codes=PP30_PAY_REPORT_CODES,
+                end_month_offset=1,
+            )
+            self.assertEqual(
+                tuple(job.account_code for job in jobs),
+                ("2135-00", "1154-00", ACCOUNT_PP30_NEW_SHOP, "2137-00"),
+            )
+            self.assertEqual(jobs[0].start_date, "01/10/69")
+            self.assertEqual(jobs[0].end_date, "30/11/69")
+            self.assertEqual(
+                jobs[3].output_file,
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "10-69" / "2137-00" / REPORT_SCREENSHOT_FILENAME,
+            )
+
+    def test_build_penalty_ledger_report_jobs_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            tmp_path = Path(raw)
+            jobs = build_ledger_report_jobs(
+                report_output_dir=tmp_path / "reports",
+                legal_name="หจก.เจนสิริการค้า",
+                month_date="10/10/69",
+                account_codes=PP30_PENALTY_REPORT_CODES,
+                end_month_offset=1,
+            )
+            self.assertEqual(
+                tuple(job.account_code for job in jobs),
+                ("2135-00", "1154-00", ACCOUNT_PP30_PENALTY, "2137-00"),
+            )
+            self.assertEqual(
+                jobs[2].output_file,
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "10-69" / "5390-01" / REPORT_SCREENSHOT_FILENAME,
+            )
 
     def test_expand_tree_only_on_first_job_until_opened(self) -> None:
         self.assertTrue(should_expand_ledger_report_tree(0, tree_already_open=False))
