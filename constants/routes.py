@@ -170,7 +170,7 @@ UI_TEXT = {
     "pp30_pdf_folder": "โฟลเดอร์ PDF",
     "pp30_pdf_summary_empty": "ยังไม่ได้เลือกโฟลเดอร์ PDF",
     "pp30_pdf_total": "พบ {count} ไฟล์ PDF",
-    "pp30_jv_date": "วันที่ JV 31/08/69",
+    "pp30_jv_date": "วันที่",
     "pp30_jv_description": "รายละเอียด JV",
     "pp30_pv_description": "รายละเอียด PV",
     "pp30_welcome_log": (
@@ -199,7 +199,7 @@ UI_TEXT = {
     "pp30_pdf_values_missing": "อ่านข้อ 5/7/11 หรือวันที่จาก PDF ไม่ได้: {path}",
     "pp30_jv_log": "กรอก JV {date} — 2135-00={sale} 1154-00={purchase}",
     "pp30_jv_new_shop_log": "กรอก JV เปิดร้านใหม่ {date} — 1156-00={purchase}",
-    "pp30_jv_no_pay_normal_log": "กรอก JV ไม่จ่ายตังแบบปกติ {date} — 2135-00={sale} 1154-00={purchase}",
+    "pp30_jv_no_pay_normal_log": "กรอก JV ไม่จ่ายตังแบบปกติ {date} — 2135-00={sale} 1154-00={purchase} 1156-00={carry}",
     "pp30_jv_pay_log": "กรอก JV จ่ายตัง {date} — 2135-00={sale} 1154-00={purchase} 1156-00={carry}",
     "pp30_pv_pay_log": "กรอก PV จ่ายตัง {date} — 2135-00={due} 1154-00={decimal}",
     "pp30_jv_penalty_log": "กรอก JV เสียค่าปรับ {date} — 2135-00={sale} 1154-00={purchase} 5390-01={penalty}",

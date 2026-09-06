@@ -189,6 +189,35 @@ class Pp30ExtractKindTests(unittest.TestCase):
         self.assertEqual(values.line_10, 20000.0)
         self.assertEqual(Pp30ClassifyService.classify(values).key, PP30_KIND_NO_PAY_NORMAL)
 
+    def test_extracts_overpay_carry_when_amounts_are_dumped(self) -> None:
+        text = """
+ห้างหุ้นส่วนจำกัด ฐานพัฒน์ 88
+5. ภาษีขายเดือนนี้
+7. ภาษีซื้อเดือนนี้
+8. ภาษีที่ต้องชำระเดือนนี้
+10. ภาษีที่ชำระเกินยกมา
+12. ชำระเกิน
+335,655.30
+23,495.87
+1,200.00
+84.00
+23,411.87
+171,572.80
+148,160.93
+ยื่นวันที่่ 17 เดือน สิงหาคม พ.ศ. 2569
+จำนวนเงิน 0.00 บาท
+"""
+        values = Pp30PdfService.extract_form_values(text)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.line_5, 23495.87)
+        self.assertEqual(values.line_7, 84.0)
+        self.assertEqual(values.line_8, 23411.87)
+        self.assertEqual(values.line_10, 171572.80)
+        self.assertEqual(values.line_11, 0.0)
+        self.assertEqual(values.line_12, 148160.93)
+        self.assertEqual(Pp30ClassifyService.classify(values).key, PP30_KIND_NO_PAY_NORMAL)
+
     def test_extracts_penalty_from_line_13(self) -> None:
         text = """
 5. ภาษีขายเดือนนี้ 20,000.00

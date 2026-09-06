@@ -199,11 +199,35 @@ def _infer_new_shop_lines(text: str, labeled: dict[int, float]) -> tuple[float, 
     return None
 
 
+def _infer_overpay_carry(
+    amounts: list[float],
+    line5: float,
+    line7: float,
+    line8: float,
+) -> tuple[float, float] | None:
+    reserved = (line5, line7, line8)
+    best: tuple[float, float] | None = None
+    for carry in amounts:
+        if any(_eq_amount(carry, known) for known in reserved):
+            continue
+        if carry <= line8 + _AMOUNT_TOLERANCE:
+            continue
+        refund = round(carry - line8, 2)
+        if any(_eq_amount(refund, known) for known in reserved):
+            continue
+        if not any(_eq_amount(refund, other) for other in amounts):
+            continue
+        if best is None or carry > best[0]:
+            best = (carry, refund)
+    return best
+
+
 def _complete_tax_lines(
     line5: float,
     line7: float,
     labeled: dict[int, float],
     derived_11: float | None,
+    amounts: list[float],
 ) -> dict[str, float]:
     if line5 > line7:
         line8 = labeled.get(8, round(line5 - line7, 2))
@@ -212,8 +236,16 @@ def _complete_tax_lines(
         line8 = labeled.get(8, 0.0)
         line9 = labeled.get(9, round(line7 - line5, 2))
 
+    overpay = _infer_overpay_carry(amounts, line5, line7, line8)
     line10 = labeled.get(10)
-    line11 = labeled.get(11, derived_11)
+    if line10 is None and overpay is not None:
+        line10 = overpay[0]
+
+    line11 = labeled.get(11)
+    if line11 is None and line10 is not None and line10 > line8:
+        line11 = 0.0
+    elif line11 is None:
+        line11 = derived_11
     if line11 is None:
         if line10 is not None:
             line11 = round(max(0.0, line8 - line10), 2)
@@ -227,6 +259,8 @@ def _complete_tax_lines(
             line10 = 0.0
 
     line12 = labeled.get(12)
+    if line12 is None and overpay is not None and _eq_amount(line10, overpay[0]):
+        line12 = overpay[1]
     if line12 is None:
         if line10 > line8:
             line12 = round(line10 - line8, 2)
@@ -279,7 +313,7 @@ def _extract_tax_lines(text: str) -> dict[str, float] | None:
 
     if line5 is None or line7 is None:
         return None
-    return _complete_tax_lines(line5, line7, labeled, derived_11)
+    return _complete_tax_lines(line5, line7, labeled, derived_11, _money_amounts(text))
 
 
 def _extract_line_5_7_11(text: str) -> tuple[float, float, float] | None:

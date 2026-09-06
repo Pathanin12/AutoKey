@@ -196,11 +196,17 @@ class Pp30Workflow:
         jv_date = format_express_pv_date(form_config.jv_date)
         sale = self._format_amount(values.vat_sale)
         purchase = self._format_amount(values.vat_purchase)
-        self.on_status(UI_TEXT["pp30_jv_no_pay_normal_log"].format(date=jv_date, sale=sale, purchase=purchase))
+        carry = self._format_amount(values.line_10)
+        self.on_status(
+            UI_TEXT["pp30_jv_no_pay_normal_log"].format(
+                date=jv_date, sale=sale, purchase=purchase, carry=carry
+            )
+        )
         self._new_voucher(jv_date, form_config.jv_description)
         self._type_account(ACCOUNT_PP30_VAT_SALE, enter_count=2, amount=sale)
         self._type_account(ACCOUNT_PP30_VAT_PURCHASE, enter_count=3, amount=purchase)
-        self.image.type_text(ACCOUNT_PP30_NEW_SHOP, clear_first=False)
+        self._type_account(ACCOUNT_PP30_NEW_SHOP, enter_count=3, amount=carry)
+        self.image.type_text(ACCOUNT_PP30_VAT_PAYABLE, clear_first=False)
         self.image.press("enter", presses=3)
         self.image.press("f2")
         self.image.press("f9")
