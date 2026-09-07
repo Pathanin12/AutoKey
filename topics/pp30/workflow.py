@@ -209,6 +209,8 @@ class Pp30Workflow:
         self.image.press("f2")
         self.image.press("f9")
         self.image.wait(0.3)
+        self.image.press("esc", presses=2)
+        self.image.wait(0.5)
 
     def _fill_jv_pay(self, form_config: Pp30FormConfig, values: Pp30FormValues) -> None:
         jv_date = format_express_pv_date(form_config.jv_date)
