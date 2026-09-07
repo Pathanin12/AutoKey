@@ -173,6 +173,34 @@ class Pp30ExtractKindTests(unittest.TestCase):
         self.assertEqual(values.line_12, 1200.0)
         self.assertEqual(Pp30ClassifyService.classify(values).key, PP30_KIND_NO_PAY_NEW_SHOP)
 
+    def test_extracts_new_shop_when_sale_is_zero_and_purchase_repeats(self) -> None:
+        text = """
+ห้างหุ้นส่วนจำกัด ธีร์มีชัย
+              5. ภาษีขายเดือนนี้                         หรือกรณียื่นเพิ่มเติม                                                                                                                                                0.00      5
+7. ภาษีซื้อเดือนนี้
+9. ภาษีที่ชำระเกินเดือนนี้
+12. ชำระเกิน
+0.00
+0.00
+0.00
+4,405,200.00
+308,364.00
+308,364.00
+308,364.00
+ยื่นวันที่่ 17 เดือน สิงหาคม พ.ศ. 2569
+จำนวนเงิน 0.00 บาท
+"""
+        values = Pp30PdfService.extract_form_values(text)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.line_5, 0.0)
+        self.assertEqual(values.line_7, 308364.0)
+        self.assertEqual(values.line_8, 0.0)
+        self.assertEqual(values.line_9, 308364.0)
+        self.assertEqual(values.line_10, 0.0)
+        self.assertEqual(values.line_12, 308364.0)
+        self.assertEqual(Pp30ClassifyService.classify(values).key, PP30_KIND_NO_PAY_NEW_SHOP)
+
     def test_extracts_no_pay_normal_when_line_10_greater(self) -> None:
         text = """
 5. ภาษีขายเดือนนี้ 20,000.00

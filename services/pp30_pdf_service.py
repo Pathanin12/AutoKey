@@ -149,6 +149,18 @@ def _has_amount(value: float) -> bool:
     return value > _AMOUNT_TOLERANCE
 
 
+def _is_sales_base(amount: float, amounts: list[float]) -> bool:
+    """ยอดขาย (ฐานที่ภาษี ~7%) ไม่ใช่ข้อ 10 / ข้อ 12"""
+    for vat in amounts:
+        if vat <= _AMOUNT_TOLERANCE or vat >= amount:
+            continue
+        if amount <= vat * 5:
+            continue
+        if 0.065 <= vat / amount <= 0.075:
+            return True
+    return False
+
+
 def _line_money(line: str, *, allow_zero: bool) -> float | None:
     matches = list(_MONEY_RE.finditer(line or ""))
     if not matches:
@@ -190,12 +202,15 @@ def _infer_new_shop_lines(text: str, labeled: dict[int, float]) -> tuple[float, 
             return 0.0, line7
     if line7 is not None and line5 is not None and _eq_amount(line5, 0.0):
         return 0.0, line7
+    amounts = _money_amounts(text)
     triples = sorted(
-        (amount for amount, count in Counter(_money_amounts(text)).items() if count >= 3),
+        (amount for amount, count in Counter(amounts).items() if count >= 3),
         reverse=True,
     )
-    if triples:
-        return 0.0, triples[0]
+    for amount in triples:
+        if _is_sales_base(amount, amounts):
+            continue
+        return 0.0, amount
     return None
 
 
@@ -209,6 +224,8 @@ def _infer_overpay_carry(
     best: tuple[float, float] | None = None
     for carry in amounts:
         if any(_eq_amount(carry, known) for known in reserved):
+            continue
+        if _is_sales_base(carry, amounts):
             continue
         if carry <= line8 + _AMOUNT_TOLERANCE:
             continue
@@ -292,24 +309,22 @@ def _complete_tax_lines(
 def _extract_tax_lines(text: str) -> dict[str, float] | None:
     labeled = _labeled_line_amounts(text)
     pair = _extract_line_5_7_11(text)
+    inferred = _infer_new_shop_lines(text, labeled)
     line5 = labeled.get(5)
     line7 = labeled.get(7)
     derived_11 = labeled.get(11)
 
-    if pair is not None:
+    if inferred is not None and (line5 is None or not _has_amount(line5)):
+        line5 = inferred[0]
+        if line7 is None or not _has_amount(line7):
+            line7 = inferred[1]
+    elif pair is not None:
         if line5 is None:
             line5 = pair[0]
         if line7 is None:
             line7 = pair[1]
         if derived_11 is None:
             derived_11 = pair[2]
-    else:
-        inferred = _infer_new_shop_lines(text, labeled)
-        if inferred is not None:
-            if line5 is None:
-                line5 = inferred[0]
-            if line7 is None:
-                line7 = inferred[1]
 
     if line5 is None or line7 is None:
         return None
