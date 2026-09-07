@@ -64,7 +64,7 @@ def _typed_and_pressed(events: list[tuple]) -> list[tuple]:
 
 
 class Pp30SpecialFillTests(unittest.TestCase):
-    def test_no_pay_normal_types_1156_then_f2_without_amount_or_esc(self) -> None:
+    def test_no_pay_normal_types_1156_then_f2_then_esc_twice(self) -> None:
         image = RecordingImage()
         fill_no_pay_normal_jv(image, _form_config(), _values(), lambda _msg: None)
         events = _typed_and_pressed(image.events)
@@ -72,16 +72,17 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "23.50", "1156-00"])
         shop_index = events.index(("type_text", "1156-00", False))
         self.assertEqual(
-            events[shop_index + 1 : shop_index + 6],
+            events[shop_index + 1 :],
             [
                 ("press", ("enter",)),
                 ("press", ("enter",)),
                 ("press", ("enter",)),
                 ("press", ("f2",)),
                 ("press", ("f9",)),
+                ("press", ("esc",)),
+                ("press", ("esc",)),
             ],
         )
-        self.assertNotIn(("press", ("esc",)), events[shop_index:])
         self.assertNotIn("171,572.80", codes)
         self.assertNotIn("2137-00", codes)
 

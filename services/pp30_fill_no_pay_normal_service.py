@@ -54,6 +54,8 @@ def fill_jv(
     image.press("f2")
     image.press("f9")
     image.wait(0.3)
+    image.press("esc", presses=2)
+    image.wait(0.5)
 
 
 def _open_general_journal(ctx: Pp30FillContext) -> None:
