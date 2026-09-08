@@ -158,7 +158,8 @@ class Pp30Workflow:
         self.on_status(UI_TEXT["pp30_jv_log"].format(date=jv_date, sale=sale, purchase=purchase))
         self._new_voucher(jv_date, form_config.jv_description)
         self._type_account(ACCOUNT_PP30_VAT_SALE, enter_count=2, amount=sale)
-        self._type_account(ACCOUNT_PP30_VAT_PURCHASE, enter_count=3, amount=purchase)
+        if values.has_line_7:
+            self._type_account(ACCOUNT_PP30_VAT_PURCHASE, enter_count=3, amount=purchase)
         self.image.type_text(ACCOUNT_PP30_VAT_PAYABLE, clear_first=False)
         self.image.press("enter", presses=3)
         self.image.press("f2")

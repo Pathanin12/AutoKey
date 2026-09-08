@@ -5,6 +5,7 @@ from typing import Callable
 from constants.date_utils import format_express_pv_date
 from constants.routes import (
     ACCOUNT_CASH,
+    ACCOUNT_PP30_DECIMAL,
     ACCOUNT_PP30_NEW_SHOP,
     ACCOUNT_PP30_VAT_PAYABLE,
     ACCOUNT_PP30_VAT_PURCHASE,
@@ -51,10 +52,11 @@ def fill_jv(
     image.press("enter", presses=2)
     image.type_text(sale, clear_first=True)
     image.press("enter")
-    image.type_text(ACCOUNT_PP30_VAT_PURCHASE, clear_first=False)
-    image.press("enter", presses=3)
-    image.type_text(purchase, clear_first=True)
-    image.press("enter")
+    if values.has_line_7:
+        image.type_text(ACCOUNT_PP30_VAT_PURCHASE, clear_first=False)
+        image.press("enter", presses=3)
+        image.type_text(purchase, clear_first=True)
+        image.press("enter")
     image.type_text(ACCOUNT_PP30_NEW_SHOP, clear_first=False)
     image.press("enter", presses=3)
     image.type_text(carry, clear_first=True)
@@ -83,7 +85,7 @@ def fill_pv(
     image.press("enter", presses=2)
     image.type_text(due, clear_first=True)
     image.press("enter")
-    image.type_text(ACCOUNT_PP30_VAT_PURCHASE, clear_first=False)
+    image.type_text(ACCOUNT_PP30_DECIMAL, clear_first=False)
     image.press("enter", presses=3)
     image.type_text(decimal_amount, clear_first=True)
     image.press("enter")

@@ -106,12 +106,12 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertEqual(events[carry_index + 2], ("type_text", "2137-00", False))
         self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
 
-    def test_pay_pv_uses_2137_then_1154_decimal_then_cash(self) -> None:
+    def test_pay_pv_uses_2137_then_4200_decimal_then_cash(self) -> None:
         image = RecordingImage()
         fill_pay_pv(image, _form_config(), _values(), lambda _msg: None)
         events = _typed_and_pressed(image.events)
         codes = [event[1] for event in events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2137-00", "88.75", "1154-00", "0.75", "1111-00"])
+        self.assertEqual(codes, ["2137-00", "88.75", "4200-03", "0.75", "1111-00"])
         self.assertEqual(events[-2:], [("press", ("f2",)), ("press", ("f9",))])
 
     def test_penalty_jv_uses_5390_then_2137(self) -> None:
@@ -121,6 +121,50 @@ class Pp30SpecialFillTests(unittest.TestCase):
         codes = [event[1] for event in events if event[0] == "type_text"]
         self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "23.50", "5390-01", "3.00", "2137-00"])
         self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
+
+    def test_penalty_jv_skips_1154_when_line_7_is_empty(self) -> None:
+        image = RecordingImage()
+        values = Pp30FormValues(
+            vat_sale=26496.79,
+            vat_purchase=0.0,
+            amount_due=28219.0,
+            pv_date="24/08/69",
+            line_8=26496.79,
+            line_13=397.45,
+            line_14=1324.84,
+            line_15=29941.29,
+        )
+        fill_penalty_jv(image, _form_config(), values, lambda _msg: None)
+        codes = [event[1] for event in image.events if event[0] == "type_text"]
+        self.assertEqual(codes, ["2135-00", "26,496.79", "5390-01", "1,722.29", "2137-00"])
+
+    def test_no_pay_normal_skips_1154_when_line_7_is_empty(self) -> None:
+        image = RecordingImage()
+        values = Pp30FormValues(
+            vat_sale=100.0,
+            vat_purchase=0.0,
+            amount_due=0.0,
+            pv_date="13/08/69",
+            line_8=0.0,
+            line_10=50.0,
+        )
+        fill_no_pay_normal_jv(image, _form_config(), values, lambda _msg: None)
+        codes = [event[1] for event in image.events if event[0] == "type_text"]
+        self.assertEqual(codes, ["2135-00", "100.00", "1156-00"])
+
+    def test_pay_jv_skips_1154_when_line_7_is_empty(self) -> None:
+        image = RecordingImage()
+        values = Pp30FormValues(
+            vat_sale=100.0,
+            vat_purchase=0.0,
+            amount_due=88.75,
+            pv_date="13/08/69",
+            line_8=100.0,
+            line_10=10.0,
+        )
+        fill_pay_jv(image, _form_config(), values, lambda _msg: None)
+        codes = [event[1] for event in image.events if event[0] == "type_text"]
+        self.assertEqual(codes, ["2135-00", "100.00", "1156-00", "10.00", "2137-00"])
 
     def test_penalty_pv_uses_2137_then_4200_decimal_of_line_15(self) -> None:
         image = RecordingImage()
