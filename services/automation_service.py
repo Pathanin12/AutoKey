@@ -95,11 +95,11 @@ class AutomationService:
         raw = self.config.get("lookup_search", {})
         return LookupSearchSettings(
             confirm_enter_count=int(raw.get("confirm_enter_count", 2)),
-            dialog_wait=float(raw.get("dialog_wait", 0.35)),
-            template_retries=int(raw.get("template_retries", 4)),
-            template_retry_delay=float(raw.get("template_retry_delay", 0.15)),
-            post_search_wait=float(raw.get("post_search_wait", 0.4)),
-            post_search_click_wait=float(raw.get("post_search_click_wait", 0.3)),
+            dialog_wait=float(raw.get("dialog_wait", 0.2)),
+            template_retries=int(raw.get("template_retries", 3)),
+            template_retry_delay=float(raw.get("template_retry_delay", 0.08)),
+            post_search_wait=float(raw.get("post_search_wait", 0.25)),
+            post_search_click_wait=float(raw.get("post_search_click_wait", 0.2)),
             paste_wait=float(raw.get("paste_wait", 0.15)),
         )
 
@@ -113,7 +113,7 @@ class AutomationService:
         return CompanySwitchSettings(
             menu_others=str(raw.get("menu_others", "8")),
             submenu_keys=[str(key) for key in submenu],
-            menu_wait=float(raw.get("menu_wait", 0.8)),
+            menu_wait=float(raw.get("menu_wait", 0.35)),
             lookup_search=lookup,
             search_enter_count=int(raw.get("search_enter_count", 2)),
             exit_pv_esc_count=int(raw.get("exit_pv_esc_count", 2)),
@@ -134,9 +134,9 @@ class AutomationService:
         settings = self.automation_settings
         screen = self.screen_settings
         return ImageService(
-            action_delay=float(settings.get("action_delay", 0.05)),
-            type_interval=float(settings.get("type_interval", 0.03)),
-            key_settle_wait=float(settings.get("key_settle_wait", 0.03)),
+            action_delay=float(settings.get("action_delay", 0.03)),
+            type_interval=float(settings.get("type_interval", 0.008)),
+            key_settle_wait=float(settings.get("key_settle_wait", 0.02)),
             fail_safe=bool(settings.get("fail_safe", True)),
             screen_width=int(screen.get("width", SCREEN_WIDTH)),
             screen_height=int(screen.get("height", SCREEN_HEIGHT)),

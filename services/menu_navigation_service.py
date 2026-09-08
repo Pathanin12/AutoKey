@@ -8,6 +8,7 @@ from constants.routes import (
     MENU_ACCOUNT_LABEL,
     MENU_ACCOUNT_REPORT_LABEL,
     MENU_DAILY_ENTRY_LABEL,
+    MENU_FLYOUT_WAIT,
     MENU_GENERAL_JOURNAL_LABEL,
     MENU_GENERAL_JOURNAL_PATH,
     MENU_GENERAL_LEDGER_LABEL,
@@ -53,7 +54,7 @@ def open_payment_journal_menu(
         retries=template_retries,
         retry_delay=template_retry_delay,
     )
-    image.wait(0.4)
+    image.wait(MENU_FLYOUT_WAIT)
 
     flyout_region = _flyout_search_region(daily_match)
     _status(on_status, f"คลิกเมนู {MENU_PAYMENT_JOURNAL_LABEL}")
@@ -100,7 +101,7 @@ def open_general_journal_menu(
         retries=template_retries,
         retry_delay=template_retry_delay,
     )
-    image.wait(0.4)
+    image.wait(MENU_FLYOUT_WAIT)
 
     flyout_region = _flyout_search_region(daily_match)
     _status(on_status, f"คลิกเมนู {MENU_GENERAL_JOURNAL_LABEL}")

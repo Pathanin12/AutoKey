@@ -10,11 +10,18 @@ from constants.routes import (
     ACCOUNT_PP30_VAT_PAYABLE,
     ACCOUNT_PP30_VAT_PURCHASE,
     ACCOUNT_PP30_VAT_SALE,
+    AFTER_CLOSE_WAIT,
+    AFTER_SAVE_WAIT,
     MENU_GENERAL_JOURNAL_PATH,
+    MENU_OPEN_PRE_WAIT,
     MENU_PAYMENT_JOURNAL_PATH,
     PP30_PENALTY_REPORT_CODES,
     PV_NEW_FILE_KEYS,
     UI_TEXT,
+    VOUCHER_AFTER_DATE_WAIT,
+    VOUCHER_AFTER_NEW_WAIT,
+    VOUCHER_FIELD_WAIT,
+    VOUCHER_FORM_WAIT,
 )
 from models.pp30_fill_context import Pp30FillContext
 from models.pp30_form_config import Pp30FormConfig
@@ -43,11 +50,8 @@ def fill_jv(
     jv_date = format_express_pv_date(form_config.jv_date)
     sale = _format_amount(values.vat_sale)
     purchase = _format_amount(values.vat_purchase)
-    penalty = _format_amount(values.penalty_amount)
     on_status(
-        UI_TEXT["pp30_jv_penalty_log"].format(
-            date=jv_date, sale=sale, purchase=purchase, penalty=penalty
-        )
+        UI_TEXT["pp30_jv_penalty_log"].format(date=jv_date, sale=sale, purchase=purchase)
     )
     _new_voucher(image, jv_date, form_config.jv_description)
     image.type_text(ACCOUNT_PP30_VAT_SALE, clear_first=False)
@@ -59,17 +63,13 @@ def fill_jv(
         image.press("enter", presses=3)
         image.type_text(purchase, clear_first=True)
         image.press("enter")
-    image.type_text(ACCOUNT_PP30_PENALTY, clear_first=False)
-    image.press("enter", presses=2)
-    image.type_text(penalty, clear_first=True)
-    image.press("enter")
     image.type_text(ACCOUNT_PP30_VAT_PAYABLE, clear_first=False)
     image.press("enter", presses=3)
     image.press("f2")
     image.press("f9")
-    image.wait(0.3)
+    image.wait(AFTER_SAVE_WAIT)
     image.press("esc", presses=2)
-    image.wait(0.5)
+    image.wait(AFTER_CLOSE_WAIT)
 
 
 def fill_pv(
@@ -80,12 +80,21 @@ def fill_pv(
 ) -> None:
     pv_date = format_express_pv_date(values.pv_date)
     due = _format_amount(values.line_15)
+    penalty = _format_amount(values.penalty_amount)
     decimal_amount = _format_amount(values.line_15_decimal)
-    on_status(UI_TEXT["pp30_pv_penalty_log"].format(date=pv_date, due=due, decimal=decimal_amount))
+    on_status(
+        UI_TEXT["pp30_pv_penalty_log"].format(
+            date=pv_date, due=due, penalty=penalty, decimal=decimal_amount
+        )
+    )
     _new_voucher(image, pv_date, form_config.pv_description)
     image.type_text(ACCOUNT_PP30_VAT_PAYABLE, clear_first=False)
     image.press("enter", presses=2)
     image.type_text(due, clear_first=True)
+    image.press("enter")
+    image.type_text(ACCOUNT_PP30_PENALTY, clear_first=False)
+    image.press("enter", presses=2)
+    image.type_text(penalty, clear_first=True)
     image.press("enter")
     image.type_text(ACCOUNT_PP30_DECIMAL, clear_first=False)
     image.press("enter", presses=3)
@@ -95,12 +104,12 @@ def fill_pv(
     image.press("enter", presses=3)
     image.press("f2")
     image.press("f9")
-    image.wait(0.3)
+    image.wait(AFTER_SAVE_WAIT)
 
 
 def _open_general_journal(ctx: Pp30FillContext) -> None:
     ctx.on_status(f"เปิดเมนู {MENU_GENERAL_JOURNAL_PATH}")
-    ctx.image.wait(0.8)
+    ctx.image.wait(MENU_OPEN_PRE_WAIT)
     open_general_journal_menu(
         ctx.image,
         ctx.template_click,
@@ -112,7 +121,7 @@ def _open_general_journal(ctx: Pp30FillContext) -> None:
 
 def _open_payment_journal(ctx: Pp30FillContext) -> None:
     ctx.on_status(f"เปิดเมนู {MENU_PAYMENT_JOURNAL_PATH}")
-    ctx.image.wait(0.8)
+    ctx.image.wait(MENU_OPEN_PRE_WAIT)
     open_payment_journal_menu(
         ctx.image,
         ctx.template_click,
@@ -124,18 +133,18 @@ def _open_payment_journal(ctx: Pp30FillContext) -> None:
 
 def _new_voucher(image: ImageService, voucher_date: str, description: str) -> None:
     image.press(*PV_NEW_FILE_KEYS)
-    image.wait(0.3)
+    image.wait(VOUCHER_AFTER_NEW_WAIT)
     image.press("enter")
-    image.wait(0.4)
+    image.wait(VOUCHER_FORM_WAIT)
     if voucher_date:
         image.type_keys(voucher_date, clear_first=True)
-        image.wait(0.2)
+        image.wait(VOUCHER_AFTER_DATE_WAIT)
     image.press("enter")
-    image.wait(0.15)
+    image.wait(VOUCHER_FIELD_WAIT)
     if description.strip():
         image.type_thai(description.strip(), clear_first=True)
     image.press("enter")
-    image.wait(0.15)
+    image.wait(VOUCHER_FIELD_WAIT)
 
 
 def _capture_reports(ctx: Pp30FillContext) -> None:

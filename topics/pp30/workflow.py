@@ -10,11 +10,19 @@ from constants.routes import (
     ACCOUNT_PP30_VAT_PAYABLE,
     ACCOUNT_PP30_VAT_PURCHASE,
     ACCOUNT_PP30_VAT_SALE,
+    AFTER_CLOSE_WAIT,
+    AFTER_SAVE_WAIT,
+    COMPANY_DIALOG_WAIT,
     MENU_GENERAL_JOURNAL_PATH,
+    MENU_OPEN_PRE_WAIT,
     MENU_PAYMENT_JOURNAL_PATH,
     PP30_ACCOUNT_REPORT_CODES,
     PV_NEW_FILE_KEYS,
     UI_TEXT,
+    VOUCHER_AFTER_DATE_WAIT,
+    VOUCHER_AFTER_NEW_WAIT,
+    VOUCHER_FIELD_WAIT,
+    VOUCHER_FORM_WAIT,
 )
 from models.pp30_fill_context import Pp30FillContext
 from models.pp30_form_config import Pp30FormConfig
@@ -129,7 +137,7 @@ class Pp30Workflow:
         if self.template_click is None:
             raise RuntimeError("ต้องเปิด template_click และจับภาพเมนู 5-1-1")
         self.on_status(f"เปิดเมนู {MENU_GENERAL_JOURNAL_PATH}")
-        self.image.wait(0.8)
+        self.image.wait(MENU_OPEN_PRE_WAIT)
         open_general_journal_menu(
             self.image,
             self.template_click,
@@ -142,7 +150,7 @@ class Pp30Workflow:
         if self.template_click is None:
             raise RuntimeError("ต้องเปิด template_click และจับภาพเมนู 5-1-2")
         self.on_status(f"เปิดเมนู {MENU_PAYMENT_JOURNAL_PATH}")
-        self.image.wait(0.8)
+        self.image.wait(MENU_OPEN_PRE_WAIT)
         open_payment_journal_menu(
             self.image,
             self.template_click,
@@ -164,9 +172,9 @@ class Pp30Workflow:
         self.image.press("enter", presses=3)
         self.image.press("f2")
         self.image.press("f9")
-        self.image.wait(0.3)
+        self.image.wait(AFTER_SAVE_WAIT)
         self.image.press("esc", presses=2)
-        self.image.wait(0.5)
+        self.image.wait(AFTER_CLOSE_WAIT)
 
     def _fill_pv(self, form_config: Pp30FormConfig, values: Pp30FormValues) -> None:
         pv_date = format_express_pv_date(values.pv_date)
@@ -180,7 +188,7 @@ class Pp30Workflow:
         self.image.press("enter", presses=3)
         self.image.press("f2")
         self.image.press("f9")
-        self.image.wait(0.3)
+        self.image.wait(AFTER_SAVE_WAIT)
 
     def _capture_reports(self, form_config: Pp30FormConfig, job: Pp30MatchedJob) -> None:
         if self.template_click is None:
@@ -207,25 +215,25 @@ class Pp30Workflow:
 
     def _return_to_company_dialog(self) -> None:
         self.image.press("shift", "f11")
-        self.image.wait(0.3)
+        self.image.wait(AFTER_SAVE_WAIT)
         self.image.press("tab")
         self.image.press("enter", presses=2)
-        self.image.wait(0.6)
+        self.image.wait(COMPANY_DIALOG_WAIT)
 
     def _new_voucher(self, voucher_date: str, description: str) -> None:
         self.image.press(*PV_NEW_FILE_KEYS)
-        self.image.wait(0.3)
+        self.image.wait(VOUCHER_AFTER_NEW_WAIT)
         self.image.press("enter")
-        self.image.wait(0.4)
+        self.image.wait(VOUCHER_FORM_WAIT)
         if voucher_date:
             self.image.type_keys(voucher_date, clear_first=True)
-            self.image.wait(0.2)
+            self.image.wait(VOUCHER_AFTER_DATE_WAIT)
         self.image.press("enter")
-        self.image.wait(0.15)
+        self.image.wait(VOUCHER_FIELD_WAIT)
         if description.strip():
             self.image.type_thai(description.strip(), clear_first=True)
         self.image.press("enter")
-        self.image.wait(0.15)
+        self.image.wait(VOUCHER_FIELD_WAIT)
 
     def _type_account(self, account_code: str, *, enter_count: int, amount: str) -> None:
         self.image.type_text(account_code, clear_first=False)

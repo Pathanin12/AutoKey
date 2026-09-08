@@ -11,8 +11,16 @@ from constants.routes import (
     ACCOUNT_SERVICE,
     ACCOUNT_VAT,
     ACCOUNT_WT,
+    AFTER_CLOSE_WAIT,
+    AFTER_SAVE_WAIT,
+    COMPANY_DIALOG_WAIT,
+    MENU_AFTER_OPEN_WAIT,
     MENU_PAYMENT_JOURNAL_PATH,
     PV_NEW_FILE_KEYS,
+    VOUCHER_AFTER_DATE_WAIT,
+    VOUCHER_AFTER_NEW_WAIT,
+    VOUCHER_FIELD_WAIT,
+    VOUCHER_FORM_WAIT,
 )
 from models.ka_tam_row import KaTamRow
 from models.run_config import RunConfig
@@ -145,7 +153,7 @@ class KaTamWorkflow:
             template_retries=self.lookup_search_settings.template_retries,
             template_retry_delay=self.lookup_search_settings.template_retry_delay,
         )
-        self.image.wait(0.8)
+        self.image.wait(MENU_AFTER_OPEN_WAIT)
 
     def open_payment_journal_after_lookup(self, row: KaTamRow) -> None:
         self._search_vendor(row, "ค้นหาใน dialog")
@@ -176,7 +184,7 @@ class KaTamWorkflow:
         count = max(0, self.company_switch_settings.exit_pv_esc_count)
         for _ in range(count):
             self.image.press("esc")
-            self.image.wait(0.5)
+            self.image.wait(AFTER_CLOSE_WAIT)
 
     def open_change_company_flow(self) -> None:
         self._step(10, FLOW_1_END_LABEL, "8 → 8 เปลี่ยนบริษัท")
@@ -189,22 +197,22 @@ class KaTamWorkflow:
     def _create_voucher(self, config: RunConfig) -> None:
         """Alt+A เปิดไฟล์ใหม่ → Enter → วันที่ → Enter → รายละเอียด → Enter"""
         self.image.press(*PV_NEW_FILE_KEYS)
-        self.image.wait(0.3)
+        self.image.wait(VOUCHER_AFTER_NEW_WAIT)
         self.image.press("enter")
-        self.image.wait(0.4)
+        self.image.wait(VOUCHER_FORM_WAIT)
 
         pv_date = format_express_pv_date(config.pv_date)
         if pv_date:
             self.image.type_keys(pv_date, clear_first=True)
-            self.image.wait(0.2)
+            self.image.wait(VOUCHER_AFTER_DATE_WAIT)
         self.image.press("enter")
-        self.image.wait(0.15)
+        self.image.wait(VOUCHER_FIELD_WAIT)
 
         description = config.description.strip()
         if description:
             self.image.type_thai(description, clear_first=True)
         self.image.press("enter")
-        self.image.wait(0.15)
+        self.image.wait(VOUCHER_FIELD_WAIT)
 
     def _lookup_and_open_pv(self, row: KaTamRow) -> None:
         self._search_vendor(row, "ค้นหาบริษัทถัดไป")
@@ -263,10 +271,10 @@ class KaTamWorkflow:
         if prepare_next:
             self._step(self.STEP_FINISH, "กลับ dialog เลือกข้อมูล", "Shift+F11 → Tab → Enter")
             self.image.press("shift", "f11")
-            self.image.wait(0.3)
+            self.image.wait(AFTER_SAVE_WAIT)
             self.image.press("tab")
             self.image.press("enter")
-            self.image.wait(0.4)
+            self.image.wait(COMPANY_DIALOG_WAIT)
 
     def _capture_account_reports(self, config: RunConfig, row: KaTamRow) -> None:
         if self.template_click is None:
@@ -295,7 +303,7 @@ class KaTamWorkflow:
         )
         self.image.press("f2")
         self.image.press("f9")
-        self.image.wait(0.8)
+        self.image.wait(MENU_AFTER_OPEN_WAIT)
         if invoice_number:
             self.image.type_text(invoice_number, clear_first=True)
         self.image.press("enter", presses=13)
@@ -303,7 +311,7 @@ class KaTamWorkflow:
             self.image.type_text(tax_payer_id, clear_first=True)
         self.image.press("enter", presses=3)
         self.image.press("esc")
-        self.image.wait(0.3)
+        self.image.wait(AFTER_SAVE_WAIT)
 
     @staticmethod
     def _format_amount(value: float) -> str:

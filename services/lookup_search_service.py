@@ -21,12 +21,12 @@ class LookupSelectionMismatchError(RuntimeError):
 @dataclass(frozen=True)
 class LookupSearchSettings:
     confirm_enter_count: int = 2
-    dialog_wait: float = 0.35
-    template_retries: int = 4
-    template_retry_delay: float = 0.15
-    post_search_wait: float = 0.4
-    post_search_click_wait: float = 0.3
-    paste_wait: float = 0.15
+    dialog_wait: float = 0.2
+    template_retries: int = 3
+    template_retry_delay: float = 0.08
+    post_search_wait: float = 0.25
+    post_search_click_wait: float = 0.2
+    paste_wait: float = 0.1
 
 
 def search_and_select(
@@ -46,7 +46,7 @@ def search_and_select(
     _check_stop(should_stop)
     _click_search_button(image, settings, template_click=template_click)
     image.type_thai(name, clear_first=True)
-    image.wait(0.15)
+    image.wait(0.08)
     if on_status:
         on_status(UI_TEXT["paste_log"].format(field="ช่องค้นหา", text=name))
 
@@ -54,7 +54,7 @@ def search_and_select(
     for _ in range(presses):
         _check_stop(should_stop)
         image.press("enter")
-        image.wait(0.15)
+        image.wait(0.08)
 
 
 def _click_search_button(

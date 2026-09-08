@@ -31,17 +31,15 @@ KEYEVENTF_UNICODE = 0x0004
 
 
 def send_hotkey(*keys: str) -> None:
-    """Alt+A เปิดไฟล์ใหม่ — โฟกัส Express ก่อน แล้วส่ง virtual key"""
+    """Alt+A เปิดไฟล์ใหม่ — โฟกัส Express เฉพาะเมื่อยังไม่ได้อยู่หน้าต่างนั้น"""
     if sys.platform != "win32":
         return
 
-    from services.window_focus_service import focus_window_by_title
+    from services.window_focus_service import ensure_window_foreground
 
-    focus_window_by_title(
+    ensure_window_foreground(
         "Express",
-        on_status=None,
-        required=False,
-        wait_after_focus_seconds=0.12,
+        wait_after_focus_seconds=0.08,
     )
     send_combo(*keys)
 
@@ -51,7 +49,7 @@ def send_combo(*keys: str) -> None:
     if sys.platform != "win32":
         return
     _send_virtual_keys([_vk_code(key) for key in keys])
-    time.sleep(0.03)
+    time.sleep(0.01)
 
 
 def text_is_ascii_keys(text: str) -> bool:

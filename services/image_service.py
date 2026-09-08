@@ -15,14 +15,35 @@ from services.window_paste_service import paste_to_foreground
 _SETTLE_KEYS = frozenset({"enter", "return", "tab"})
 
 
+def map_region_to_grab(
+    region: tuple[int, int, int, int] | None,
+    *,
+    logical_size: tuple[int, int],
+    actual_size: tuple[int, int],
+) -> tuple[tuple[int, int, int, int] | None, tuple[int, int]]:
+    """แปลง ROI โลจิคัล 1920×1080 เป็น (left, top, width, height) ของจอจริง"""
+    if region is None:
+        return None, (0, 0)
+    x0, y0, x1, y1 = region
+    logical_width, logical_height = logical_size
+    actual_width, actual_height = actual_size
+    scale_x = actual_width / logical_width
+    scale_y = actual_height / logical_height
+    left = max(0, int(x0 * scale_x))
+    top = max(0, int(y0 * scale_y))
+    right = min(actual_width, max(left + 1, int(x1 * scale_x)))
+    bottom = min(actual_height, max(top + 1, int(y1 * scale_y)))
+    return (left, top, right - left, bottom - top), (x0, y0)
+
+
 class ImageService:
     """ส่งคีย์/คลิก/จับภาพหน้าจอผ่าน pyautogui"""
 
     def __init__(
         self,
-        action_delay: float = 0.05,
-        type_interval: float = 0.02,
-        key_settle_wait: float = 0.03,
+        action_delay: float = 0.03,
+        type_interval: float = 0.008,
+        key_settle_wait: float = 0.02,
         fail_safe: bool = True,
         screen_width: int = 1920,
         screen_height: int = 1080,
@@ -44,12 +65,36 @@ class ImageService:
         time.sleep(seconds if seconds is not None else self.action_delay)
 
     def screenshot(self):
-        self._ensure_runtime()
-        shot = pyautogui.screenshot()
-        image = shot.convert("RGBA")
-        if image.size != (self.screen_width, self.screen_height):
-            image = image.resize((self.screen_width, self.screen_height))
+        image, _origin = self.screenshot_region(None)
         return image
+
+    def screenshot_region(
+        self, region: tuple[int, int, int, int] | None
+    ) -> tuple:
+        """จับเฉพาะ ROI ของ template — คืน (รูปในพิกัดโลจิคัล, origin x/y)"""
+        self._ensure_runtime()
+        actual_width, actual_height = pyautogui.size()
+        grab, origin = map_region_to_grab(
+            region,
+            logical_size=(self.screen_width, self.screen_height),
+            actual_size=(actual_width, actual_height),
+        )
+        if grab is None:
+            shot = pyautogui.screenshot()
+            image = shot.convert("RGB")
+            if image.size != (self.screen_width, self.screen_height):
+                image = image.resize((self.screen_width, self.screen_height))
+            return image, (0, 0)
+
+        left, top, width, height = grab
+        shot = pyautogui.screenshot(region=(left, top, width, height))
+        image = shot.convert("RGB")
+        x0, y0, x1, y1 = region or (0, 0, self.screen_width, self.screen_height)
+        logical_width = max(1, x1 - x0)
+        logical_height = max(1, y1 - y0)
+        if image.size != (logical_width, logical_height):
+            image = image.resize((logical_width, logical_height))
+        return image, origin
 
     def save_screenshot(self, path: Path) -> Path:
         self._ensure_runtime()
@@ -152,7 +197,7 @@ class ImageService:
             self._send_combo("ctrl", "a") if sys.platform == "win32" else pyautogui.hotkey("ctrl", "a")
             self.wait()
         copy_text(text)
-        time.sleep(0.1 if sys.platform == "win32" else 0.04)
+        time.sleep(0.04 if sys.platform == "win32" else 0.02)
         if sys.platform == "win32":
             self._send_combo("ctrl", "v")
         else:

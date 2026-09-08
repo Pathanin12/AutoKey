@@ -114,13 +114,14 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertEqual(codes, ["2137-00", "88.75", "4200-03", "0.75", "1111-00"])
         self.assertEqual(events[-2:], [("press", ("f2",)), ("press", ("f9",))])
 
-    def test_penalty_jv_uses_5390_then_2137(self) -> None:
+    def test_penalty_jv_uses_2135_then_1154_then_2137(self) -> None:
         image = RecordingImage()
         fill_penalty_jv(image, _form_config(), _values(), lambda _msg: None)
         events = _typed_and_pressed(image.events)
         codes = [event[1] for event in events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "23.50", "5390-01", "3.00", "2137-00"])
+        self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "23.50", "2137-00"])
         self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
+        self.assertNotIn("5390-01", codes)
 
     def test_penalty_jv_skips_1154_when_line_7_is_empty(self) -> None:
         image = RecordingImage()
@@ -136,7 +137,8 @@ class Pp30SpecialFillTests(unittest.TestCase):
         )
         fill_penalty_jv(image, _form_config(), values, lambda _msg: None)
         codes = [event[1] for event in image.events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2135-00", "26,496.79", "5390-01", "1,722.29", "2137-00"])
+        self.assertEqual(codes, ["2135-00", "26,496.79", "2137-00"])
+        self.assertNotIn("5390-01", codes)
 
     def test_no_pay_normal_skips_1154_when_line_7_is_empty(self) -> None:
         image = RecordingImage()
@@ -166,12 +168,12 @@ class Pp30SpecialFillTests(unittest.TestCase):
         codes = [event[1] for event in image.events if event[0] == "type_text"]
         self.assertEqual(codes, ["2135-00", "100.00", "1156-00", "10.00", "2137-00"])
 
-    def test_penalty_pv_uses_2137_then_4200_decimal_of_line_15(self) -> None:
+    def test_penalty_pv_uses_2137_then_5390_then_4200_decimal_of_line_15(self) -> None:
         image = RecordingImage()
         fill_penalty_pv(image, _form_config(), _values(), lambda _msg: None)
         events = _typed_and_pressed(image.events)
         codes = [event[1] for event in events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2137-00", "91.75", "4200-03", "0.75", "1111-00"])
+        self.assertEqual(codes, ["2137-00", "91.75", "5390-01", "3.00", "4200-03", "0.75", "1111-00"])
 
     def test_special_fill_services_do_not_import_each_other(self) -> None:
         root = Path(__file__).resolve().parent.parent

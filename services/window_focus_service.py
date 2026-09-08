@@ -39,6 +39,35 @@ def focus_express_window(
     )
 
 
+def ensure_window_foreground(
+    title_contains: str,
+    *,
+    wait_after_focus_seconds: float = 0.08,
+) -> bool:
+    if foreground_title_contains(title_contains):
+        return True
+    return focus_window_by_title(
+        title_contains,
+        on_status=None,
+        required=False,
+        wait_after_focus_seconds=wait_after_focus_seconds,
+    )
+
+
+def foreground_title_contains(title_contains: str) -> bool:
+    if sys.platform != "win32":
+        return True
+    needle = title_contains.strip()
+    if not needle:
+        return False
+    import ctypes
+
+    hwnd = ctypes.windll.user32.GetForegroundWindow()
+    if not hwnd:
+        return False
+    return needle.casefold() in _get_window_title(int(hwnd)).casefold()
+
+
 def focus_window_by_title(
     title_contains: str,
     *,

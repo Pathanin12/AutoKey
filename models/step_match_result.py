@@ -22,3 +22,15 @@ class StepMatchResult:
     @property
     def center(self) -> tuple[int, int]:
         return self.x + self.width // 2, self.y + self.height // 2
+
+    def translated(self, dx: int, dy: int) -> StepMatchResult:
+        if dx == 0 and dy == 0:
+            return self
+        return StepMatchResult(
+            found=self.found,
+            score=self.score,
+            x=self.x + dx,
+            y=self.y + dy,
+            width=self.width,
+            height=self.height,
+        )

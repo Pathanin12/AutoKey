@@ -15,6 +15,9 @@ except ImportError:  # pragma: no cover
 
 MATCH_METHOD = cv2.TM_CCORR_NORMED
 MATCH_METHOD_OPAQUE = cv2.TM_CCOEFF_NORMED
+_TEMPLATE_IMAGE_CACHE: dict[str, "Image.Image"] = {}
+_TEMPLATE_CV_CACHE: dict[int, tuple[np.ndarray, np.ndarray | None]] = {}
+_MAX_CACHED_PIXELS = 200_000
 
 
 @dataclass(frozen=True)
@@ -38,21 +41,36 @@ def load_image(path: Path) -> Image.Image:
 
 
 def load_step_template(step) -> Image.Image:
-    image = load_image(step.template_path)
     crop_box = step.crop_box()
-    if crop_box is None:
-        return image
-    return image.crop(crop_box)
+    cache_key = f"{step.template_path}:{crop_box}"
+    cached = _TEMPLATE_IMAGE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    image = load_image(step.template_path)
+    if crop_box is not None:
+        image = image.crop(crop_box)
+    _TEMPLATE_IMAGE_CACHE[cache_key] = image
+    return image
 
 
 def _pil_to_cv(image: Image.Image) -> tuple[np.ndarray, np.ndarray | None]:
+    ident = id(image)
+    cached = _TEMPLATE_CV_CACHE.get(ident)
+    if cached is not None:
+        return cached
     rgba = np.asarray(image.convert("RGBA"))
     bgr = cv2.cvtColor(rgba[:, :, :3], cv2.COLOR_RGB2BGR)
     alpha = rgba[:, :, 3]
     if np.any(alpha < 250):
-        mask = np.where(alpha >= 16, 255, 0).astype(np.uint8)
-        return bgr, mask
-    return bgr, None
+        converted: tuple[np.ndarray, np.ndarray | None] = (
+            bgr,
+            np.where(alpha >= 16, 255, 0).astype(np.uint8),
+        )
+    else:
+        converted = (bgr, None)
+    if image.size[0] * image.size[1] <= _MAX_CACHED_PIXELS:
+        _TEMPLATE_CV_CACHE[ident] = converted
+    return converted
 
 
 def _search_bounds(

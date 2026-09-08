@@ -40,13 +40,10 @@ class TemplateClickService:
         search_region: tuple[int, int, int, int] | None = None,
     ) -> StepMatchResult:
         action = self.settings.get_action(action_id)
-        screen = self.image.screenshot()
         region = search_region if search_region is not None else action.search_region
-        return detect_step_match(
-            screen,
-            action.target,
-            search_region=region,
-        )
+        screen, origin = self.image.screenshot_region(region)
+        match = detect_step_match(screen, action.target)
+        return match.translated(origin[0], origin[1])
 
     def click(
         self,

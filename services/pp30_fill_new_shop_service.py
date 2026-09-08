@@ -6,10 +6,17 @@ from constants.date_utils import format_express_pv_date
 from constants.routes import (
     ACCOUNT_PP30_NEW_SHOP,
     ACCOUNT_PP30_VAT_PURCHASE,
+    AFTER_CLOSE_WAIT,
+    AFTER_SAVE_WAIT,
     MENU_GENERAL_JOURNAL_PATH,
+    MENU_OPEN_PRE_WAIT,
     PP30_NEW_SHOP_REPORT_CODES,
     PV_NEW_FILE_KEYS,
     UI_TEXT,
+    VOUCHER_AFTER_DATE_WAIT,
+    VOUCHER_AFTER_NEW_WAIT,
+    VOUCHER_FIELD_WAIT,
+    VOUCHER_FORM_WAIT,
 )
 from models.pp30_fill_context import Pp30FillContext
 from models.pp30_form_config import Pp30FormConfig
@@ -45,14 +52,14 @@ def fill_jv(
     image.press("enter", presses=3)
     image.press("f2")
     image.press("f9")
-    image.wait(0.3)
+    image.wait(AFTER_SAVE_WAIT)
     image.press("esc", presses=1)
-    image.wait(0.5)
+    image.wait(AFTER_CLOSE_WAIT)
 
 
 def _open_general_journal(ctx: Pp30FillContext) -> None:
     ctx.on_status(f"เปิดเมนู {MENU_GENERAL_JOURNAL_PATH}")
-    ctx.image.wait(0.8)
+    ctx.image.wait(MENU_OPEN_PRE_WAIT)
     open_general_journal_menu(
         ctx.image,
         ctx.template_click,
@@ -64,18 +71,18 @@ def _open_general_journal(ctx: Pp30FillContext) -> None:
 
 def _new_voucher(image: ImageService, voucher_date: str, description: str) -> None:
     image.press(*PV_NEW_FILE_KEYS)
-    image.wait(0.3)
+    image.wait(VOUCHER_AFTER_NEW_WAIT)
     image.press("enter")
-    image.wait(0.4)
+    image.wait(VOUCHER_FORM_WAIT)
     if voucher_date:
         image.type_keys(voucher_date, clear_first=True)
-        image.wait(0.2)
+        image.wait(VOUCHER_AFTER_DATE_WAIT)
     image.press("enter")
-    image.wait(0.15)
+    image.wait(VOUCHER_FIELD_WAIT)
     if description.strip():
         image.type_thai(description.strip(), clear_first=True)
     image.press("enter")
-    image.wait(0.15)
+    image.wait(VOUCHER_FIELD_WAIT)
 
 
 def _capture_reports(ctx: Pp30FillContext) -> None:
