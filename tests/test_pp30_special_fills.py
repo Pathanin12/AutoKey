@@ -64,7 +64,7 @@ def _typed_and_pressed(events: list[tuple]) -> list[tuple]:
 
 
 class Pp30SpecialFillTests(unittest.TestCase):
-    def test_no_pay_normal_types_1156_then_f2_then_esc_twice(self) -> None:
+    def test_no_pay_normal_types_1156_then_f2_f9_without_esc(self) -> None:
         image = RecordingImage()
         fill_no_pay_normal_jv(image, _form_config(), _values(), lambda _msg: None)
         events = _typed_and_pressed(image.events)
@@ -79,12 +79,11 @@ class Pp30SpecialFillTests(unittest.TestCase):
                 ("press", ("enter",)),
                 ("press", ("f2",)),
                 ("press", ("f9",)),
-                ("press", ("esc",)),
-                ("press", ("esc",)),
             ],
         )
         self.assertNotIn("171,572.80", codes)
         self.assertNotIn("2137-00", codes)
+        self.assertNotIn(("press", ("esc",)), events)
 
     def test_new_shop_uses_1156_then_1154_then_esc_once(self) -> None:
         image = RecordingImage()
@@ -118,16 +117,15 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertEqual(events[-2:], [("press", ("f2",)), ("press", ("f9",))])
         self.assertNotIn("4200-03", codes)
 
-    def test_penalty_jv_uses_2135_then_1154_then_2137(self) -> None:
+    def test_penalty_jv_uses_2135_then_1154_then_5390_then_2137(self) -> None:
         image = RecordingImage()
         fill_penalty_jv(image, _form_config(), _values(), lambda _msg: None)
         events = _typed_and_pressed(image.events)
         codes = [event[1] for event in events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "23.50", "2137-00"])
+        self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "23.50", "5390-01", "3.00", "2137-00"])
         self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
-        self.assertNotIn("5390-01", codes)
 
-    def test_penalty_jv_skips_1154_when_line_7_is_empty(self) -> None:
+    def test_penalty_jv_always_types_1154_then_5390(self) -> None:
         image = RecordingImage()
         values = Pp30FormValues(
             vat_sale=26496.79,
@@ -141,10 +139,9 @@ class Pp30SpecialFillTests(unittest.TestCase):
         )
         fill_penalty_jv(image, _form_config(), values, lambda _msg: None)
         codes = [event[1] for event in image.events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2135-00", "26,496.79", "2137-00"])
-        self.assertNotIn("5390-01", codes)
+        self.assertEqual(codes, ["2135-00", "26,496.79", "1154-00", "0.00", "5390-01", "1,722.29", "2137-00"])
 
-    def test_no_pay_normal_skips_1154_when_line_7_is_empty(self) -> None:
+    def test_no_pay_normal_always_types_1154_then_1156_without_amount(self) -> None:
         image = RecordingImage()
         values = Pp30FormValues(
             vat_sale=100.0,
@@ -156,7 +153,8 @@ class Pp30SpecialFillTests(unittest.TestCase):
         )
         fill_no_pay_normal_jv(image, _form_config(), values, lambda _msg: None)
         codes = [event[1] for event in image.events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2135-00", "100.00", "1156-00"])
+        self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "0.00", "1156-00"])
+        self.assertNotIn("50.00", codes)
 
     def test_pay_jv_always_types_1154_then_1156_line_10_then_2137(self) -> None:
         image = RecordingImage()
@@ -173,12 +171,13 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "0.00", "1156-00", "10.00", "2137-00"])
         self.assertNotIn("5390-01", codes)
 
-    def test_penalty_pv_uses_2137_then_5390_then_4200_decimal_of_line_15(self) -> None:
+    def test_penalty_pv_uses_2137_line_15_then_4200_decimal_then_cash(self) -> None:
         image = RecordingImage()
         fill_penalty_pv(image, _form_config(), _values(), lambda _msg: None)
         events = _typed_and_pressed(image.events)
         codes = [event[1] for event in events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2137-00", "91.75", "5390-01", "3.00", "4200-03", "0.75", "1111-00"])
+        self.assertEqual(codes, ["2137-00", "91.75", "4200-03", "0.75", "1111-00"])
+        self.assertNotIn("5390-01", codes)
 
     def test_special_fill_services_do_not_import_each_other(self) -> None:
         root = Path(__file__).resolve().parent.parent
@@ -187,6 +186,21 @@ class Pp30SpecialFillTests(unittest.TestCase):
             root / "services/pp30_fill_new_shop_service.py",
             root / "services/pp30_fill_pay_service.py",
             root / "services/pp30_fill_penalty_service.py",
+        )
+        names = {path.name for path in files}
+        for path in files:
+            source = path.read_text(encoding="utf-8")
+            others = names - {path.name}
+            for other in others:
+                self.assertNotIn(other.replace(".py", ""), source)
+
+    def test_kind_extract_services_do_not_import_each_other(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        files = (
+            root / "services/pp30_extract_no_pay_normal_service.py",
+            root / "services/pp30_extract_new_shop_service.py",
+            root / "services/pp30_extract_pay_service.py",
+            root / "services/pp30_extract_penalty_service.py",
         )
         names = {path.name for path in files}
         for path in files:

@@ -7,7 +7,6 @@ from constants.routes import (
     ACCOUNT_PP30_NEW_SHOP,
     ACCOUNT_PP30_VAT_PURCHASE,
     ACCOUNT_PP30_VAT_SALE,
-    AFTER_CLOSE_WAIT,
     AFTER_SAVE_WAIT,
     MENU_GENERAL_JOURNAL_PATH,
     MENU_OPEN_PRE_WAIT,
@@ -52,18 +51,15 @@ def fill_jv(
     image.press("enter", presses=2)
     image.type_text(sale, clear_first=True)
     image.press("enter")
-    if values.has_line_7:
-        image.type_text(ACCOUNT_PP30_VAT_PURCHASE, clear_first=False)
-        image.press("enter", presses=3)
-        image.type_text(purchase, clear_first=True)
-        image.press("enter")
+    image.type_text(ACCOUNT_PP30_VAT_PURCHASE, clear_first=False)
+    image.press("enter", presses=3)
+    image.type_text(purchase, clear_first=True)
+    image.press("enter")
     image.type_text(ACCOUNT_PP30_NEW_SHOP, clear_first=False)
     image.press("enter", presses=3)
     image.press("f2")
     image.press("f9")
     image.wait(AFTER_SAVE_WAIT)
-    image.press("esc", presses=2)
-    image.wait(AFTER_CLOSE_WAIT)
 
 
 def _open_general_journal(ctx: Pp30FillContext) -> None:
