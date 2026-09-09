@@ -108,14 +108,14 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertNotIn("10.00", codes)
         self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
 
-    def test_pay_pv_uses_2137_then_1154_decimal_of_line_11_then_cash(self) -> None:
+    def test_pay_pv_uses_2137_then_4200_decimal_of_line_11_then_cash(self) -> None:
         image = RecordingImage()
         fill_pay_pv(image, _form_config(), _values(), lambda _msg: None)
         events = _typed_and_pressed(image.events)
         codes = [event[1] for event in events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2137-00", "88.75", "1154-00", "0.75", "1111-00"])
+        self.assertEqual(codes, ["2137-00", "88.75", "4200-03", "0.75", "1111-00"])
         self.assertEqual(events[-2:], [("press", ("f2",)), ("press", ("f9",))])
-        self.assertNotIn("4200-03", codes)
+        self.assertNotIn("1154-00", codes)
 
     def test_penalty_jv_uses_2135_then_1154_then_5390_then_2137(self) -> None:
         image = RecordingImage()
@@ -156,7 +156,7 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "0.00", "1156-00"])
         self.assertNotIn("50.00", codes)
 
-    def test_pay_jv_always_types_1154_then_1156_line_10_then_2137(self) -> None:
+    def test_pay_jv_skips_1154_when_line_7_is_zero(self) -> None:
         image = RecordingImage()
         values = Pp30FormValues(
             vat_sale=100.0,
@@ -167,9 +167,11 @@ class Pp30SpecialFillTests(unittest.TestCase):
             line_10=10.0,
         )
         fill_pay_jv(image, _form_config(), values, lambda _msg: None)
-        codes = [event[1] for event in image.events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "0.00", "1156-00", "10.00", "2137-00"])
-        self.assertNotIn("5390-01", codes)
+        events = _typed_and_pressed(image.events)
+        codes = [event[1] for event in events if event[0] == "type_text"]
+        self.assertEqual(codes, ["2135-00", "100.00", "1156-00", "10.00", "2137-00"])
+        self.assertNotIn("1154-00", codes)
+        self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
 
     def test_penalty_pv_uses_2137_line_15_then_4200_decimal_then_cash(self) -> None:
         image = RecordingImage()
