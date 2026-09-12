@@ -113,8 +113,16 @@ def open_general_journal_menu(
             retry_delay=template_retry_delay,
         )
     except TemplateNotFoundError:
-        _status(on_status, "จับภาพไม่เจอ — เลือกรายการที่ 1 ใน submenu")
-        image.press("1")
+        try:
+            _retry_action(
+                lambda: template_click.click("menu_general_journal"),
+                image=image,
+                retries=max(1, template_retries - 1),
+                retry_delay=template_retry_delay,
+            )
+        except TemplateNotFoundError:
+            _status(on_status, "จับภาพไม่เจอ — คลิกรายการแรกของ submenu")
+            _click_first_flyout_item(image, daily_match)
     image.wait(menu_wait)
 
 
@@ -245,12 +253,18 @@ def _click_report_normal(
 
 
 def _flyout_search_region(daily_match: StepMatchResult) -> tuple[int, int, int, int]:
-    """submenu 2.สมุดรายวันจ่าย เปิดทางขวาของ 1.ลงประจำวัน"""
+    """submenu เปิดทางขวาของ 1.ลงประจำวัน"""
     x0 = max(0, daily_match.x + daily_match.width - 10)
     y0 = max(0, daily_match.y - 20)
-    x1 = min(SCREEN_WIDTH, daily_match.x + 420)
-    y1 = min(SCREEN_HEIGHT, daily_match.y + 80)
+    x1 = min(SCREEN_WIDTH, daily_match.x + 460)
+    y1 = min(SCREEN_HEIGHT, daily_match.y + 160)
     return x0, y0, x1, y1
+
+
+def _click_first_flyout_item(image: ImageService, daily_match: StepMatchResult) -> None:
+    x = min(SCREEN_WIDTH - 8, daily_match.x + daily_match.width + 48)
+    y = daily_match.y + max(8, daily_match.height // 2)
+    image.click_at(x, y)
 
 
 def _retry_action(action, *, image: ImageService, retries: int, retry_delay: float):

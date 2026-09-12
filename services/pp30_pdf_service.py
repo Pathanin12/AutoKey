@@ -7,7 +7,7 @@ from constants.date_utils import THAI_MONTHS, format_express_pv_date
 from models.pp30_form_values import Pp30FormValues
 from models.pp30_matched_job import Pp30PdfRecord
 from services.lookup_match_service import is_plausible_vendor_name, tidy_vendor_name
-from services.pp30_amount_service import line_8_and_9, line_money, money_amounts
+from services.pp30_amount_service import eq_amount, line_8_and_9, line_money, money_amounts
 from services.pp30_extract_new_shop_service import complete_new_shop_lines
 from services.pp30_extract_no_pay_normal_service import complete_no_pay_normal_lines
 from services.pp30_extract_pay_service import complete_pay_lines
@@ -32,7 +32,7 @@ _COMPANY_PREFIXES = (
     "หจก.",
 )
 
-_NUMBERED_LINE_RE = re.compile(r"^\s*(\d{1,2})[\.\)\s]")
+_NUMBERED_LINE_RE = re.compile(r"(?<!\d)(\d{1,2})\.")
 _LINE_KEYWORDS = {
     5: ("ภาษีขาย",),
     7: ("ภาษีซื้อ",),
@@ -132,17 +132,16 @@ def _is_company_line(line: str) -> bool:
 def _labeled_line_amounts(text: str) -> dict[int, float]:
     found: dict[int, float] = {}
     for raw in (text or "").splitlines():
-        match = _NUMBERED_LINE_RE.match(raw)
-        if not match:
-            continue
-        number = int(match.group(1))
-        keywords = _LINE_KEYWORDS.get(number)
-        if not keywords or not any(key in raw for key in keywords):
-            continue
-        amount = line_money(raw, allow_zero=True)
-        if amount is None:
-            continue
-        found[number] = amount
+        for match in _NUMBERED_LINE_RE.finditer(raw):
+            number = int(match.group(1))
+            keywords = _LINE_KEYWORDS.get(number)
+            if not keywords or not any(key in raw for key in keywords):
+                continue
+            amount = line_money(raw, allow_zero=True)
+            if amount is None:
+                continue
+            found[number] = amount
+            break
     return found
 
 
@@ -159,7 +158,10 @@ def _extract_tax_lines(text: str) -> dict[str, float] | None:
     if line5 is None and pair is not None:
         line5 = pair[0]
     if line7 is None and pair is not None:
-        line7 = pair[1]
+        if line5 is not None and eq_amount(pair[1], line5):
+            line7 = 0.0
+        else:
+            line7 = pair[1]
     if line5 is None or line7 is None:
         return None
 
@@ -200,37 +202,57 @@ def _extract_line_5_7(text: str) -> tuple[float, float] | None:
     if not amounts:
         return None
 
+    vat_of_base = _vat_amounts_from_turnover(amounts)
+    if vat_of_base:
+        line5 = max(vat_of_base)
+        line7 = 0.0
+        for purchase in vat_of_base:
+            if eq_amount(purchase, line5):
+                continue
+            due = round(line5 - purchase, 2)
+            if due > 0 and any(eq_amount(due, other) for other in amounts):
+                line7 = purchase
+                break
+        if line7 == 0.0:
+            for purchase in amounts:
+                if eq_amount(purchase, line5) or purchase >= line5:
+                    continue
+                due = round(line5 - purchase, 2)
+                if due > 0 and any(eq_amount(due, other) for other in amounts):
+                    line7 = purchase
+                    break
+        return line5, line7
+
     best: tuple[float, float, float] | None = None
     for vat_sale in amounts:
         for vat_purchase in amounts:
+            if eq_amount(vat_sale, vat_purchase):
+                continue
             line8 = round(vat_sale - vat_purchase, 2)
             if line8 <= 0:
                 continue
-            if not any(abs(line8 - other) < 0.005 for other in amounts):
+            if not any(eq_amount(line8, other) for other in amounts):
                 continue
-            score = 0.0
-            for sales in amounts:
-                if sales <= vat_sale * 5:
-                    continue
-                ratio = vat_sale / sales
-                if 0.065 <= ratio <= 0.075:
-                    score = 2.0
-                    break
-            if vat_sale > vat_purchase:
-                score += 0.5
+            score = 0.5 if vat_sale > vat_purchase else 0.0
             if best is None or score > best[0] or (score == best[0] and vat_sale > best[1]):
                 best = (score, vat_sale, vat_purchase)
     if best is not None:
         return best[1], best[2]
-
-    for vat_sale in amounts:
-        for sales in amounts:
-            if sales <= vat_sale * 5:
-                continue
-            ratio = vat_sale / sales
-            if 0.065 <= ratio <= 0.075:
-                return vat_sale, 0.0
     return None
+
+
+def _vat_amounts_from_turnover(amounts: list[float]) -> list[float]:
+    found: list[float] = []
+    for vat in amounts:
+        if any(eq_amount(vat, known) for known in found):
+            continue
+        for sales in amounts:
+            if sales <= vat * 5:
+                continue
+            if 0.065 <= vat / sales <= 0.075:
+                found.append(vat)
+                break
+    return found
 
 
 def _extract_pv_date(text: str) -> str:
