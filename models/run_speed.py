@@ -26,4 +26,4 @@ class RunSpeed:
 
     @property
     def wait_scale(self) -> float:
-        return RUN_SPEED_SCALES[self.key]
+        return 1.0 / RUN_SPEED_SCALES[self.key]

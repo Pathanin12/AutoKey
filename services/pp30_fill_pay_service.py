@@ -15,7 +15,6 @@ from constants.routes import (
     MENU_GENERAL_JOURNAL_PATH,
     MENU_OPEN_PRE_WAIT,
     MENU_PAYMENT_JOURNAL_PATH,
-    PP30_PAY_REPORT_CODES,
     PV_NEW_FILE_KEYS,
     UI_TEXT,
     VOUCHER_AFTER_DATE_WAIT,
@@ -35,10 +34,10 @@ class Pp30FillPayService:
     @staticmethod
     def run(ctx: Pp30FillContext) -> None:
         _open_general_journal(ctx)
-        fill_jv(ctx.image, ctx.form_config, ctx.job.form_values, ctx.on_status)
+        report_codes = fill_jv(ctx.image, ctx.form_config, ctx.job.form_values, ctx.on_status)
         _open_payment_journal(ctx)
         fill_pv(ctx.image, ctx.form_config, ctx.job.form_values, ctx.on_status)
-        _capture_reports(ctx)
+        _capture_reports(ctx, report_codes)
 
 
 def fill_jv(
@@ -46,7 +45,7 @@ def fill_jv(
     form_config: Pp30FormConfig,
     values: Pp30FormValues,
     on_status: Callable[[str], None],
-) -> None:
+) -> tuple[str, ...]:
     jv_date = format_express_pv_date(form_config.jv_date)
     sale = _format_amount(values.vat_sale)
     purchase = _format_amount(values.vat_purchase)
@@ -55,26 +54,37 @@ def fill_jv(
         UI_TEXT["pp30_jv_pay_log"].format(date=jv_date, sale=sale, purchase=purchase, carry=carry)
     )
     _new_voucher(image, jv_date, form_config.jv_description)
-    image.type_text(ACCOUNT_PP30_VAT_SALE, clear_first=False)
-    image.press("enter", presses=2)
-    image.type_text(sale, clear_first=True)
-    image.press("enter")
+    typed_codes: list[str] = []
+    if values.has_line_5:
+        image.type_text(ACCOUNT_PP30_VAT_SALE, clear_first=False)
+        image.press("enter", presses=2)
+        image.type_text(sale, clear_first=True)
+        image.press("enter")
+        typed_codes.append(ACCOUNT_PP30_VAT_SALE)
     if values.has_line_7:
         image.type_text(ACCOUNT_PP30_VAT_PURCHASE, clear_first=False)
         image.press("enter", presses=3)
         image.type_text(purchase, clear_first=True)
         image.press("enter")
+        typed_codes.append(ACCOUNT_PP30_VAT_PURCHASE)
     image.type_text(ACCOUNT_PP30_NEW_SHOP, clear_first=False)
     image.press("enter", presses=3)
     image.type_text(carry, clear_first=True)
     image.press("enter")
+    typed_codes.append(ACCOUNT_PP30_NEW_SHOP)
     image.type_text(ACCOUNT_PP30_VAT_PAYABLE, clear_first=False)
     image.press("enter", presses=3)
+    typed_codes.append(ACCOUNT_PP30_VAT_PAYABLE)
     image.press("f2")
     image.press("f9")
     image.wait(AFTER_SAVE_WAIT)
-    image.press("esc", presses=2)
-    image.wait(AFTER_CLOSE_WAIT)
+    esc_count = sum(
+        1 for code in typed_codes if code in {ACCOUNT_PP30_VAT_SALE, ACCOUNT_PP30_VAT_PURCHASE}
+    )
+    if esc_count:
+        image.press("esc", presses=esc_count)
+        image.wait(AFTER_CLOSE_WAIT)
+    return tuple(typed_codes)
 
 
 def fill_pv(
@@ -143,14 +153,14 @@ def _new_voucher(image: ImageService, voucher_date: str, description: str) -> No
     image.wait(VOUCHER_FIELD_WAIT)
 
 
-def _capture_reports(ctx: Pp30FillContext) -> None:
-    codes = " ".join(PP30_PAY_REPORT_CODES)
+def _capture_reports(ctx: Pp30FillContext, account_codes: tuple[str, ...]) -> None:
+    codes = " ".join(account_codes)
     ctx.on_status(UI_TEXT["pp30_report_log"].format(codes=codes))
     jobs = build_ledger_report_jobs(
         report_output_dir=ctx.form_config.report_output_dir,
         legal_name=ctx.job.excel_name,
         month_date=ctx.form_config.jv_date,
-        account_codes=PP30_PAY_REPORT_CODES,
+        account_codes=account_codes,
         end_month_offset=1,
     )
     capture_account_reports(

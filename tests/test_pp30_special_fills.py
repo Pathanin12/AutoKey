@@ -100,13 +100,14 @@ class Pp30SpecialFillTests(unittest.TestCase):
 
     def test_pay_jv_enters_after_line_10_then_2137_and_esc_twice(self) -> None:
         image = RecordingImage()
-        fill_pay_jv(image, _form_config(), _values(), lambda _msg: None)
+        report_codes = fill_pay_jv(image, _form_config(), _values(), lambda _msg: None)
         events = _typed_and_pressed(image.events)
         codes = [event[1] for event in events if event[0] == "type_text"]
         self.assertEqual(
             codes,
             ["2135-00", "100.00", "1154-00", "23.50", "1156-00", "171,572.80", "2137-00"],
         )
+        self.assertEqual(report_codes, ("2135-00", "1154-00", "1156-00", "2137-00"))
         self.assertNotIn("10.00", codes)
         self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
 
@@ -193,12 +194,31 @@ class Pp30SpecialFillTests(unittest.TestCase):
             line_8=100.0,
             line_10=10.0,
         )
-        fill_pay_jv(image, _form_config(), values, lambda _msg: None)
+        report_codes = fill_pay_jv(image, _form_config(), values, lambda _msg: None)
         events = _typed_and_pressed(image.events)
         codes = [event[1] for event in events if event[0] == "type_text"]
         self.assertEqual(codes, ["2135-00", "100.00", "1156-00", "10.00", "2137-00"])
+        self.assertEqual(report_codes, ("2135-00", "1156-00", "2137-00"))
         self.assertNotIn("1154-00", codes)
-        self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
+        self.assertEqual(sum(1 for event in events if event == ("press", ("esc",))), 1)
+
+    def test_pay_jv_skips_2135_when_line_5_is_zero(self) -> None:
+        image = RecordingImage()
+        values = Pp30FormValues(
+            vat_sale=0.0,
+            vat_purchase=23.5,
+            amount_due=88.75,
+            pv_date="13/08/69",
+            line_8=23.5,
+            line_10=10.0,
+        )
+        report_codes = fill_pay_jv(image, _form_config(), values, lambda _msg: None)
+        events = _typed_and_pressed(image.events)
+        codes = [event[1] for event in events if event[0] == "type_text"]
+        self.assertEqual(codes, ["1154-00", "23.50", "1156-00", "10.00", "2137-00"])
+        self.assertEqual(report_codes, ("1154-00", "1156-00", "2137-00"))
+        self.assertNotIn("2135-00", codes)
+        self.assertEqual(sum(1 for event in events if event == ("press", ("esc",))), 1)
 
     def test_penalty_pv_uses_2137_line_15_then_4200_decimal_then_cash(self) -> None:
         image = RecordingImage()
