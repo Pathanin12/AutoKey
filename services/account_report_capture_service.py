@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable
 
-from constants.date_utils import express_month_date_range, express_month_folder_name
+from constants.date_utils import express_month_date_range
 from constants.routes import (
     ACCOUNT_REPORT_CAPTURE_WAIT,
     ACCOUNT_REPORT_CODES,
@@ -42,7 +42,6 @@ def build_ledger_report_jobs(
     layout = ReportOutputLayout(
         base_dir=report_output_dir,
         legal_name=legal_name,
-        month_folder=express_month_folder_name(month_date),
     )
     return tuple(
         AccountReportCaptureJob(

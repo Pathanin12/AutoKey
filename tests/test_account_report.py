@@ -14,7 +14,6 @@ from constants.routes import (
     ACCOUNT_PP30_PENALTY,
     PP30_PAY_REPORT_CODES,
     PP30_PENALTY_REPORT_CODES,
-    REPORT_SCREENSHOT_FILENAME,
 )
 from models.ka_tam_row import KaTamRow
 from models.report_output_layout import ReportOutputLayout, safe_folder_name
@@ -92,13 +91,12 @@ class AccountReportTests(unittest.TestCase):
             layout = ReportOutputLayout(
                 base_dir=config.report_output_dir,
                 legal_name=row.legal_name,
-                month_folder="08-69",
             )
             self.assertEqual(jobs[0].output_file, layout.screenshot_path(ACCOUNT_SERVICE))
-            self.assertEqual(jobs[0].output_file.name, REPORT_SCREENSHOT_FILENAME)
+            self.assertEqual(jobs[0].output_file.name, f"{ACCOUNT_SERVICE}.png")
             self.assertEqual(jobs[0].start_date, "01/08/69")
             self.assertEqual(jobs[0].end_date, "31/08/69")
-            expected = tmp_path / "reports" / "บริษัท ตัวอย่าง จำกัด" / "08-69" / "5330-05" / "report.png"
+            expected = tmp_path / "reports" / "บริษัท ตัวอย่าง จำกัด" / "5330-05.png"
             self.assertEqual(jobs[0].output_file, expected)
 
     def test_build_pp30_ledger_report_jobs_paths(self) -> None:
@@ -114,9 +112,7 @@ class AccountReportTests(unittest.TestCase):
             self.assertEqual(tuple(job.account_code for job in jobs), PP30_ACCOUNT_REPORT_CODES)
             self.assertEqual(jobs[0].start_date, "01/07/69")
             self.assertEqual(jobs[0].end_date, "31/08/69")
-            expected = (
-                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "07-69" / "1154-00" / REPORT_SCREENSHOT_FILENAME
-            )
+            expected = tmp_path / "reports" / "หจก.เจนสิริการค้า" / "1154-00.png"
             self.assertEqual(jobs[0].output_file, expected)
 
     def test_build_new_shop_ledger_report_jobs_paths(self) -> None:
@@ -134,11 +130,11 @@ class AccountReportTests(unittest.TestCase):
             self.assertEqual(jobs[0].end_date, "30/11/69")
             self.assertEqual(
                 jobs[0].output_file,
-                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "10-69" / "1154-00" / REPORT_SCREENSHOT_FILENAME,
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "1154-00.png",
             )
             self.assertEqual(
                 jobs[1].output_file,
-                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "10-69" / "1156-00" / REPORT_SCREENSHOT_FILENAME,
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "1156-00.png",
             )
 
     def test_build_no_pay_normal_ledger_report_jobs_paths(self) -> None:
@@ -159,7 +155,7 @@ class AccountReportTests(unittest.TestCase):
             self.assertEqual(jobs[0].end_date, "30/11/69")
             self.assertEqual(
                 jobs[2].output_file,
-                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "10-69" / "1156-00" / REPORT_SCREENSHOT_FILENAME,
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "1156-00.png",
             )
 
     def test_build_pay_ledger_report_jobs_paths(self) -> None:
@@ -180,7 +176,7 @@ class AccountReportTests(unittest.TestCase):
             self.assertEqual(jobs[0].end_date, "30/11/69")
             self.assertEqual(
                 jobs[3].output_file,
-                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "10-69" / "2137-00" / REPORT_SCREENSHOT_FILENAME,
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "2137-00.png",
             )
 
     def test_build_penalty_ledger_report_jobs_paths(self) -> None:
@@ -199,7 +195,7 @@ class AccountReportTests(unittest.TestCase):
             )
             self.assertEqual(
                 jobs[2].output_file,
-                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "10-69" / "5390-01" / REPORT_SCREENSHOT_FILENAME,
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "5390-01.png",
             )
 
     def test_expand_tree_only_on_first_job_until_opened(self) -> None:

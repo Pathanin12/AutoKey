@@ -22,6 +22,10 @@ class Pp30FormValues:
         return self.vat_sale
 
     @property
+    def has_line_5(self) -> bool:
+        return abs(self.vat_sale) >= 0.005
+
+    @property
     def line_7(self) -> float:
         return self.vat_purchase
 

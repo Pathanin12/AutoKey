@@ -65,8 +65,7 @@ PP30_PENALTY_REPORT_CODES = (
     ACCOUNT_PP30_PENALTY,
     ACCOUNT_PP30_VAT_PAYABLE,
 )
-REPORT_SCREENSHOT_FILENAME = "report.png"
-ACCOUNT_REPORT_CAPTURE_WAIT = 0.8
+ACCOUNT_REPORT_CAPTURE_WAIT = 1.5
 ACCOUNT_REPORT_FIELD_WAIT = 0.05
 ACCOUNT_REPORT_MENU_WAIT = 0.2
 MENU_OPEN_PRE_WAIT = 0.35
@@ -143,7 +142,7 @@ UI_TEXT = {
     "tax_payer_id_hint": "ใช้ค่าจากช่องนี้ทุกแถวตอนกรอกใบกำกับ — ไม่ได้อ่านจาก Excel",
     "report_output_dir": "โฟลเดอร์เก็บไฟล์",
     "choose_folder": "เลือก...",
-    "report_output_dir_hint": "เก็บแคปรายงานเป็น โฟลเดอร์หลัก / นิติ / เดือน / รหัสบัญชี / report.png",
+    "report_output_dir_hint": "เก็บแคปรายงานเป็น โฟลเดอร์หลัก / ชื่อห้าง / รหัส.png",
     "start": "เริ่มทำงาน",
     "stop": "หยุด ({hotkey})",
     "cancel_hotkey_hint": "กด {hotkey} เพื่อยกเลิกขณะทำงาน",

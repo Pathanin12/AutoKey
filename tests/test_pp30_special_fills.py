@@ -64,12 +64,13 @@ def _typed_and_pressed(events: list[tuple]) -> list[tuple]:
 
 
 class Pp30SpecialFillTests(unittest.TestCase):
-    def test_no_pay_normal_types_1156_then_f2_f9_without_esc(self) -> None:
+    def test_no_pay_normal_types_2135_1154_1156_then_esc_twice(self) -> None:
         image = RecordingImage()
-        fill_no_pay_normal_jv(image, _form_config(), _values(), lambda _msg: None)
+        report_codes = fill_no_pay_normal_jv(image, _form_config(), _values(), lambda _msg: None)
         events = _typed_and_pressed(image.events)
         codes = [event[1] for event in events if event[0] == "type_text"]
         self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "23.50", "1156-00"])
+        self.assertEqual(report_codes, ("2135-00", "1154-00", "1156-00"))
         shop_index = events.index(("type_text", "1156-00", False))
         self.assertEqual(
             events[shop_index + 1 :],
@@ -79,11 +80,12 @@ class Pp30SpecialFillTests(unittest.TestCase):
                 ("press", ("enter",)),
                 ("press", ("f2",)),
                 ("press", ("f9",)),
+                ("press", ("esc",)),
+                ("press", ("esc",)),
             ],
         )
         self.assertNotIn("171,572.80", codes)
         self.assertNotIn("2137-00", codes)
-        self.assertNotIn(("press", ("esc",)), events)
 
     def test_new_shop_uses_1156_then_1154_then_esc_once(self) -> None:
         image = RecordingImage()
@@ -125,7 +127,7 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "23.50", "5390-01", "3.00", "2137-00"])
         self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
 
-    def test_penalty_jv_always_types_1154_then_5390(self) -> None:
+    def test_penalty_jv_skips_1154_when_line_7_is_missing(self) -> None:
         image = RecordingImage()
         values = Pp30FormValues(
             vat_sale=26496.79,
@@ -138,10 +140,13 @@ class Pp30SpecialFillTests(unittest.TestCase):
             line_15=29941.29,
         )
         fill_penalty_jv(image, _form_config(), values, lambda _msg: None)
-        codes = [event[1] for event in image.events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2135-00", "26,496.79", "1154-00", "0.00", "5390-01", "1,722.29", "2137-00"])
+        events = _typed_and_pressed(image.events)
+        codes = [event[1] for event in events if event[0] == "type_text"]
+        self.assertEqual(codes, ["2135-00", "26,496.79", "5390-01", "1,722.29", "2137-00"])
+        self.assertNotIn("1154-00", codes)
+        self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
 
-    def test_no_pay_normal_always_types_1154_then_1156_without_amount(self) -> None:
+    def test_no_pay_normal_skips_1154_when_line_7_is_zero(self) -> None:
         image = RecordingImage()
         values = Pp30FormValues(
             vat_sale=100.0,
@@ -151,10 +156,32 @@ class Pp30SpecialFillTests(unittest.TestCase):
             line_8=0.0,
             line_10=50.0,
         )
-        fill_no_pay_normal_jv(image, _form_config(), values, lambda _msg: None)
-        codes = [event[1] for event in image.events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "0.00", "1156-00"])
+        report_codes = fill_no_pay_normal_jv(image, _form_config(), values, lambda _msg: None)
+        events = _typed_and_pressed(image.events)
+        codes = [event[1] for event in events if event[0] == "type_text"]
+        self.assertEqual(codes, ["2135-00", "100.00", "1156-00"])
+        self.assertEqual(report_codes, ("2135-00", "1156-00"))
+        self.assertNotIn("1154-00", codes)
         self.assertNotIn("50.00", codes)
+        self.assertEqual(sum(1 for event in events if event == ("press", ("esc",))), 1)
+
+    def test_no_pay_normal_skips_2135_when_line_5_is_zero(self) -> None:
+        image = RecordingImage()
+        values = Pp30FormValues(
+            vat_sale=0.0,
+            vat_purchase=23.5,
+            amount_due=0.0,
+            pv_date="13/08/69",
+            line_8=0.0,
+            line_10=50.0,
+        )
+        report_codes = fill_no_pay_normal_jv(image, _form_config(), values, lambda _msg: None)
+        events = _typed_and_pressed(image.events)
+        codes = [event[1] for event in events if event[0] == "type_text"]
+        self.assertEqual(codes, ["1154-00", "23.50", "1156-00"])
+        self.assertEqual(report_codes, ("1154-00", "1156-00"))
+        self.assertNotIn("2135-00", codes)
+        self.assertEqual(sum(1 for event in events if event == ("press", ("esc",))), 1)
 
     def test_pay_jv_skips_1154_when_line_7_is_zero(self) -> None:
         image = RecordingImage()
