@@ -103,6 +103,18 @@ PP30_MODE_NORMAL = "normal"
 PP30_MODE_SPECIAL = "special"
 PP30_RUN_MODES = (PP30_MODE_NORMAL, PP30_MODE_SPECIAL)
 
+RUN_SPEED_025 = "0.25"
+RUN_SPEED_050 = "0.5"
+RUN_SPEED_075 = "0.75"
+RUN_SPEED_100 = "1"
+RUN_SPEEDS = (RUN_SPEED_025, RUN_SPEED_050, RUN_SPEED_075, RUN_SPEED_100)
+RUN_SPEED_SCALES = {
+    RUN_SPEED_025: 0.25,
+    RUN_SPEED_050: 0.5,
+    RUN_SPEED_075: 0.75,
+    RUN_SPEED_100: 1.0,
+}
+
 PP30_KIND_NO_PAY_NORMAL = "no_pay_normal"
 PP30_KIND_NO_PAY_NEW_SHOP = "no_pay_new_shop"
 PP30_KIND_PAY = "pay"
@@ -220,4 +232,7 @@ UI_TEXT = {
     "pp30_mode_special": "แบบพิเศษ",
     "pp30_mode_log": "รูปแบบ: {mode}",
     "pp30_mode_invalid": "กรุณาเลือกรูปแบบ แบบปกติ หรือ แบบพิเศษ",
+    "run_speed": "ความเร็ว",
+    "run_speed_hint": "x1 = จังหวะปัจจุบัน / ค่าน้อย = เร็วขึ้น",
+    "run_speed_log": "ความเร็ว: {speed}",
 }

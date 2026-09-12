@@ -5,6 +5,7 @@ from pathlib import Path
 
 from constants.routes import PP30_RUN_MODES, UI_TEXT
 from models.pp30_run_mode import Pp30RunMode
+from models.run_speed import RunSpeed
 
 
 @dataclass
@@ -17,6 +18,7 @@ class Pp30FormConfig:
     report_output_dir: Path
     pdf_files: list[Path] = field(default_factory=list)
     run_mode: Pp30RunMode = field(default_factory=Pp30RunMode.normal)
+    run_speed: RunSpeed = field(default_factory=RunSpeed.default)
 
     def validate(self) -> list[str]:
         errors: list[str] = []

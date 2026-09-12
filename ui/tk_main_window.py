@@ -13,6 +13,7 @@ from constants.routes import (
     PAGE_PP30,
     PP30_MODE_NORMAL,
     PP30_MODE_SPECIAL,
+    RUN_SPEEDS,
     TOPIC_PAYMENT_JOURNAL,
     UI_TEXT,
 )
@@ -22,6 +23,7 @@ from models.ka_tam_row import KaTamRow
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_run_mode import Pp30RunMode
 from models.run_config import ExcelSheetSummary, RunConfig
+from models.run_speed import RunSpeed
 from models.topic_menu_item import TopicMenuItem
 from services.automation_service import AutomationService
 from services.excel_service import ExcelService
@@ -79,6 +81,9 @@ class MainWindow:
             value=str(defaults.get("report_output_dir", "") or "").strip()
         )
         self.pp30_run_mode = tk.StringVar(value=PP30_MODE_NORMAL)
+        self.run_speed = tk.StringVar(
+            value=RunSpeed.parse(str(defaults.get("run_speed", "") or "")).key
+        )
         self.pp30_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
         self.pp30_excel_summary = tk.StringVar(value=UI_TEXT["excel_summary_empty"])
         self.pp30_progress_text = tk.StringVar(value="0 / 0")
@@ -179,6 +184,14 @@ class MainWindow:
         self.tax_payer_id_entry.grid(row=8, column=1, columnspan=2, sticky="ew")
         ttk.Label(form_frame, text=UI_TEXT["tax_payer_id_hint"], wraplength=500, foreground="#555555").grid(
             row=9, column=0, columnspan=3, sticky="w", pady=(2, 0)
+        )
+
+        ttk.Label(form_frame, text=UI_TEXT["run_speed"]).grid(row=10, column=0, sticky="w", pady=(8, 0))
+        ka_tam_speed_row = ttk.Frame(form_frame)
+        ka_tam_speed_row.grid(row=10, column=1, columnspan=2, sticky="w", pady=(8, 0))
+        self._add_speed_radios(ka_tam_speed_row)
+        ttk.Label(form_frame, text=UI_TEXT["run_speed_hint"], wraplength=500, foreground="#555555").grid(
+            row=11, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
         form_frame.columnconfigure(1, weight=1)
         bind_excel_cell_paste(
@@ -310,6 +323,14 @@ class MainWindow:
             variable=self.pp30_run_mode,
             value=PP30_MODE_SPECIAL,
         ).pack(side="left", padx=(16, 0))
+
+        ttk.Label(form_frame, text=UI_TEXT["run_speed"]).grid(row=9, column=0, sticky="w", pady=(8, 0))
+        speed_row = ttk.Frame(form_frame)
+        speed_row.grid(row=9, column=1, columnspan=2, sticky="w", pady=(8, 0))
+        self._add_speed_radios(speed_row)
+        ttk.Label(form_frame, text=UI_TEXT["run_speed_hint"], wraplength=500, foreground="#555555").grid(
+            row=10, column=0, columnspan=3, sticky="w", pady=(2, 0)
+        )
         form_frame.columnconfigure(1, weight=1)
         bind_excel_cell_paste(
             [
@@ -397,6 +418,15 @@ class MainWindow:
     def _bind_shortcuts(self) -> None:
         self.hotkey_service.bind_tk_shortcuts(self.root, self._stop)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _add_speed_radios(self, parent) -> None:
+        for index, key in enumerate(RUN_SPEEDS):
+            ttk.Radiobutton(
+                parent,
+                text=RunSpeed.parse(key).label,
+                variable=self.run_speed,
+                value=key,
+            ).pack(side="left", padx=(0 if index == 0 else 12, 0))
 
     def _set_window_icon(self) -> None:
         apply_window_icon(self.root)
@@ -526,6 +556,7 @@ class MainWindow:
             report_output_dir=Path(self.pp30_report_dir.get().strip()).expanduser(),
             pdf_files=list(self.pp30_pdf_files),
             run_mode=Pp30RunMode.parse(self.pp30_run_mode.get()),
+            run_speed=RunSpeed.parse(self.run_speed.get()),
         )
 
     def _start_pp30(self) -> None:
@@ -591,6 +622,7 @@ class MainWindow:
             start_from_no=self._parse_start_from_no(),
             sheet_summaries=self.sheet_summaries,
             sheet_rows=self.sheet_rows,
+            run_speed=RunSpeed.parse(self.run_speed.get()),
         )
         errors = run_config.validate()
         if errors:

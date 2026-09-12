@@ -5,6 +5,7 @@ from pathlib import Path
 
 from constants.routes import ACCOUNT_REPORT_CAPTURE_ENABLED
 from models.ka_tam_row import KaTamRow
+from models.run_speed import RunSpeed
 
 
 @dataclass
@@ -24,6 +25,7 @@ class RunConfig:
     start_from_no: int = 1
     sheet_summaries: list[ExcelSheetSummary] | None = None
     sheet_rows: dict[str, list[KaTamRow]] = field(default_factory=dict)
+    run_speed: RunSpeed = field(default_factory=RunSpeed.default)
 
     def validate(self) -> list[str]:
         errors: list[str] = []

@@ -44,13 +44,15 @@ class ImageService:
         action_delay: float = 0.03,
         type_interval: float = 0.008,
         key_settle_wait: float = 0.02,
+        wait_scale: float = 1.0,
         fail_safe: bool = True,
         screen_width: int = 1920,
         screen_height: int = 1080,
     ) -> None:
         self.action_delay = action_delay
-        self.type_interval = type_interval
+        self.type_interval = type_interval * wait_scale
         self.key_settle_wait = key_settle_wait
+        self.wait_scale = wait_scale
         self.screen_width = screen_width
         self.screen_height = screen_height
         self._ensure_runtime()
@@ -62,7 +64,8 @@ class ImageService:
             raise RuntimeError("ต้องติดตั้ง pyautogui บน Windows ก่อนรัน automation")
 
     def wait(self, seconds: float | None = None) -> None:
-        time.sleep(seconds if seconds is not None else self.action_delay)
+        duration = self.action_delay if seconds is None else seconds
+        time.sleep(duration * self.wait_scale)
 
     def screenshot(self):
         image, _origin = self.screenshot_region(None)

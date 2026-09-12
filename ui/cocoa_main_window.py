@@ -54,6 +54,7 @@ from constants.routes import (
     PAGE_PP30,
     PP30_MODE_NORMAL,
     PP30_MODE_SPECIAL,
+    RUN_SPEEDS,
     TOPIC_PAYMENT_JOURNAL,
     UI_TEXT,
 )
@@ -63,6 +64,7 @@ from models.ka_tam_row import KaTamRow
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_run_mode import Pp30RunMode
 from models.run_config import ExcelSheetSummary, RunConfig
+from models.run_speed import RunSpeed
 from models.topic_menu_item import TopicMenuItem
 from services.automation_service import AutomationService
 from services.clipboard_service import normalize_pasted_cell
@@ -73,8 +75,8 @@ from ui.app_icon import icon_dir
 
 WIN_W = 560
 MENU_WIN_H = 560
-KA_TAM_WIN_H = 700
-PP30_WIN_H = 690
+KA_TAM_WIN_H = 730
+PP30_WIN_H = 720
 
 
 class FlippedView(NSView):
@@ -176,6 +178,7 @@ class MainWindow:
             str(defaults.get("pv_date", "")).strip() or default_work_date()
         )
         initial_start_from_no = str(defaults.get("start_from_no", 1) or 1).strip() or "1"
+        self._run_speed = RunSpeed.parse(str(defaults.get("run_speed", "") or ""))
 
         self._app = NSApplication.sharedApplication()
         self._app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
@@ -232,6 +235,7 @@ class MainWindow:
         self._build_menu_page(self._menu_view)
         self._build_ka_tam_page(self._ka_tam_view, initial_pv_date, initial_start_from_no)
         self._build_pp30_page(self._pp30_view, initial_pv_date)
+        self._set_run_speed(self._run_speed.key)
         self.window.makeKeyAndOrderFront_(None)
 
     def _build_menu_page(self, page) -> None:
@@ -270,7 +274,7 @@ class MainWindow:
         _static_label(page, UI_TEXT["menu_pp30"], 188, y + 6, WIN_W - 212, 24, size=16, bold=True)
         y = 76
 
-        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 276)
+        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 304)
         sy = 8
         _static_label(settings, UI_TEXT["pp30_run_mode"], 8, sy, 110, 22)
         self.pp30_mode_normal = _radio(
@@ -292,6 +296,10 @@ class MainWindow:
             self._keep(lambda: self._set_pp30_mode(PP30_MODE_SPECIAL)),
         )
         self._set_pp30_mode(PP30_MODE_NORMAL)
+        sy += 28
+        _static_label(settings, UI_TEXT["run_speed"], 8, sy, 110, 22)
+        pp30_speed_row = _radio_group(settings, 120, sy - 2, 380, 26)
+        self.pp30_speed_radios = self._add_speed_radios(pp30_speed_row)
         sy += 28
         _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
         self.pp30_folder_field = _edit_field(settings, 120, sy, 248)
@@ -343,7 +351,7 @@ class MainWindow:
         if initial_report_dir:
             self.pp30_report_dir_field.setStringValue_(initial_report_dir)
 
-        y = 368
+        y = 396
         _button(
             page,
             f"▶ {UI_TEXT['start']}",
@@ -363,7 +371,7 @@ class MainWindow:
             self._keep(self._stop),
         )
 
-        y = 412
+        y = 440
         _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, PP30_WIN_H - y - 12)
         self.pp30_progress_field = _static_label(status, "0 / 0", 8, 8, 300, 22)
         _button(status, UI_TEXT["copy_log"], 368, 4, 120, 28, self._keep(self._copy_all_log))
@@ -385,8 +393,12 @@ class MainWindow:
         _static_label(page, UI_TEXT["menu_ka_tam"], 188, y + 6, WIN_W - 212, 24, size=16, bold=True)
         y = 76
 
-        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 310)
+        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 338)
         sy = 8
+        _static_label(settings, UI_TEXT["run_speed"], 8, sy, 110, 22)
+        ka_tam_speed_row = _radio_group(settings, 120, sy - 2, 380, 26)
+        self.ka_tam_speed_radios = self._add_speed_radios(ka_tam_speed_row)
+        sy += 28
         _static_label(settings, UI_TEXT["excel_file"], 8, sy, 90, 22)
         self.excel_path_field = _edit_field(settings, 100, sy, 268)
         _button(settings, UI_TEXT["choose_file"], 376, sy - 2, 108, 28, self._keep(self._choose_excel))
@@ -422,7 +434,7 @@ class MainWindow:
         sy += 22
         _static_label(settings, UI_TEXT["tax_payer_id_hint"], 8, sy, 500, 28, size=11, gray=True)
 
-        y = 400
+        y = 428
         _button(
             page,
             f"▶ {UI_TEXT['start']}",
@@ -442,7 +454,7 @@ class MainWindow:
             self._keep(self._stop),
         )
 
-        y = 448
+        y = 476
         _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, KA_TAM_WIN_H - y - 12)
         self.progress_field = _static_label(status, "0 / 0", 8, 8, 300, 22)
         _button(status, UI_TEXT["copy_log"], 368, 4, 120, 28, self._keep(self._copy_all_log))
@@ -634,6 +646,26 @@ class MainWindow:
         self.pp30_mode_normal.setState_(1 if self._pp30_mode.key == PP30_MODE_NORMAL else 0)
         self.pp30_mode_special.setState_(1 if self._pp30_mode.key == PP30_MODE_SPECIAL else 0)
 
+    def _add_speed_radios(self, parent) -> dict:
+        buttons = {}
+        for index, key in enumerate(RUN_SPEEDS):
+            buttons[key] = _radio(
+                parent,
+                RunSpeed.parse(key).label,
+                index * 82,
+                0,
+                78,
+                26,
+                self._keep(lambda selected=key: self._set_run_speed(selected)),
+            )
+        return buttons
+
+    def _set_run_speed(self, speed: str) -> None:
+        self._run_speed = RunSpeed.parse(speed)
+        for radios in (self.pp30_speed_radios, self.ka_tam_speed_radios):
+            for key, button in radios.items():
+                button.setState_(1 if key == self._run_speed.key else 0)
+
     def _pp30_form_config(self) -> Pp30FormConfig:
         folder = Path(self._field_text(self.pp30_folder_field)).expanduser()
         return Pp30FormConfig(
@@ -645,6 +677,7 @@ class MainWindow:
             report_output_dir=Path(self._field_text(self.pp30_report_dir_field)).expanduser(),
             pdf_files=list(self.pp30_pdf_files),
             run_mode=self._pp30_mode,
+            run_speed=self._run_speed,
         )
 
     def _start_pp30(self) -> None:
@@ -705,6 +738,7 @@ class MainWindow:
             start_from_no=self._parse_start_from_no(),
             sheet_summaries=self.sheet_summaries,
             sheet_rows=self.sheet_rows,
+            run_speed=self._run_speed,
         )
         if run_config.pv_date:
             self.pv_date_field.setStringValue_(run_config.pv_date)
@@ -862,6 +896,12 @@ def _edit_field(parent, x, y, w, h: float = 22):
     field.setFont_(NSFont.systemFontOfSize_(13))
     parent.addSubview_(field)
     return field
+
+
+def _radio_group(parent, x, y, w, h):
+    row = FlippedView.alloc().initWithFrame_(NSMakeRect(x, y, w, h))
+    parent.addSubview_(row)
+    return row
 
 
 def _radio(parent, title: str, x, y, w, h, target: _CallbackTarget):

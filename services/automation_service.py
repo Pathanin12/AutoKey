@@ -12,6 +12,7 @@ from models.ka_tam_row import KaTamRow
 from models.pp30_form_config import Pp30FormConfig
 from models.run_config import ExcelSheetSummary, RunConfig
 from models.run_failure import RunFailureError
+from models.run_speed import RunSpeed
 from models.template_click_settings import TemplateClickAction, TemplateClickSettings
 from models.template_target import TemplateTarget
 from models.window_focus_settings import WindowFocusSettings
@@ -130,13 +131,15 @@ class AutomationService:
             required=bool(raw.get("required", True)),
         )
 
-    def create_image_service(self) -> ImageService:
+    def create_image_service(self, run_speed: RunSpeed | None = None) -> ImageService:
         settings = self.automation_settings
         screen = self.screen_settings
+        speed = run_speed or RunSpeed.default()
         return ImageService(
             action_delay=float(settings.get("action_delay", 0.03)),
             type_interval=float(settings.get("type_interval", 0.008)),
             key_settle_wait=float(settings.get("key_settle_wait", 0.02)),
+            wait_scale=speed.wait_scale,
             fail_safe=bool(settings.get("fail_safe", True)),
             screen_width=int(screen.get("width", SCREEN_WIDTH)),
             screen_height=int(screen.get("height", SCREEN_HEIGHT)),
@@ -195,7 +198,8 @@ class AutomationService:
 
                 cached_rows = run_config.sheet_rows
 
-                image = self.create_image_service()
+                image = self.create_image_service(run_config.run_speed)
+                on_status(UI_TEXT["run_speed_log"].format(speed=run_config.run_speed.label))
                 self._warmup_automation(image, on_status=on_status)
                 self._check_stop()
 
@@ -324,7 +328,8 @@ class AutomationService:
                 on_status(UI_TEXT["pp30_pdf_total"].format(count=len(jobs)))
                 self._check_stop()
 
-                image = self.create_image_service()
+                image = self.create_image_service(form_config.run_speed)
+                on_status(UI_TEXT["run_speed_log"].format(speed=form_config.run_speed.label))
                 self._warmup_automation(image, on_status=on_status)
                 self._check_stop()
                 focus_express_window(self.window_focus_settings, on_status=on_status)
