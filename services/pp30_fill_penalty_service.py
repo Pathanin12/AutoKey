@@ -6,7 +6,6 @@ from constants.date_utils import format_express_pv_date
 from constants.routes import (
     ACCOUNT_CASH,
     ACCOUNT_PP30_DECIMAL,
-    ACCOUNT_PP30_NEW_SHOP,
     ACCOUNT_PP30_PENALTY,
     ACCOUNT_PP30_VAT_PAYABLE,
     ACCOUNT_PP30_VAT_PURCHASE,
@@ -50,11 +49,8 @@ def fill_jv(
     jv_date = format_express_pv_date(form_config.jv_date)
     sale = _format_amount(values.vat_sale)
     purchase = _format_amount(values.vat_purchase)
-    carry = _format_amount(values.line_10)
     on_status(
-        UI_TEXT["pp30_jv_penalty_log"].format(
-            date=jv_date, sale=sale, purchase=purchase, carry=carry
-        )
+        UI_TEXT["pp30_jv_penalty_log"].format(date=jv_date, sale=sale, purchase=purchase)
     )
     _new_voucher(image, jv_date, form_config.jv_description)
     typed_codes: list[str] = []
@@ -70,11 +66,6 @@ def fill_jv(
         image.type_text(purchase, clear_first=True)
         image.press("enter")
         typed_codes.append(ACCOUNT_PP30_VAT_PURCHASE)
-    image.type_text(ACCOUNT_PP30_NEW_SHOP, clear_first=False)
-    image.press("enter", presses=3)
-    image.type_text(carry, clear_first=True)
-    image.press("enter")
-    typed_codes.append(ACCOUNT_PP30_NEW_SHOP)
     image.type_text(ACCOUNT_PP30_VAT_PAYABLE, clear_first=False)
     image.press("enter", presses=3)
     typed_codes.append(ACCOUNT_PP30_VAT_PAYABLE)

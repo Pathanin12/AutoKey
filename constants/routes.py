@@ -62,7 +62,6 @@ PP30_PAY_REPORT_CODES = (
 PP30_PENALTY_REPORT_CODES = (
     ACCOUNT_PP30_VAT_SALE,
     ACCOUNT_PP30_VAT_PURCHASE,
-    ACCOUNT_PP30_NEW_SHOP,
     ACCOUNT_PP30_VAT_PAYABLE,
 )
 ACCOUNT_REPORT_CAPTURE_WAIT = 1.5
@@ -223,7 +222,7 @@ UI_TEXT = {
     "pp30_jv_no_pay_normal_log": "กรอก JV ไม่จ่ายตังแบบปกติ {date} — 2135-00={sale} 1154-00={purchase} 1156-00",
     "pp30_jv_pay_log": "กรอก JV จ่ายตัง {date} — 2135-00={sale} 1154-00={purchase} 1156-00={carry}",
     "pp30_pv_pay_log": "กรอก PV จ่ายตัง {date} — 2137-00={due} 4200-03={decimal}",
-    "pp30_jv_penalty_log": "กรอก JV เสียค่าปรับ {date} — 2135-00={sale} 1154-00={purchase} 1156-00={carry}",
+    "pp30_jv_penalty_log": "กรอก JV เสียค่าปรับ {date} — 2135-00={sale} 1154-00={purchase}",
     "pp30_pv_penalty_log": "กรอก PV เสียค่าปรับ {date} — 2137-00={due} 5390-01={penalty} 4200-03={decimal}",
     "pp30_pv_log": "กรอก PV {date} — 2137-00={due} 4200-03={decimal}",
     "pp30_report_log": "แคปรายงาน {codes}",

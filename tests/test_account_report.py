@@ -190,11 +190,11 @@ class AccountReportTests(unittest.TestCase):
             )
             self.assertEqual(
                 tuple(job.account_code for job in jobs),
-                ("2135-00", "1154-00", ACCOUNT_PP30_NEW_SHOP, "2137-00"),
+                ("2135-00", "1154-00", "2137-00"),
             )
             self.assertEqual(
                 jobs[2].output_file,
-                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "1156-00.png",
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "2137-00.png",
             )
 
     def test_expand_tree_only_on_first_job_until_opened(self) -> None:
