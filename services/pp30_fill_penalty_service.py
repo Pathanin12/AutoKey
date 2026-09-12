@@ -15,6 +15,7 @@ from constants.routes import (
     MENU_GENERAL_JOURNAL_PATH,
     MENU_OPEN_PRE_WAIT,
     MENU_PAYMENT_JOURNAL_PATH,
+    PP30_PENALTY_REPORT_CODES,
     PV_NEW_FILE_KEYS,
     UI_TEXT,
     VOUCHER_AFTER_DATE_WAIT,
@@ -34,10 +35,10 @@ class Pp30FillPenaltyService:
     @staticmethod
     def run(ctx: Pp30FillContext) -> None:
         _open_general_journal(ctx)
-        report_codes = fill_jv(ctx.image, ctx.form_config, ctx.job.form_values, ctx.on_status)
+        jv_codes = fill_jv(ctx.image, ctx.form_config, ctx.job.form_values, ctx.on_status)
         _open_payment_journal(ctx)
-        fill_pv(ctx.image, ctx.form_config, ctx.job.form_values, ctx.on_status)
-        _capture_reports(ctx, report_codes)
+        pv_codes = fill_pv(ctx.image, ctx.form_config, ctx.job.form_values, ctx.on_status)
+        _capture_reports(ctx, penalty_report_codes(jv_codes, pv_codes))
 
 
 def fill_jv(
@@ -86,7 +87,7 @@ def fill_pv(
     form_config: Pp30FormConfig,
     values: Pp30FormValues,
     on_status: Callable[[str], None],
-) -> None:
+) -> tuple[str, ...]:
     pv_date = format_express_pv_date(values.pv_date)
     due = _format_amount(values.amount_due)
     penalty = _format_amount(values.penalty_amount)
@@ -105,6 +106,7 @@ def fill_pv(
     image.press("enter", presses=2)
     image.type_text(penalty, clear_first=True)
     image.press("enter")
+    typed_codes = (ACCOUNT_PP30_PENALTY,)
     if values.has_amount_due_decimal:
         image.type_text(ACCOUNT_PP30_DECIMAL, clear_first=False)
         image.press("enter", presses=3)
@@ -115,6 +117,12 @@ def fill_pv(
     image.press("f2")
     image.press("f9")
     image.wait(AFTER_SAVE_WAIT)
+    return typed_codes
+
+
+def penalty_report_codes(*groups: tuple[str, ...]) -> tuple[str, ...]:
+    typed = {code for group in groups for code in group}
+    return tuple(code for code in PP30_PENALTY_REPORT_CODES if code in typed)
 
 
 def _open_general_journal(ctx: Pp30FillContext) -> None:

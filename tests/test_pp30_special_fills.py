@@ -11,6 +11,7 @@ from services.pp30_fill_pay_service import fill_jv as fill_pay_jv
 from services.pp30_fill_pay_service import fill_pv as fill_pay_pv
 from services.pp30_fill_penalty_service import fill_jv as fill_penalty_jv
 from services.pp30_fill_penalty_service import fill_pv as fill_penalty_pv
+from services.pp30_fill_penalty_service import penalty_report_codes
 
 
 class RecordingImage:
@@ -130,6 +131,10 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertNotIn("1156-00", codes)
         self.assertNotIn("5390-01", codes)
         self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
+        self.assertEqual(
+            penalty_report_codes(report_codes, ("5390-01",)),
+            ("2135-00", "5390-01", "1154-00", "2137-00"),
+        )
 
     def test_penalty_jv_skips_1154_when_line_7_is_missing(self) -> None:
         image = RecordingImage()
@@ -153,6 +158,10 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertNotIn("1156-00", codes)
         self.assertNotIn("5390-01", codes)
         self.assertEqual(sum(1 for event in events if event == ("press", ("esc",))), 1)
+        self.assertEqual(
+            penalty_report_codes(report_codes, ("5390-01",)),
+            ("2135-00", "5390-01", "2137-00"),
+        )
 
     def test_penalty_jv_skips_2135_when_line_5_is_zero(self) -> None:
         image = RecordingImage()
