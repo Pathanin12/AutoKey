@@ -11,7 +11,6 @@ from constants.routes import (
     PP30_ACCOUNT_REPORT_CODES,
     PP30_NEW_SHOP_REPORT_CODES,
     PP30_NO_PAY_NORMAL_REPORT_CODES,
-    ACCOUNT_PP30_PENALTY,
     PP30_PAY_REPORT_CODES,
     PP30_PENALTY_REPORT_CODES,
 )
@@ -191,11 +190,11 @@ class AccountReportTests(unittest.TestCase):
             )
             self.assertEqual(
                 tuple(job.account_code for job in jobs),
-                ("2135-00", "1154-00", ACCOUNT_PP30_PENALTY, "2137-00"),
+                ("2135-00", "1154-00", ACCOUNT_PP30_NEW_SHOP, "2137-00"),
             )
             self.assertEqual(
                 jobs[2].output_file,
-                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "5390-01.png",
+                tmp_path / "reports" / "หจก.เจนสิริการค้า" / "1156-00.png",
             )
 
     def test_expand_tree_only_on_first_job_until_opened(self) -> None:

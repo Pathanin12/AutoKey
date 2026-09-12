@@ -120,12 +120,17 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertEqual(events[-2:], [("press", ("f2",)), ("press", ("f9",))])
         self.assertNotIn("1154-00", codes)
 
-    def test_penalty_jv_uses_2135_then_1154_then_5390_then_2137(self) -> None:
+    def test_penalty_jv_uses_2135_then_1154_then_1156_then_2137(self) -> None:
         image = RecordingImage()
-        fill_penalty_jv(image, _form_config(), _values(), lambda _msg: None)
+        report_codes = fill_penalty_jv(image, _form_config(), _values(), lambda _msg: None)
         events = _typed_and_pressed(image.events)
         codes = [event[1] for event in events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "23.50", "5390-01", "3.00", "2137-00"])
+        self.assertEqual(
+            codes,
+            ["2135-00", "100.00", "1154-00", "23.50", "1156-00", "171,572.80", "2137-00"],
+        )
+        self.assertEqual(report_codes, ("2135-00", "1154-00", "1156-00", "2137-00"))
+        self.assertNotIn("5390-01", codes)
         self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
 
     def test_penalty_jv_skips_1154_when_line_7_is_missing(self) -> None:
@@ -136,16 +141,39 @@ class Pp30SpecialFillTests(unittest.TestCase):
             amount_due=28219.0,
             pv_date="24/08/69",
             line_8=26496.79,
+            line_10=1763.21,
             line_13=397.45,
             line_14=1324.84,
             line_15=29941.29,
         )
-        fill_penalty_jv(image, _form_config(), values, lambda _msg: None)
+        report_codes = fill_penalty_jv(image, _form_config(), values, lambda _msg: None)
         events = _typed_and_pressed(image.events)
         codes = [event[1] for event in events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2135-00", "26,496.79", "5390-01", "1,722.29", "2137-00"])
+        self.assertEqual(codes, ["2135-00", "26,496.79", "1156-00", "1,763.21", "2137-00"])
+        self.assertEqual(report_codes, ("2135-00", "1156-00", "2137-00"))
         self.assertNotIn("1154-00", codes)
-        self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
+        self.assertNotIn("5390-01", codes)
+        self.assertEqual(sum(1 for event in events if event == ("press", ("esc",))), 1)
+
+    def test_penalty_jv_skips_2135_when_line_5_is_zero(self) -> None:
+        image = RecordingImage()
+        values = Pp30FormValues(
+            vat_sale=0.0,
+            vat_purchase=23.5,
+            amount_due=88.75,
+            pv_date="13/08/69",
+            line_8=23.5,
+            line_10=10.0,
+            line_13=1.0,
+            line_14=2.0,
+        )
+        report_codes = fill_penalty_jv(image, _form_config(), values, lambda _msg: None)
+        events = _typed_and_pressed(image.events)
+        codes = [event[1] for event in events if event[0] == "type_text"]
+        self.assertEqual(codes, ["1154-00", "23.50", "1156-00", "10.00", "2137-00"])
+        self.assertEqual(report_codes, ("1154-00", "1156-00", "2137-00"))
+        self.assertNotIn("2135-00", codes)
+        self.assertEqual(sum(1 for event in events if event == ("press", ("esc",))), 1)
 
     def test_no_pay_normal_skips_1154_when_line_7_is_zero(self) -> None:
         image = RecordingImage()
@@ -220,13 +248,47 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertNotIn("2135-00", codes)
         self.assertEqual(sum(1 for event in events if event == ("press", ("esc",))), 1)
 
-    def test_penalty_pv_uses_2137_line_15_then_4200_decimal_then_cash(self) -> None:
+    def test_pay_pv_skips_4200_when_line_11_has_no_decimal(self) -> None:
+        image = RecordingImage()
+        values = Pp30FormValues(
+            vat_sale=100.0,
+            vat_purchase=23.5,
+            amount_due=88.0,
+            pv_date="13/08/69",
+            line_8=100.0,
+            line_10=10.0,
+        )
+        fill_pay_pv(image, _form_config(), values, lambda _msg: None)
+        events = _typed_and_pressed(image.events)
+        codes = [event[1] for event in events if event[0] == "type_text"]
+        self.assertEqual(codes, ["2137-00", "88.00", "1111-00"])
+        self.assertNotIn("4200-03", codes)
+
+    def test_penalty_pv_uses_2137_line_11_then_5390_then_4200_decimal(self) -> None:
         image = RecordingImage()
         fill_penalty_pv(image, _form_config(), _values(), lambda _msg: None)
         events = _typed_and_pressed(image.events)
         codes = [event[1] for event in events if event[0] == "type_text"]
-        self.assertEqual(codes, ["2137-00", "91.75", "4200-03", "0.75", "1111-00"])
-        self.assertNotIn("5390-01", codes)
+        self.assertEqual(codes, ["2137-00", "88.75", "5390-01", "3.00", "4200-03", "0.75", "1111-00"])
+        self.assertEqual(events[-2:], [("press", ("f2",)), ("press", ("f9",))])
+
+    def test_penalty_pv_skips_4200_when_line_11_has_no_decimal(self) -> None:
+        image = RecordingImage()
+        values = Pp30FormValues(
+            vat_sale=100.0,
+            vat_purchase=23.5,
+            amount_due=88.0,
+            pv_date="13/08/69",
+            line_8=100.0,
+            line_10=10.0,
+            line_13=1.0,
+            line_14=2.0,
+        )
+        fill_penalty_pv(image, _form_config(), values, lambda _msg: None)
+        events = _typed_and_pressed(image.events)
+        codes = [event[1] for event in events if event[0] == "type_text"]
+        self.assertEqual(codes, ["2137-00", "88.00", "5390-01", "3.00", "1111-00"])
+        self.assertNotIn("4200-03", codes)
 
     def test_special_fill_services_do_not_import_each_other(self) -> None:
         root = Path(__file__).resolve().parent.parent
