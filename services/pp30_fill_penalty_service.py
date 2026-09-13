@@ -93,7 +93,7 @@ def fill_pv(
     due_value = _penalty_line_11(values)
     due = _format_amount(due_value)
     penalty = _format_amount(values.penalty_amount)
-    decimal_amount = _format_amount(round(due_value - int(due_value), 2))
+    decimal_amount = _format_amount(values.line_15_decimal)
     on_status(
         UI_TEXT["pp30_pv_penalty_log"].format(
             date=pv_date, due=due, penalty=penalty, decimal=decimal_amount
@@ -109,7 +109,7 @@ def fill_pv(
     image.type_text(penalty, clear_first=True)
     image.press("enter")
     typed_codes = (ACCOUNT_PP30_PENALTY,)
-    if abs(due_value - int(due_value)) >= 0.005:
+    if values.has_line_15_decimal:
         image.type_text(ACCOUNT_PP30_DECIMAL, clear_first=False)
         image.press("enter", presses=3)
         image.type_text(decimal_amount, clear_first=True)

@@ -50,6 +50,10 @@ class Pp30FormValues:
         return round(self.line_15 - int(self.line_15), 2)
 
     @property
+    def has_line_15_decimal(self) -> bool:
+        return abs(self.line_15_decimal) >= 0.005
+
+    @property
     def penalty_amount(self) -> float:
         return round(self.line_13 + self.line_14, 2)
 
