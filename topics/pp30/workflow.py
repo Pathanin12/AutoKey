@@ -200,7 +200,7 @@ class Pp30Workflow:
             legal_name=job.excel_name,
             month_date=form_config.jv_date,
             account_codes=PP30_ACCOUNT_REPORT_CODES,
-            end_month_offset=1,
+            end_month_offset=0,
         )
         capture_account_reports(
             self.image,

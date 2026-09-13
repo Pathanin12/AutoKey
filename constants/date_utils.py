@@ -89,7 +89,7 @@ def _ce_year(year: int) -> int:
 
 
 def express_month_date_range(pv_date: str, *, end_month_offset: int = 0) -> tuple[str, str]:
-    """วันแรกของเดือน UI และวันสุดท้ายของเดือน (+ offset) เช่น 15/07/69 → 01/07/69 และ offset 1 → 31/08/69"""
+    """วันแรกและวันสุดท้ายของเดือน UI เช่น 15/07/69 → 01/07/69 และ 31/07/69"""
     parts = _date_parts(pv_date.strip())
     if parts is None:
         raise ValueError(f"วันที่ใบสำคัญไม่ถูกต้อง: {pv_date}")

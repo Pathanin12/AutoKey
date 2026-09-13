@@ -93,7 +93,7 @@ def _capture_reports(ctx: Pp30FillContext) -> None:
         legal_name=ctx.job.excel_name,
         month_date=ctx.form_config.jv_date,
         account_codes=PP30_NEW_SHOP_REPORT_CODES,
-        end_month_offset=1,
+        end_month_offset=0,
     )
     capture_account_reports(
         ctx.image,

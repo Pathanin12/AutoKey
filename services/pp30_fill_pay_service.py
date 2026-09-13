@@ -162,7 +162,7 @@ def _capture_reports(ctx: Pp30FillContext, account_codes: tuple[str, ...]) -> No
         legal_name=ctx.job.excel_name,
         month_date=ctx.form_config.jv_date,
         account_codes=account_codes,
-        end_month_offset=1,
+        end_month_offset=0,
     )
     capture_account_reports(
         ctx.image,
