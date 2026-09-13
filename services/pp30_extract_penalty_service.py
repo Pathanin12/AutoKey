@@ -30,12 +30,7 @@ def complete_penalty_lines(
         line10 = 0.0
     if not _is_pay_like(line8, line10):
         return None
-    line11 = labeled.get(11)
-    if line11 is None:
-        line11 = round(line8 - line10, 2) if has_amount(line10) else line8
-    line15 = labeled.get(15)
-    if line15 is None:
-        line15 = round(line11 + line13 + line14, 2)
+    line11, line15 = _penalty_line_11_and_15(line8, line10, line13, line14, labeled)
     return {
         "vat_sale": line5,
         "vat_purchase": line7,
@@ -48,6 +43,32 @@ def complete_penalty_lines(
         "line_14": line14,
         "line_15": line15,
     }
+
+
+def _penalty_line_11_and_15(
+    line8: float,
+    line10: float,
+    line13: float,
+    line14: float,
+    labeled: dict[int, float],
+) -> tuple[float, float]:
+    computed_11 = round(line8 - line10, 2) if has_amount(line10) else line8
+    labeled_11 = labeled.get(11)
+    labeled_15 = labeled.get(15)
+    penalty = round(line13 + line14, 2)
+    if labeled_11 is not None and (
+        (labeled_15 is not None and eq_amount(labeled_11, labeled_15))
+        or (has_amount(penalty) and eq_amount(labeled_11, round(computed_11 + penalty, 2)))
+    ):
+        labeled_11 = None
+    line11 = labeled_11 if labeled_11 is not None else computed_11
+    if labeled_15 is not None:
+        line15 = labeled_15
+        if labeled_11 is None:
+            line11 = round(line15 - line13 - line14, 2)
+    else:
+        line15 = round(line11 + line13 + line14, 2)
+    return line11, line15
 
 
 def _is_pay_like(line8: float, line10: float) -> bool:

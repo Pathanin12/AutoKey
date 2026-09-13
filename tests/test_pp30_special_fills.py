@@ -281,6 +281,25 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertEqual(codes, ["2137-00", "88.75", "5390-01", "3.00", "4200-03", "0.75", "1111-00"])
         self.assertEqual(events[-2:], [("press", ("f2",)), ("press", ("f9",))])
 
+    def test_penalty_pv_does_not_use_line_15_for_2137(self) -> None:
+        image = RecordingImage()
+        values = Pp30FormValues(
+            vat_sale=100.0,
+            vat_purchase=23.5,
+            amount_due=91.75,
+            pv_date="13/08/69",
+            line_8=100.0,
+            line_10=11.25,
+            line_13=1.0,
+            line_14=2.0,
+            line_15=91.75,
+        )
+        fill_penalty_pv(image, _form_config(), values, lambda _msg: None)
+        events = _typed_and_pressed(image.events)
+        codes = [event[1] for event in events if event[0] == "type_text"]
+        self.assertEqual(codes, ["2137-00", "88.75", "5390-01", "3.00", "4200-03", "0.75", "1111-00"])
+        self.assertNotIn("91.75", codes)
+
     def test_penalty_pv_skips_4200_when_line_11_has_no_decimal(self) -> None:
         image = RecordingImage()
         values = Pp30FormValues(

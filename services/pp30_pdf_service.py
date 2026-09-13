@@ -137,6 +137,8 @@ def _labeled_line_amounts(text: str) -> dict[int, float]:
             keywords = _LINE_KEYWORDS.get(number)
             if not keywords or not any(key in raw for key in keywords):
                 continue
+            if number == 11 and "รวมภาษีที่ต้องชำระ" in raw:
+                continue
             amount = line_money(raw, allow_zero=True)
             if amount is None:
                 continue

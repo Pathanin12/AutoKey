@@ -26,6 +26,7 @@ from constants.routes import (
 from models.pp30_fill_context import Pp30FillContext
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_form_values import Pp30FormValues
+from services.pp30_amount_service import eq_amount, has_amount
 from services.account_report_capture_service import build_ledger_report_jobs, capture_account_reports
 from services.image_service import ImageService
 from services.menu_navigation_service import open_general_journal_menu, open_payment_journal_menu
@@ -89,9 +90,10 @@ def fill_pv(
     on_status: Callable[[str], None],
 ) -> tuple[str, ...]:
     pv_date = format_express_pv_date(values.pv_date)
-    due = _format_amount(values.amount_due)
+    due_value = _penalty_line_11(values)
+    due = _format_amount(due_value)
     penalty = _format_amount(values.penalty_amount)
-    decimal_amount = _format_amount(values.amount_due_decimal)
+    decimal_amount = _format_amount(round(due_value - int(due_value), 2))
     on_status(
         UI_TEXT["pp30_pv_penalty_log"].format(
             date=pv_date, due=due, penalty=penalty, decimal=decimal_amount
@@ -107,7 +109,7 @@ def fill_pv(
     image.type_text(penalty, clear_first=True)
     image.press("enter")
     typed_codes = (ACCOUNT_PP30_PENALTY,)
-    if values.has_amount_due_decimal:
+    if abs(due_value - int(due_value)) >= 0.005:
         image.type_text(ACCOUNT_PP30_DECIMAL, clear_first=False)
         image.press("enter", presses=3)
         image.type_text(decimal_amount, clear_first=True)
@@ -118,6 +120,12 @@ def fill_pv(
     image.press("f9")
     image.wait(AFTER_SAVE_WAIT)
     return typed_codes
+
+
+def _penalty_line_11(values: Pp30FormValues) -> float:
+    if eq_amount(values.line_11, values.line_15) and has_amount(values.penalty_amount):
+        return round(values.line_15 - values.penalty_amount, 2)
+    return values.line_11
 
 
 def penalty_report_codes(*groups: tuple[str, ...]) -> tuple[str, ...]:
