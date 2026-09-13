@@ -14,6 +14,7 @@ from constants.routes import (
     PP30_PAY_REPORT_CODES,
     PP30_PENALTY_REPORT_CODES,
 )
+from constants.template_actions import F12_MENU_REGION, REPORT_NORMAL_ACTION_IDS
 from models.ka_tam_row import KaTamRow
 from models.report_output_layout import ReportOutputLayout, safe_folder_name
 from models.run_config import RunConfig
@@ -22,6 +23,7 @@ from services.account_report_capture_service import (
     build_ledger_report_jobs,
     should_expand_ledger_report_tree,
 )
+from services.menu_navigation_service import report_reopen_retries
 
 
 class AccountReportTests(unittest.TestCase):
@@ -201,6 +203,17 @@ class AccountReportTests(unittest.TestCase):
         self.assertTrue(should_expand_ledger_report_tree(0, tree_already_open=False))
         self.assertFalse(should_expand_ledger_report_tree(1, tree_already_open=False))
         self.assertFalse(should_expand_ledger_report_tree(0, tree_already_open=True))
+
+    def test_f12_search_region_is_left_tree_not_full_screen(self) -> None:
+        x0, y0, x1, y1 = F12_MENU_REGION
+        self.assertLessEqual((x1 - x0) * (y1 - y0), 880 * 700)
+        self.assertLessEqual(x1, 900)
+        self.assertEqual(REPORT_NORMAL_ACTION_IDS, ("menu_report_normal_selected", "menu_report_normal"))
+
+    def test_report_reopen_retries_cap_at_two(self) -> None:
+        self.assertEqual(report_reopen_retries(4), 2)
+        self.assertEqual(report_reopen_retries(3), 2)
+        self.assertEqual(report_reopen_retries(1), 1)
 
 
 if __name__ == "__main__":

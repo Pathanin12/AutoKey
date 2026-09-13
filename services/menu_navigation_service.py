@@ -19,6 +19,7 @@ from constants.routes import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
+from constants.template_actions import REPORT_NORMAL_ACTION_IDS
 from models.step_match_result import StepMatchResult
 from services.image_service import ImageService
 from services.template_click_service import TemplateClickService, TemplateNotFoundError
@@ -144,20 +145,16 @@ def open_ledger_normal_report_menu(
 
     if not expand_tree:
         try:
-            _click_report_normal(
-                image,
-                template_click,
-                None,
-                on_status,
-                template_retries,
-                template_retry_delay,
-                fallback_key=False,
-                action_id="menu_report_normal_selected",
+            _retry_action(
+                lambda: template_click.click_first(REPORT_NORMAL_ACTION_IDS),
+                image=image,
+                retries=report_reopen_retries(template_retries),
+                retry_delay=template_retry_delay,
             )
             image.wait(menu_wait)
             return
         except TemplateNotFoundError:
-            _status(on_status, "ไม่เจอแบบปกติกล่องขาว — เปิดต้นไม้รายงานอีกครั้ง")
+            _status(on_status, "ไม่เจอแบบปกติ — เปิดต้นไม้รายงานอีกครั้ง")
 
     _status(on_status, f"เปิดเมนู {MENU_LEDGER_REPORT_PATH}")
     _expand_ledger_report_tree(
@@ -265,6 +262,11 @@ def _click_first_flyout_item(image: ImageService, daily_match: StepMatchResult) 
     x = min(SCREEN_WIDTH - 8, daily_match.x + daily_match.width + 48)
     y = daily_match.y + max(8, daily_match.height // 2)
     image.click_at(x, y)
+
+
+def report_reopen_retries(template_retries: int) -> int:
+    """รหัสถัดไป: ขาวหรือฟ้าอยู่ในจอแล้ว — อย่าสแกนซ้ำ 4 รอบ"""
+    return max(1, min(2, template_retries))
 
 
 def _retry_action(action, *, image: ImageService, retries: int, retry_delay: float):

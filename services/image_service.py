@@ -104,7 +104,7 @@ class ImageService:
         dest = Path(path)
         dest.parent.mkdir(parents=True, exist_ok=True)
         shot = pyautogui.screenshot()
-        shot.save(dest)
+        shot.save(dest, compress_level=1)
         return dest
 
     def copy_selection(self) -> None:

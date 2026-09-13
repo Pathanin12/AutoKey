@@ -58,6 +58,9 @@ def _pil_to_cv(image: Image.Image) -> tuple[np.ndarray, np.ndarray | None]:
     cached = _TEMPLATE_CV_CACHE.get(ident)
     if cached is not None:
         return cached
+    if image.mode == "RGB":
+        bgr = cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
+        return bgr, None
     rgba = np.asarray(image.convert("RGBA"))
     bgr = cv2.cvtColor(rgba[:, :, :3], cv2.COLOR_RGB2BGR)
     alpha = rgba[:, :, 3]

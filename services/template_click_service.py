@@ -7,6 +7,7 @@ from typing import Callable
 from models.screen_region import ScreenRegion
 from models.step_match_result import StepMatchResult
 from models.template_click_settings import TemplateClickSettings
+from models.template_target import TemplateTarget
 from services.image_service import ImageService
 from services.template_detect_service import detect_step_match
 
@@ -53,16 +54,51 @@ class TemplateClickService:
     ) -> StepMatchResult:
         action = self.settings.get_action(action_id)
         match = self.find(action_id, search_region=search_region)
+        return self._click_match(action.target, match)
+
+    def click_first(
+        self,
+        action_ids: tuple[str, ...],
+        *,
+        search_region: tuple[int, int, int, int] | None = None,
+    ) -> StepMatchResult:
+        """ถ่ายหน้าจอครั้งเดียว แล้วลองหลาย template"""
+        if not action_ids:
+            raise TemplateNotFoundError("ไม่มีปุ่มให้จับภาพ")
+        first = self.settings.get_action(action_ids[0])
+        region = search_region if search_region is not None else first.search_region
+        screen, origin = self.image.screenshot_region(region)
+        last_match: StepMatchResult | None = None
+        last_threshold = first.target.match_threshold
+        for action_id in action_ids:
+            action = self.settings.get_action(action_id)
+            match = detect_step_match(screen, action.target).translated(origin[0], origin[1])
+            last_match = match
+            last_threshold = action.target.match_threshold
+            if match.found:
+                return self._click_match(action.target, match)
+        score = last_match.score if last_match else 0.0
+        labels = " / ".join(
+            self.settings.get_action(action_id).target.label for action_id in action_ids
+        )
+        message = (
+            f"จับภาพไม่ผ่าน — ไม่พบ {labels} "
+            f"(score {score:.0%}, ต้อง ≥ {last_threshold:.0%})"
+        )
+        self._status(message)
+        raise TemplateNotFoundError(message)
+
+    def _click_match(self, target: TemplateTarget, match: StepMatchResult) -> StepMatchResult:
         if not match.found:
             message = (
-                f"จับภาพไม่ผ่าน — ไม่พบ {action.target.label} "
-                f"(score {match.score:.0%}, ต้อง ≥ {action.target.match_threshold:.0%})"
+                f"จับภาพไม่ผ่าน — ไม่พบ {target.label} "
+                f"(score {match.score:.0%}, ต้อง ≥ {target.match_threshold:.0%})"
             )
             self._status(message)
             raise TemplateNotFoundError(message)
 
         center_x, center_y = match.center
-        label = f"{action.target.label} ({match.score:.0%})"
+        label = f"{target.label} ({match.score:.0%})"
         self._status(f"จับภาพผ่าน — {label} ที่ ({center_x}, {center_y})")
         self._highlight_match(match, label)
         self.image.click_at(center_x, center_y)

@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import unittest
 
-from constants.template_actions import MENU_ACCOUNT_TARGET
+from constants.template_actions import (
+    DEFAULT_TEMPLATE_CLICK_ACTIONS,
+    MENU_ACCOUNT_TARGET,
+    MENU_REPORT_NORMAL_SELECTED_TARGET,
+    REPORT_NORMAL_ACTION_IDS,
+)
 from models.step_match_result import StepMatchResult
+from models.template_click_settings import TemplateClickSettings
 from services.image_service import map_region_to_grab
-from services.template_match_service import load_step_template
+from services.template_click_service import TemplateClickService
+from services.template_match_service import load_step_template, match_score_at
 
 
 class ScreenshotRegionTests(unittest.TestCase):
@@ -47,6 +54,44 @@ class ScreenshotRegionTests(unittest.TestCase):
         first = load_step_template(MENU_ACCOUNT_TARGET)
         second = load_step_template(MENU_ACCOUNT_TARGET)
         self.assertIs(first, second)
+
+    def test_rgb_screenshot_matches_without_rgba_convert(self) -> None:
+        from PIL import Image
+
+        template = load_step_template(MENU_ACCOUNT_TARGET).convert("RGB")
+        screen = Image.new("RGB", (template.width + 20, template.height + 20), (32, 32, 32))
+        screen.paste(template, (8, 6))
+        self.assertGreater(match_score_at(screen, template, 8, 6), 0.95)
+
+    def test_click_first_uses_one_screenshot(self) -> None:
+        from PIL import Image
+
+        template = load_step_template(MENU_REPORT_NORMAL_SELECTED_TARGET)
+        screen = Image.new("RGB", (400, 240), (40, 40, 40))
+        screen.paste(template.convert("RGB"), (40, 30))
+
+        class FakeImage:
+            def __init__(self) -> None:
+                self.shots = 0
+                self.clicks: list[tuple[int, int]] = []
+
+            def screenshot_region(self, region):
+                del region
+                self.shots += 1
+                return screen, (0, 0)
+
+            def click_at(self, x: int, y: int) -> None:
+                self.clicks.append((x, y))
+
+        fake = FakeImage()
+        clicker = TemplateClickService(
+            fake,  # type: ignore[arg-type]
+            TemplateClickSettings(actions=DEFAULT_TEMPLATE_CLICK_ACTIONS),
+        )
+        match = clicker.click_first(REPORT_NORMAL_ACTION_IDS)
+        self.assertTrue(match.found)
+        self.assertEqual(fake.shots, 1)
+        self.assertEqual(len(fake.clicks), 1)
 
 
 if __name__ == "__main__":

@@ -59,7 +59,9 @@ MENU_GENERAL_JOURNAL_TARGET = TemplateTarget(
     match_threshold=0.80,
 )
 
-F12_MENU_REGION = (20, 20, 1400, 900)
+# ต้นไม้รายงาน F12 อยู่ซ้ายจอ — อย่าสแกนเกือบทั้งจอ
+F12_MENU_REGION = (20, 20, 880, 700)
+REPORT_NORMAL_ACTION_IDS = ("menu_report_normal_selected", "menu_report_normal")
 
 MENU_ACCOUNT_REPORT_TARGET = TemplateTarget(
     step_id="menu_account_report",
