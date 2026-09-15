@@ -6,20 +6,15 @@ from typing import Callable
 
 from constants.routes import (
     MENU_ACCOUNT_LABEL,
-    MENU_ACCOUNT_REPORT_LABEL,
     MENU_DAILY_ENTRY_LABEL,
     MENU_FLYOUT_WAIT,
     MENU_GENERAL_JOURNAL_LABEL,
     MENU_GENERAL_JOURNAL_PATH,
-    MENU_GENERAL_LEDGER_LABEL,
-    MENU_LEDGER_REPORT_PATH,
     MENU_PAYMENT_JOURNAL_LABEL,
     MENU_PAYMENT_JOURNAL_PATH,
-    MENU_REPORT_NORMAL_LABEL,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
-from constants.template_actions import REPORT_NORMAL_ACTION_IDS
 from models.step_match_result import StepMatchResult
 from services.image_service import ImageService
 from services.template_click_service import TemplateClickService, TemplateNotFoundError
@@ -127,128 +122,6 @@ def open_general_journal_menu(
     image.wait(menu_wait)
 
 
-def open_ledger_normal_report_menu(
-    image: ImageService,
-    template_click: TemplateClickService,
-    *,
-    expand_tree: bool = True,
-    on_status: Callable[[str], None] | None = None,
-    template_retries: int = 4,
-    template_retry_delay: float = 0.15,
-    menu_wait: float = 0.35,
-) -> None:
-    if not template_click.enabled:
-        raise RuntimeError("ต้องเปิด template_click และจับภาพเมนูรายงานบัญชี")
-
-    image.press("f12")
-    image.wait(menu_wait)
-
-    if not expand_tree:
-        try:
-            _retry_action(
-                lambda: template_click.click_first(REPORT_NORMAL_ACTION_IDS),
-                image=image,
-                retries=report_reopen_retries(template_retries),
-                retry_delay=template_retry_delay,
-            )
-            image.wait(menu_wait)
-            return
-        except TemplateNotFoundError:
-            _status(on_status, "ไม่เจอแบบปกติ — เปิดต้นไม้รายงานอีกครั้ง")
-
-    _status(on_status, f"เปิดเมนู {MENU_LEDGER_REPORT_PATH}")
-    _expand_ledger_report_tree(
-        image,
-        template_click,
-        on_status=on_status,
-        template_retries=template_retries,
-        template_retry_delay=template_retry_delay,
-        menu_wait=menu_wait,
-    )
-    _click_report_normal(
-        image,
-        template_click,
-        None,
-        on_status,
-        template_retries,
-        template_retry_delay,
-    )
-    image.wait(menu_wait)
-
-
-def _expand_ledger_report_tree(
-    image: ImageService,
-    template_click: TemplateClickService,
-    *,
-    on_status: Callable[[str], None] | None,
-    template_retries: int,
-    template_retry_delay: float,
-    menu_wait: float,
-) -> None:
-    _status(on_status, f"คลิกเมนู {MENU_ACCOUNT_REPORT_LABEL}")
-    try:
-        _retry_action(
-            lambda: template_click.click("menu_account_report"),
-            image=image,
-            retries=template_retries,
-            retry_delay=template_retry_delay,
-        )
-    except TemplateNotFoundError:
-        _status(on_status, "จับภาพไม่เจอ — กด 5")
-        image.press("5")
-    image.wait(menu_wait)
-
-    _status(on_status, f"คลิกเมนู {MENU_GENERAL_LEDGER_LABEL}")
-    try:
-        _retry_action(
-            lambda: template_click.click("menu_general_ledger"),
-            image=image,
-            retries=template_retries,
-            retry_delay=template_retry_delay,
-        )
-    except TemplateNotFoundError:
-        _status(on_status, "จับภาพไม่เจอ — กด 4")
-        image.press("4")
-    image.wait(menu_wait)
-
-
-def _click_report_normal(
-    image: ImageService,
-    template_click: TemplateClickService,
-    search_region: tuple[int, int, int, int] | None,
-    on_status: Callable[[str], None] | None,
-    template_retries: int,
-    template_retry_delay: float,
-    fallback_key: bool = True,
-    action_id: str = "menu_report_normal",
-) -> None:
-    _status(on_status, f"คลิกเมนู {MENU_REPORT_NORMAL_LABEL}")
-    try:
-        _retry_action(
-            lambda: template_click.click(action_id, search_region=search_region),
-            image=image,
-            retries=template_retries,
-            retry_delay=template_retry_delay,
-        )
-        return
-    except TemplateNotFoundError:
-        if search_region is not None:
-            try:
-                _retry_action(
-                    lambda: template_click.click(action_id),
-                    image=image,
-                    retries=template_retries,
-                    retry_delay=template_retry_delay,
-                )
-                return
-            except TemplateNotFoundError:
-                pass
-        if not fallback_key:
-            raise
-        _status(on_status, "จับภาพไม่เจอ — กด 1")
-        image.press("1")
-
-
 def _flyout_search_region(daily_match: StepMatchResult) -> tuple[int, int, int, int]:
     """submenu เปิดทางขวาของ 1.ลงประจำวัน"""
     x0 = max(0, daily_match.x + daily_match.width - 10)
@@ -262,11 +135,6 @@ def _click_first_flyout_item(image: ImageService, daily_match: StepMatchResult) 
     x = min(SCREEN_WIDTH - 8, daily_match.x + daily_match.width + 48)
     y = daily_match.y + max(8, daily_match.height // 2)
     image.click_at(x, y)
-
-
-def report_reopen_retries(template_retries: int) -> int:
-    """รหัสถัดไป: ขาวหรือฟ้าอยู่ในจอแล้ว — อย่าสแกนซ้ำ 4 รอบ"""
-    return max(1, min(2, template_retries))
 
 
 def _retry_action(action, *, image: ImageService, retries: int, retry_delay: float):

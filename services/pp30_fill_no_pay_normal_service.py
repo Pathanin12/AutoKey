@@ -5,6 +5,7 @@ from typing import Callable
 from constants.date_utils import format_express_pv_date
 from constants.routes import (
     ACCOUNT_PP30_NEW_SHOP,
+    ACCOUNT_PP30_PENALTY,
     ACCOUNT_PP30_VAT_PURCHASE,
     ACCOUNT_PP30_VAT_SALE,
     AFTER_CLOSE_WAIT,
@@ -21,7 +22,7 @@ from constants.routes import (
 from models.pp30_fill_context import Pp30FillContext
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_form_values import Pp30FormValues
-from services.account_report_capture_service import build_ledger_report_jobs, capture_account_reports
+from services.account_report_capture_service import capture_account_reports
 from services.image_service import ImageService
 from services.menu_navigation_service import open_general_journal_menu
 
@@ -30,8 +31,8 @@ class Pp30FillNoPayNormalService:
     @staticmethod
     def run(ctx: Pp30FillContext) -> None:
         _open_general_journal(ctx)
-        report_codes = fill_jv(ctx.image, ctx.form_config, ctx.job.form_values, ctx.on_status)
-        _capture_reports(ctx, report_codes)
+        fill_jv(ctx.image, ctx.form_config, ctx.job.form_values, ctx.on_status)
+        _capture_reports(ctx)
 
 
 def fill_jv(
@@ -103,21 +104,16 @@ def _new_voucher(image: ImageService, voucher_date: str, description: str) -> No
     image.wait(VOUCHER_FIELD_WAIT)
 
 
-def _capture_reports(ctx: Pp30FillContext, account_codes: tuple[str, ...]) -> None:
-    codes = " ".join(account_codes)
-    ctx.on_status(UI_TEXT["pp30_report_log"].format(codes=codes))
-    jobs = build_ledger_report_jobs(
-        report_output_dir=ctx.form_config.report_output_dir,
-        legal_name=ctx.job.excel_name,
-        month_date=ctx.form_config.jv_date,
-        account_codes=account_codes,
-        end_month_offset=0,
+def _capture_reports(ctx: Pp30FillContext) -> None:
+    ctx.on_status(
+        UI_TEXT["pp30_report_log"].format(
+            codes=f"{ACCOUNT_PP30_VAT_PURCHASE} {ACCOUNT_PP30_PENALTY}"
+        )
     )
     capture_account_reports(
         ctx.image,
         ctx.template_click,
-        jobs,
-        expand_tree_first=True,
+        month_date=ctx.form_config.jv_date,
         on_status=ctx.on_status,
         should_stop=ctx.should_stop,
         template_retries=ctx.template_retries,

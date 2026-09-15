@@ -7,6 +7,8 @@ from constants.routes import (
     MENU_GENERAL_JOURNAL_LABEL,
     MENU_GENERAL_LEDGER_LABEL,
     MENU_REPORT_NORMAL_LABEL,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
 )
 from models.template_click_settings import TemplateClickAction
 from models.template_target import TemplateTarget
@@ -91,6 +93,23 @@ MENU_REPORT_NORMAL_SELECTED_TARGET = TemplateTarget(
     match_threshold=0.88,
 )
 
+REPORT_PREVIEW_REGION = (0, 0, SCREEN_WIDTH, 280)
+REPORT_EXPORT_REGION = (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+
+REPORT_PREVIEW_TMP6_TARGET = TemplateTarget(
+    step_id="report_preview_tmp6",
+    label="แถบพรีวิว TMP6",
+    template_file="report_preview_tmp6.png",
+    match_threshold=0.88,
+)
+
+REPORT_EXPORT_JPEG_TARGET = TemplateTarget(
+    step_id="report_export_jpeg",
+    label="ช่อง JPEG",
+    template_file="report_export_jpeg.png",
+    match_threshold=0.88,
+)
+
 DEFAULT_TEMPLATE_CLICK_ACTIONS: tuple[TemplateClickAction, ...] = (
     TemplateClickAction(
         action_id="lookup_search",
@@ -141,5 +160,15 @@ DEFAULT_TEMPLATE_CLICK_ACTIONS: tuple[TemplateClickAction, ...] = (
         action_id="menu_report_normal_selected",
         target=MENU_REPORT_NORMAL_SELECTED_TARGET,
         search_region=F12_MENU_REGION,
+    ),
+    TemplateClickAction(
+        action_id="report_preview_tmp6",
+        target=REPORT_PREVIEW_TMP6_TARGET,
+        search_region=REPORT_PREVIEW_REGION,
+    ),
+    TemplateClickAction(
+        action_id="report_export_jpeg",
+        target=REPORT_EXPORT_JPEG_TARGET,
+        search_region=REPORT_EXPORT_REGION,
     ),
 )

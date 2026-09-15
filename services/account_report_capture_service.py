@@ -5,18 +5,32 @@ from typing import Callable
 
 from constants.date_utils import express_month_date_range
 from constants.routes import (
+    ACCOUNT_REPORT_AFTER_F6_WAIT,
+    ACCOUNT_REPORT_AFTER_JPEG_WAIT,
     ACCOUNT_REPORT_CAPTURE_WAIT,
     ACCOUNT_REPORT_CODES,
     ACCOUNT_REPORT_FIELD_WAIT,
+    ACCOUNT_REPORT_FOCUS_CLICK,
+    ACCOUNT_REPORT_JPEG_KEY,
+    ACCOUNT_REPORT_JPEG_KEY_PRESSES,
     ACCOUNT_REPORT_MENU_WAIT,
+    ACCOUNT_REPORT_PREVIEW_POLL_WAIT,
+    ACCOUNT_REPORT_PREVIEW_TIMEOUT,
+    ACCOUNT_REPORT_USE_LEGACY_CAPTURE,
+    AFTER_SAVE_WAIT,
+    COMPANY_DIALOG_WAIT,
+    MENU_LEDGER_REPORT_PATH,
 )
 from models.account_report_capture_job import AccountReportCaptureJob
 from models.ka_tam_row import KaTamRow
+from models.ledger_range_report_form import LedgerRangeReportForm
 from models.report_output_layout import ReportOutputLayout
 from models.run_config import RunConfig
+from models.window_focus_settings import WindowFocusSettings
+from services.account_report_capture_legacy_service import open_ledger_normal_report_menu
 from services.image_service import ImageService
-from services.menu_navigation_service import open_ledger_normal_report_menu
 from services.template_click_service import TemplateClickService
+from services.window_focus_service import focus_express_window
 
 
 def build_account_report_jobs(config: RunConfig, row: KaTamRow) -> tuple[AccountReportCaptureJob, ...]:
@@ -61,9 +75,11 @@ def should_expand_ledger_report_tree(job_index: int, *, tree_already_open: bool)
 def capture_account_reports(
     image: ImageService,
     template_click: TemplateClickService,
-    jobs: tuple[AccountReportCaptureJob, ...],
+    jobs: tuple[AccountReportCaptureJob, ...] | None = None,
     *,
+    month_date: str | None = None,
     expand_tree_first: bool = True,
+    return_to_company_dialog: bool = True,
     on_status: Callable[[str], None] | None = None,
     should_stop: Callable[[], bool] | None = None,
     template_retries: int = 4,
@@ -71,36 +87,90 @@ def capture_account_reports(
     capture_wait: float = ACCOUNT_REPORT_CAPTURE_WAIT,
     field_wait: float = ACCOUNT_REPORT_FIELD_WAIT,
 ) -> None:
-    for index, job in enumerate(jobs):
-        if should_stop and should_stop():
-            raise InterruptedError("หยุดโดยผู้ใช้")
-        if on_status:
-            on_status(f"แคปรายงาน {job.account_code}")
-        open_ledger_normal_report_menu(
+    if ACCOUNT_REPORT_USE_LEGACY_CAPTURE:
+        from services.account_report_capture_legacy_service import (
+            capture_account_reports as capture_legacy,
+        )
+
+        if jobs is None:
+            raise RuntimeError("ชุดรายงานเก่าต้องมีรายการรหัสบัญชี")
+        capture_legacy(
             image,
             template_click,
-            expand_tree=should_expand_ledger_report_tree(
-                index,
-                tree_already_open=not expand_tree_first,
-            ),
+            jobs,
+            expand_tree_first=expand_tree_first,
             on_status=on_status,
+            should_stop=should_stop,
             template_retries=template_retries,
             template_retry_delay=template_retry_delay,
-            menu_wait=ACCOUNT_REPORT_MENU_WAIT,
+            capture_wait=capture_wait,
+            field_wait=field_wait,
         )
-        image.wait(field_wait)
-        _type_report_field(image, job.account_code)
-        _type_report_field(image, job.account_code)
-        _type_report_field(image, job.start_date)
-        _type_report_field(image, job.end_date)
-        image.press("f5")
-        image.press("enter")
-        image.wait(capture_wait)
-        saved = image.save_screenshot(job.output_file)
-        if on_status:
-            on_status(f"บันทึกแคป {job.account_code}: {saved}")
+        return
+
+    if not month_date:
+        raise RuntimeError("ต้องมีวันที่จาก UI สำหรับเรียกรายงาน")
+    form = LedgerRangeReportForm.from_ui_date(month_date)
+    if on_status:
+        on_status(f"แคปรายงาน {form.from_code} {form.to_code}")
+    if should_stop and should_stop():
+        raise InterruptedError("หยุดโดยผู้ใช้")
+
+    if on_status:
+        on_status(f"เปิดเมนู {MENU_LEDGER_REPORT_PATH}")
+    open_ledger_normal_report_menu(
+        image,
+        template_click,
+        expand_tree=True,
+        on_status=on_status,
+        template_retries=template_retries,
+        template_retry_delay=template_retry_delay,
+        menu_wait=ACCOUNT_REPORT_MENU_WAIT,
+    )
+    image.wait(field_wait)
+    _type_report_field(image, form.from_code)
+    _type_report_field(image, form.to_code)
+    _type_report_field(image, form.start_date)
+    _type_report_field(image, form.end_date)
+    image.press("f5")
+    image.press("enter")
+    if on_status:
+        on_status("รอแถบพรีวิว TMP6")
+    template_click.wait_until_found(
+        "report_preview_tmp6",
+        timeout=ACCOUNT_REPORT_PREVIEW_TIMEOUT,
+        poll_wait=ACCOUNT_REPORT_PREVIEW_POLL_WAIT,
+        should_stop=should_stop,
+    )
+    image.press("f6")
+    image.press("enter")
+    image.wait(ACCOUNT_REPORT_AFTER_F6_WAIT)
+    if on_status:
+        on_status("เลือก JPEG")
+    template_click.click("report_export_jpeg")
+    image.press(ACCOUNT_REPORT_JPEG_KEY, presses=ACCOUNT_REPORT_JPEG_KEY_PRESSES)
+    image.press("enter")
+    image.wait(ACCOUNT_REPORT_AFTER_JPEG_WAIT)
+    _focus_express(image, on_status)
+    if return_to_company_dialog:
+        _return_to_company_dialog(image)
 
 
 def _type_report_field(image: ImageService, text: str) -> None:
     image.type_keys(text, clear_first=False)
     image.press("enter")
+
+
+def _focus_express(image: ImageService, on_status: Callable[[str], None] | None) -> None:
+    focused = focus_express_window(WindowFocusSettings(required=False), on_status=on_status)
+    if focused:
+        return
+    image.click_at(*ACCOUNT_REPORT_FOCUS_CLICK)
+
+
+def _return_to_company_dialog(image: ImageService) -> None:
+    image.press("shift", "f11")
+    image.wait(AFTER_SAVE_WAIT)
+    image.press("tab")
+    image.press("enter", presses=2)
+    image.wait(COMPANY_DIALOG_WAIT)

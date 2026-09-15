@@ -286,6 +286,8 @@ class KaTamWorkflow:
             self.template_click,
             jobs,
             expand_tree_first=not self._ledger_report_tree_open,
+            return_to_company_dialog=False,
+            month_date=config.pv_date,
             on_status=self.on_status,
             should_stop=self.stop_event.is_set,
             template_retries=self.lookup_search_settings.template_retries,

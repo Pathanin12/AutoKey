@@ -88,6 +88,15 @@ def _ce_year(year: int) -> int:
     return 2500 + (year % 100) - 543
 
 
+def express_year_start_date(pv_date: str) -> str:
+    """วันที่ 1 เดือน 1 ของปี UI เช่น 15/07/69 → 01/01/69"""
+    parts = _date_parts(pv_date.strip())
+    if parts is None:
+        raise ValueError(f"วันที่ใบสำคัญไม่ถูกต้อง: {pv_date}")
+    _day, _month, year = parts
+    return f"01/01/{_express_year(year):02d}"
+
+
 def express_month_date_range(pv_date: str, *, end_month_offset: int = 0) -> tuple[str, str]:
     """วันแรกและวันสุดท้ายของเดือน UI เช่น 15/07/69 → 01/07/69 และ 31/07/69"""
     parts = _date_parts(pv_date.strip())

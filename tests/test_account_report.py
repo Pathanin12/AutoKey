@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from constants.date_utils import express_month_date_range, express_month_folder_name
+from constants.date_utils import express_month_date_range, express_month_folder_name, express_year_start_date
 from constants.routes import (
     ACCOUNT_SERVICE,
     ACCOUNT_VAT,
@@ -16,14 +16,16 @@ from constants.routes import (
 )
 from constants.template_actions import F12_MENU_REGION, REPORT_NORMAL_ACTION_IDS
 from models.ka_tam_row import KaTamRow
+from models.ledger_range_report_form import LedgerRangeReportForm
+from models.ledger_report_open_plan import LedgerReportOpenPlan
 from models.report_output_layout import ReportOutputLayout, safe_folder_name
 from models.run_config import RunConfig
+from services.account_report_capture_legacy_service import report_reopen_retries
 from services.account_report_capture_service import (
     build_account_report_jobs,
     build_ledger_report_jobs,
     should_expand_ledger_report_tree,
 )
-from services.menu_navigation_service import report_reopen_retries
 
 
 class AccountReportTests(unittest.TestCase):
@@ -31,6 +33,19 @@ class AccountReportTests(unittest.TestCase):
         start, end = express_month_date_range("15/08/69")
         self.assertEqual(start, "01/08/69")
         self.assertEqual(end, "31/08/69")
+
+    def test_year_start_date_from_ui_month(self) -> None:
+        self.assertEqual(express_year_start_date("15/07/69"), "01/01/69")
+        self.assertEqual(express_year_start_date("01/04/70"), "01/01/70")
+
+    def test_ledger_range_report_uses_1154_to_5390_and_year_start(self) -> None:
+        from constants.date_utils import default_work_date
+
+        form = LedgerRangeReportForm.from_ui_date("15/07/69")
+        self.assertEqual(form.from_code, "1154-00")
+        self.assertEqual(form.to_code, "5390-01")
+        self.assertEqual(form.start_date, "01/01/69")
+        self.assertEqual(form.end_date, default_work_date())
 
     def test_express_month_date_range_april(self) -> None:
         start, end = express_month_date_range("01/04/69")
@@ -214,6 +229,10 @@ class AccountReportTests(unittest.TestCase):
         self.assertEqual(report_reopen_retries(4), 2)
         self.assertEqual(report_reopen_retries(3), 2)
         self.assertEqual(report_reopen_retries(1), 1)
+
+    def test_new_report_open_uses_keys_not_templates(self) -> None:
+        self.assertEqual(LedgerReportOpenPlan(expand_tree=True).after_f12_keys, ("5", "4", "1"))
+        self.assertEqual(LedgerReportOpenPlan(expand_tree=False).after_f12_keys, ("1",))
 
 
 if __name__ == "__main__":

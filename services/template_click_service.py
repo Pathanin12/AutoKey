@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Callable
 
 from models.screen_region import ScreenRegion
@@ -103,6 +104,34 @@ class TemplateClickService:
         self._highlight_match(match, label)
         self.image.click_at(center_x, center_y)
         return match
+
+    def wait_until_found(
+        self,
+        action_id: str,
+        *,
+        timeout: float = 60.0,
+        poll_wait: float = 0.25,
+        should_stop: Callable[[], bool] | None = None,
+    ) -> StepMatchResult:
+        action = self.settings.get_action(action_id)
+        deadline = time.monotonic() + timeout
+        last: StepMatchResult | None = None
+        while True:
+            if should_stop and should_stop():
+                raise InterruptedError("หยุดโดยผู้ใช้")
+            last = self.find(action_id)
+            if last.found:
+                self._status(
+                    f"จับภาพผ่าน — {action.target.label} ({last.score:.0%})"
+                )
+                return last
+            if time.monotonic() >= deadline:
+                score = last.score if last else 0.0
+                raise TemplateNotFoundError(
+                    f"รอไม่เจอ {action.target.label} "
+                    f"(score {score:.0%}, ต้อง ≥ {action.target.match_threshold:.0%})"
+                )
+            self.image.wait(poll_wait)
 
     def hover(
         self,

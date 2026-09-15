@@ -92,6 +92,16 @@ template_click:
       template_file: menu_report_normal_selected.png
       match_threshold: 0.88
       search_region: [20, 20, 880, 700]
+    report_preview_tmp6:
+      label: แถบพรีวิว TMP6
+      template_file: report_preview_tmp6.png
+      match_threshold: 0.88
+      search_region: [0, 0, 1920, 280]
+    report_export_jpeg:
+      label: ช่อง JPEG
+      template_file: report_export_jpeg.png
+      match_threshold: 0.88
+      search_region: [0, 0, 1920, 1080]
 
 company_switch:
   menu_others: "8"
