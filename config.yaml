@@ -97,6 +97,11 @@ template_click:
       template_file: report_preview_tmp6.png
       match_threshold: 0.88
       search_region: [0, 0, 1920, 280]
+    report_preview_title:
+      label: หัวรายงานแยกประเภททั่วไป
+      template_file: report_preview_title.png
+      match_threshold: 0.88
+      search_region: [0, 0, 1920, 800]
     report_export_jpeg:
       label: ช่อง JPEG
       template_file: report_export_jpeg.png

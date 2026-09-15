@@ -133,6 +133,48 @@ class TemplateClickService:
                 )
             self.image.wait(poll_wait)
 
+    def wait_until_first(
+        self,
+        action_ids: tuple[str, ...],
+        *,
+        timeout: float = 60.0,
+        poll_wait: float = 0.25,
+        should_stop: Callable[[], bool] | None = None,
+    ) -> StepMatchResult:
+        if not action_ids:
+            raise TemplateNotFoundError("ไม่มีปุ่มให้จับภาพ")
+        first = self.settings.get_action(action_ids[0])
+        region = _combined_search_region(
+            tuple(self.settings.get_action(action_id).search_region for action_id in action_ids)
+        )
+        labels = " / ".join(
+            self.settings.get_action(action_id).target.label for action_id in action_ids
+        )
+        deadline = time.monotonic() + timeout
+        last_match: StepMatchResult | None = None
+        last_threshold = first.target.match_threshold
+        while True:
+            if should_stop and should_stop():
+                raise InterruptedError("หยุดโดยผู้ใช้")
+            screen, origin = self.image.screenshot_region(region)
+            for action_id in action_ids:
+                action = self.settings.get_action(action_id)
+                match = detect_step_match(screen, action.target).translated(origin[0], origin[1])
+                last_match = match
+                last_threshold = action.target.match_threshold
+                if match.found:
+                    self._status(
+                        f"จับภาพผ่าน — {action.target.label} ({match.score:.0%})"
+                    )
+                    return match
+            if time.monotonic() >= deadline:
+                score = last_match.score if last_match else 0.0
+                raise TemplateNotFoundError(
+                    f"รอไม่เจอ {labels} "
+                    f"(score {score:.0%}, ต้อง ≥ {last_threshold:.0%})"
+                )
+            self.image.wait(poll_wait)
+
     def hover(
         self,
         action_id: str,
@@ -172,3 +214,17 @@ class TemplateClickService:
     def _status(self, message: str) -> None:
         if self.on_status:
             self.on_status(message)
+
+
+def _combined_search_region(
+    regions: tuple[tuple[int, int, int, int] | None, ...],
+) -> tuple[int, int, int, int] | None:
+    boxes = [region for region in regions if region is not None]
+    if not boxes:
+        return None
+    return (
+        min(box[0] for box in boxes),
+        min(box[1] for box in boxes),
+        max(box[2] for box in boxes),
+        max(box[3] for box in boxes),
+    )

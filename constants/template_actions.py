@@ -64,6 +64,7 @@ MENU_GENERAL_JOURNAL_TARGET = TemplateTarget(
 # ต้นไม้รายงาน F12 อยู่ซ้ายจอ — อย่าสแกนเกือบทั้งจอ
 F12_MENU_REGION = (20, 20, 880, 700)
 REPORT_NORMAL_ACTION_IDS = ("menu_report_normal_selected", "menu_report_normal")
+REPORT_PREVIEW_ACTION_IDS = ("report_preview_tmp6", "report_preview_title")
 
 MENU_ACCOUNT_REPORT_TARGET = TemplateTarget(
     step_id="menu_account_report",
@@ -94,12 +95,20 @@ MENU_REPORT_NORMAL_SELECTED_TARGET = TemplateTarget(
 )
 
 REPORT_PREVIEW_REGION = (0, 0, SCREEN_WIDTH, 280)
+REPORT_PREVIEW_TITLE_REGION = (0, 0, SCREEN_WIDTH, 800)
 REPORT_EXPORT_REGION = (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 
 REPORT_PREVIEW_TMP6_TARGET = TemplateTarget(
     step_id="report_preview_tmp6",
     label="แถบพรีวิว TMP6",
     template_file="report_preview_tmp6.png",
+    match_threshold=0.88,
+)
+
+REPORT_PREVIEW_TITLE_TARGET = TemplateTarget(
+    step_id="report_preview_title",
+    label="หัวรายงานแยกประเภททั่วไป",
+    template_file="report_preview_title.png",
     match_threshold=0.88,
 )
 
@@ -165,6 +174,11 @@ DEFAULT_TEMPLATE_CLICK_ACTIONS: tuple[TemplateClickAction, ...] = (
         action_id="report_preview_tmp6",
         target=REPORT_PREVIEW_TMP6_TARGET,
         search_region=REPORT_PREVIEW_REGION,
+    ),
+    TemplateClickAction(
+        action_id="report_preview_title",
+        target=REPORT_PREVIEW_TITLE_TARGET,
+        search_region=REPORT_PREVIEW_TITLE_REGION,
     ),
     TemplateClickAction(
         action_id="report_export_jpeg",

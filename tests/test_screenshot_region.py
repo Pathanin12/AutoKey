@@ -7,6 +7,8 @@ from constants.template_actions import (
     MENU_ACCOUNT_TARGET,
     MENU_REPORT_NORMAL_SELECTED_TARGET,
     REPORT_NORMAL_ACTION_IDS,
+    REPORT_PREVIEW_ACTION_IDS,
+    REPORT_PREVIEW_TITLE_TARGET,
 )
 from models.step_match_result import StepMatchResult
 from models.template_click_settings import TemplateClickSettings
@@ -92,6 +94,34 @@ class ScreenshotRegionTests(unittest.TestCase):
         self.assertTrue(match.found)
         self.assertEqual(fake.shots, 1)
         self.assertEqual(len(fake.clicks), 1)
+
+    def test_wait_until_first_accepts_either_preview_template(self) -> None:
+        from PIL import Image
+
+        template = load_step_template(REPORT_PREVIEW_TITLE_TARGET)
+        screen = Image.new("RGB", (500, 80), (255, 255, 255))
+        screen.paste(template.convert("RGB"), (10, 10))
+
+        class FakeImage:
+            def __init__(self) -> None:
+                self.shots = 0
+
+            def screenshot_region(self, region):
+                del region
+                self.shots += 1
+                return screen, (0, 0)
+
+            def wait(self, seconds: float | None = None) -> None:
+                del seconds
+
+        fake = FakeImage()
+        clicker = TemplateClickService(
+            fake,  # type: ignore[arg-type]
+            TemplateClickSettings(actions=DEFAULT_TEMPLATE_CLICK_ACTIONS),
+        )
+        match = clicker.wait_until_first(REPORT_PREVIEW_ACTION_IDS, timeout=1, poll_wait=0.01)
+        self.assertTrue(match.found)
+        self.assertEqual(fake.shots, 1)
 
 
 if __name__ == "__main__":

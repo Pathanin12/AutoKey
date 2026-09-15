@@ -21,6 +21,7 @@ from constants.routes import (
     COMPANY_DIALOG_WAIT,
     MENU_LEDGER_REPORT_PATH,
 )
+from constants.template_actions import REPORT_PREVIEW_ACTION_IDS
 from models.account_report_capture_job import AccountReportCaptureJob
 from models.ka_tam_row import KaTamRow
 from models.ledger_range_report_form import LedgerRangeReportForm
@@ -135,9 +136,9 @@ def capture_account_reports(
     image.press("f5")
     image.press("enter")
     if on_status:
-        on_status("รอแถบพรีวิว TMP6")
-    template_click.wait_until_found(
-        "report_preview_tmp6",
+        on_status("รอพรีวิวรายงาน")
+    template_click.wait_until_first(
+        REPORT_PREVIEW_ACTION_IDS,
         timeout=ACCOUNT_REPORT_PREVIEW_TIMEOUT,
         poll_wait=ACCOUNT_REPORT_PREVIEW_POLL_WAIT,
         should_stop=should_stop,
