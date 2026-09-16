@@ -65,6 +65,8 @@ PP30_PENALTY_REPORT_CODES = (
     ACCOUNT_PP30_VAT_PURCHASE,
     ACCOUNT_PP30_VAT_PAYABLE,
 )
+PP30_LEDGER_REPORT_FROM_CODE = ACCOUNT_PP30_VAT_PAYABLE
+PP30_LEDGER_REPORT_TO_CODE = ACCOUNT_PP30_VAT_PAYABLE
 ACCOUNT_REPORT_CAPTURE_WAIT = 1.5
 ACCOUNT_REPORT_FIELD_WAIT = 0.05
 ACCOUNT_REPORT_MENU_WAIT = 0.2
@@ -97,7 +99,7 @@ MENU_ACCOUNT_REPORT_LABEL = "5. รายงานบัญชี"
 MENU_GENERAL_LEDGER_LABEL = "4. แยกประเภท"
 MENU_REPORT_NORMAL_LABEL = "1. แบบปกติ"
 MENU_LEDGER_REPORT_PATH = "F12 > 5. รายงานบัญชี > 4. แยกประเภท > 1. แบบปกติ"
-ACCOUNT_REPORT_FLOW_PATH = "F12 → 5-4-1 → 1154-00/5390-01 → F5 → TMP6 → F6 → JPEG"
+ACCOUNT_REPORT_FLOW_PATH = "F12 → 5-4-1 → 2137-00/2137-00 → F5 → รอพรีวิว → แคป → Shift+F11"
 ACCOUNT_REPORT_CAPTURE_ENABLED = False
 ACCOUNT_REPORT_USE_LEGACY_CAPTURE = False
 PV_NEW_FILE_KEYS = ("alt", "a")
@@ -221,6 +223,8 @@ UI_TEXT = {
     "pp30_kind_skip_zero": "ข้าม — ยอดเป็น 0 ทั้งหมด",
     "pp30_kind_unknown": "ยังไม่เข้าเงื่อนไข",
     "pp30_skip_zero_log": "ข้าม {name} — ไม่กรอก เพราะยอดเป็น 0 ทั้งหมด",
+    "pp30_skip_not_pay_log": "ข้าม {name} — ไม่ใช่จ่ายตัง/เสียค่าปรับ ({kind})",
+    "pp30_skip_pay_log": "ข้าม {name} — {kind} ใช้แบบปกติ",
     "pp30_pdf_name_missing": "อ่านชื่อจาก PDF ไม่ได้: {path}",
     "pp30_unmatched": "เทียบชื่อกับ Excel ไม่ได้: {pdf_name} ({path})",
     "pp30_search_log": "ค้นหาห้าง: {name}",

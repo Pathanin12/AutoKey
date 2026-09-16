@@ -100,7 +100,7 @@ REPORT_EXPORT_REGION = (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 
 REPORT_PREVIEW_TMP6_TARGET = TemplateTarget(
     step_id="report_preview_tmp6",
-    label="แถบพรีวิว TMP6",
+    label="แถบเครื่องมือพรีวิว",
     template_file="report_preview_tmp6.png",
     match_threshold=0.88,
 )

@@ -15,6 +15,8 @@ from constants.routes import (
     MENU_GENERAL_JOURNAL_PATH,
     MENU_OPEN_PRE_WAIT,
     MENU_PAYMENT_JOURNAL_PATH,
+    PP30_LEDGER_REPORT_FROM_CODE,
+    PP30_LEDGER_REPORT_TO_CODE,
     PP30_PENALTY_REPORT_CODES,
     PV_NEW_FILE_KEYS,
     UI_TEXT,
@@ -176,13 +178,15 @@ def _new_voucher(image: ImageService, voucher_date: str, description: str) -> No
 def _capture_reports(ctx: Pp30FillContext) -> None:
     ctx.on_status(
         UI_TEXT["pp30_report_log"].format(
-            codes=f"{ACCOUNT_PP30_VAT_PURCHASE} {ACCOUNT_PP30_PENALTY}"
+            codes=f"{PP30_LEDGER_REPORT_FROM_CODE} {PP30_LEDGER_REPORT_TO_CODE}"
         )
     )
     capture_account_reports(
         ctx.image,
         ctx.template_click,
         month_date=ctx.form_config.jv_date,
+        report_output_dir=ctx.form_config.report_output_dir,
+        legal_name=ctx.job.excel_name,
         on_status=ctx.on_status,
         should_stop=ctx.should_stop,
         template_retries=ctx.template_retries,

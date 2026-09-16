@@ -38,14 +38,15 @@ class AccountReportTests(unittest.TestCase):
         self.assertEqual(express_year_start_date("15/07/69"), "01/01/69")
         self.assertEqual(express_year_start_date("01/04/70"), "01/01/70")
 
-    def test_ledger_range_report_uses_1154_to_5390_and_year_start(self) -> None:
-        from constants.date_utils import default_work_date
-
+    def test_ledger_range_report_uses_2137_and_ui_month(self) -> None:
         form = LedgerRangeReportForm.from_ui_date("15/07/69")
-        self.assertEqual(form.from_code, "1154-00")
-        self.assertEqual(form.to_code, "5390-01")
-        self.assertEqual(form.start_date, "01/01/69")
-        self.assertEqual(form.end_date, default_work_date())
+        self.assertEqual(form.from_code, "2137-00")
+        self.assertEqual(form.to_code, "2137-00")
+        self.assertEqual(form.start_date, "01/07/69")
+        self.assertEqual(form.end_date, "31/07/69")
+        with tempfile.TemporaryDirectory() as raw:
+            output = form.screenshot_path(Path(raw) / "reports", "หจก.เจนสิริการค้า")
+            self.assertEqual(output.name, "2137-00.png")
 
     def test_express_month_date_range_april(self) -> None:
         start, end = express_month_date_range("01/04/69")

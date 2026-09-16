@@ -80,3 +80,11 @@ class Pp30PaymentKind:
     @property
     def is_penalty(self) -> bool:
         return self.key == PP30_KIND_PENALTY
+
+    @property
+    def runs_on_normal(self) -> bool:
+        return self.is_pay or self.is_penalty
+
+    @property
+    def runs_on_special(self) -> bool:
+        return not self.is_skip and not self.is_pay and not self.is_penalty

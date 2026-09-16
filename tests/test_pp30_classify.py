@@ -44,6 +44,8 @@ class Pp30ClassifyServiceTests(unittest.TestCase):
         kind = Pp30ClassifyService.classify(_values(vat_sale=0.0, vat_purchase=0.0))
         self.assertEqual(kind.key, PP30_KIND_SKIP_ZERO)
         self.assertTrue(kind.is_skip)
+        self.assertFalse(kind.runs_on_normal)
+        self.assertFalse(kind.runs_on_special)
         self.assertEqual(kind.label, "ข้าม — ยอดเป็น 0 ทั้งหมด")
 
     def test_new_shop_is_not_skip_when_purchase_has_amount(self) -> None:
@@ -54,6 +56,8 @@ class Pp30ClassifyServiceTests(unittest.TestCase):
         self.assertTrue(kind.is_new_shop)
         self.assertFalse(kind.is_skip)
         self.assertFalse(kind.is_no_pay_normal)
+        self.assertTrue(kind.runs_on_special)
+        self.assertFalse(kind.runs_on_normal)
 
     def test_no_pay_normal_when_line_10_greater_than_line_8(self) -> None:
         kind = Pp30ClassifyService.classify(
@@ -62,6 +66,8 @@ class Pp30ClassifyServiceTests(unittest.TestCase):
         self.assertEqual(kind.key, PP30_KIND_NO_PAY_NORMAL)
         self.assertTrue(kind.is_no_pay_normal)
         self.assertFalse(kind.is_new_shop)
+        self.assertTrue(kind.runs_on_special)
+        self.assertFalse(kind.runs_on_normal)
         self.assertEqual(kind.label, "ไม่จ่ายตัง — แบบปกติ")
 
     def test_no_pay_new_shop_when_line_5_zero_and_7_9_12_equal(self) -> None:
@@ -91,6 +97,8 @@ class Pp30ClassifyServiceTests(unittest.TestCase):
         self.assertEqual(kind.key, PP30_KIND_PAY)
         self.assertTrue(kind.is_pay)
         self.assertEqual(kind.label, "จ่ายตัง")
+        self.assertTrue(kind.runs_on_normal)
+        self.assertFalse(kind.runs_on_special)
 
     def test_pay_when_has_line_8_without_line_10(self) -> None:
         kind = Pp30ClassifyService.classify(
@@ -111,6 +119,8 @@ class Pp30ClassifyServiceTests(unittest.TestCase):
         self.assertEqual(kind.key, PP30_KIND_PENALTY)
         self.assertTrue(kind.is_penalty)
         self.assertEqual(kind.label, "เสียค่าปรับ")
+        self.assertTrue(kind.runs_on_normal)
+        self.assertFalse(kind.runs_on_special)
 
     def test_penalty_when_pay_like_and_has_line_14(self) -> None:
         kind = Pp30ClassifyService.classify(
@@ -135,6 +145,8 @@ class Pp30ClassifyServiceTests(unittest.TestCase):
             _values(vat_sale=20000.0, vat_purchase=5000.0, line_8=15000.0, line_10=15000.0)
         )
         self.assertEqual(kind.key, PP30_KIND_UNKNOWN)
+        self.assertTrue(kind.runs_on_special)
+        self.assertFalse(kind.runs_on_normal)
 
 
 class Pp30ExtractKindTests(unittest.TestCase):
