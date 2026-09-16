@@ -1,4 +1,4 @@
-"""แบบปกติ — ไม่มีข้อ 10 จึงไม่ใช่จ่ายตังหรือเสียค่าปรับ"""
+"""แบบปกติ — ไม่มีข้อ 10 จึงไม่ใช่จ่ายตัง"""
 
 from __future__ import annotations
 
@@ -7,6 +7,8 @@ from services.pp30_amount_service import has_amount, line_8_and_9
 
 
 def matches_normal(values: Pp30FormValues) -> bool:
+    if has_amount(values.line_13) or has_amount(values.line_14):
+        return False
     return not has_amount(values.line_10)
 
 
@@ -17,6 +19,8 @@ def complete_normal_lines(
     amounts: list[float],
 ) -> dict[str, float] | None:
     del amounts
+    if has_amount(labeled.get(13, 0.0)) or has_amount(labeled.get(14, 0.0)):
+        return None
     line8, line9 = line_8_and_9(line5, line7, labeled)
     line10 = labeled.get(10, 0.0)
     if has_amount(line10):

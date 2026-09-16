@@ -26,7 +26,9 @@ def complete_penalty_lines(
     line10 = labeled.get(10)
     if line10 is None:
         line10 = _infer_pay_line_10(amounts, line5=line5, line7=line7, line8=line8)
-    if line10 is None or not _is_pay_like(line8, line10):
+    if line10 is None:
+        line10 = 0.0
+    if not _is_pay_like(line8, line10):
         return None
     line11, line15 = _penalty_line_11_and_15(line8, line10, line13, line14, labeled)
     return {
@@ -70,7 +72,9 @@ def _penalty_line_11_and_15(
 
 
 def _is_pay_like(line8: float, line10: float) -> bool:
-    return has_amount(line10) and line8 - line10 > 0.005
+    if line8 - line10 > 0.005:
+        return True
+    return has_amount(line8) and not has_amount(line10)
 
 
 def _infer_pay_line_10(

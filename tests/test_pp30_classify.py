@@ -113,7 +113,7 @@ class Pp30ClassifyServiceTests(unittest.TestCase):
         self.assertTrue(kind.runs_on_normal)
         self.assertFalse(kind.runs_on_special)
 
-    def test_no_line_10_with_line_13_is_normal_not_penalty(self) -> None:
+    def test_no_line_10_with_line_13_is_penalty(self) -> None:
         kind = Pp30ClassifyService.classify(
             _values(
                 vat_sale=20000.0,
@@ -123,9 +123,9 @@ class Pp30ClassifyServiceTests(unittest.TestCase):
                 line_13=200.0,
             )
         )
-        self.assertEqual(kind.key, PP30_KIND_NORMAL)
-        self.assertTrue(kind.is_normal)
-        self.assertFalse(kind.is_penalty)
+        self.assertEqual(kind.key, PP30_KIND_PENALTY)
+        self.assertTrue(kind.is_penalty)
+        self.assertFalse(kind.is_normal)
 
     def test_penalty_when_pay_like_and_has_line_13(self) -> None:
         kind = Pp30ClassifyService.classify(
@@ -352,6 +352,23 @@ class Pp30ExtractKindTests(unittest.TestCase):
         self.assertEqual(values.penalty_amount, 200.0)
         self.assertEqual(values.line_11, 15000.0)
         self.assertEqual(values.line_15, 15200.0)
+        self.assertEqual(Pp30ClassifyService.classify(values).key, PP30_KIND_PENALTY)
+
+    def test_extracts_penalty_without_line_10(self) -> None:
+        text = """
+5. ภาษีขายเดือนนี้ 20,000.00
+7. ภาษีซื้อเดือนนี้ 5,000.00
+8. ภาษีที่ต้องชำระเดือนนี้ 15,000.00
+11. ต้องชำระ 15,000.00
+13. เงินเพิ่ม 200.00
+ยื่นวันที่่ 13 เดือน สิงหาคม พ.ศ. 2569
+"""
+        values = Pp30PdfService.extract_form_values(text)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.line_10, 0.0)
+        self.assertEqual(values.line_13, 200.0)
+        self.assertEqual(values.penalty_amount, 200.0)
         self.assertEqual(Pp30ClassifyService.classify(values).key, PP30_KIND_PENALTY)
 
     def test_extracts_penalty_from_line_14(self) -> None:

@@ -16,10 +16,10 @@ class Pp30ClassifyService:
             return Pp30PaymentKind.skip_zero()
         if matches_new_shop(values):
             return Pp30PaymentKind.no_pay_new_shop()
-        if matches_normal(values):
-            return Pp30PaymentKind.normal()
         if matches_penalty(values):
             return Pp30PaymentKind.penalty()
+        if matches_normal(values):
+            return Pp30PaymentKind.normal()
         if matches_pay(values):
             return Pp30PaymentKind.pay()
         if matches_no_pay_normal(values):
