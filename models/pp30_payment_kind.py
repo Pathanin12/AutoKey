@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from constants.routes import (
+    PP30_KIND_NORMAL,
     PP30_KIND_NO_PAY_NEW_SHOP,
     PP30_KIND_NO_PAY_NORMAL,
     PP30_KIND_PAY,
@@ -17,6 +18,10 @@ from constants.routes import (
 @dataclass(frozen=True)
 class Pp30PaymentKind:
     key: str
+
+    @staticmethod
+    def normal() -> Pp30PaymentKind:
+        return Pp30PaymentKind(key=PP30_KIND_NORMAL)
 
     @staticmethod
     def no_pay_normal() -> Pp30PaymentKind:
@@ -52,6 +57,7 @@ class Pp30PaymentKind:
     @property
     def label(self) -> str:
         labels = {
+            PP30_KIND_NORMAL: UI_TEXT["pp30_kind_normal"],
             PP30_KIND_NO_PAY_NORMAL: UI_TEXT["pp30_kind_no_pay_normal"],
             PP30_KIND_NO_PAY_NEW_SHOP: UI_TEXT["pp30_kind_no_pay_new_shop"],
             PP30_KIND_PAY: UI_TEXT["pp30_kind_pay"],
@@ -64,6 +70,10 @@ class Pp30PaymentKind:
     @property
     def is_skip(self) -> bool:
         return self.key == PP30_KIND_SKIP_ZERO
+
+    @property
+    def is_normal(self) -> bool:
+        return self.key == PP30_KIND_NORMAL
 
     @property
     def is_no_pay_normal(self) -> bool:
@@ -83,8 +93,8 @@ class Pp30PaymentKind:
 
     @property
     def runs_on_normal(self) -> bool:
-        return self.is_pay or self.is_penalty
+        return self.is_normal or self.is_pay or self.is_penalty
 
     @property
     def runs_on_special(self) -> bool:
-        return not self.is_skip and not self.is_pay and not self.is_penalty
+        return not self.is_skip and not self.runs_on_normal

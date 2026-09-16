@@ -29,9 +29,7 @@ def complete_pay_lines(
     line10 = labeled.get(10)
     if line10 is None:
         line10 = _infer_pay_line_10(amounts, line5=line5, line7=line7, line8=line8)
-    if line10 is None:
-        line10 = 0.0
-    if not _is_pay_like(line8, line10):
+    if line10 is None or not _is_pay_like(line8, line10):
         return None
     line11 = labeled.get(11)
     if line11 is None:
@@ -51,9 +49,7 @@ def complete_pay_lines(
 
 
 def _is_pay_like(line8: float, line10: float) -> bool:
-    if line8 - line10 > 0.005:
-        return True
-    return has_amount(line8) and not has_amount(line10)
+    return has_amount(line10) and line8 - line10 > 0.005
 
 
 def _infer_pay_line_10(

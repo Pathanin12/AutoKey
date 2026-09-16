@@ -7,6 +7,8 @@ from models.pp30_form_config import Pp30FormConfig
 from models.pp30_form_values import Pp30FormValues
 from services.pp30_fill_new_shop_service import fill_jv as fill_new_shop_jv
 from services.pp30_fill_no_pay_normal_service import fill_jv as fill_no_pay_normal_jv
+from services.pp30_fill_normal_service import fill_jv as fill_normal_jv
+from services.pp30_fill_normal_service import fill_pv as fill_normal_pv
 from services.pp30_fill_pay_service import fill_jv as fill_pay_jv
 from services.pp30_fill_pay_service import fill_pv as fill_pay_pv
 from services.pp30_fill_penalty_service import fill_jv as fill_penalty_jv
@@ -120,6 +122,39 @@ class Pp30SpecialFillTests(unittest.TestCase):
         self.assertEqual(codes, ["2137-00", "88.75", "4200-03", "0.75", "1111-00"])
         self.assertEqual(events[-2:], [("press", ("f2",)), ("press", ("f9",))])
         self.assertNotIn("1154-00", codes)
+
+    def test_normal_jv_types_2135_1154_2137_without_1156(self) -> None:
+        image = RecordingImage()
+        values = Pp30FormValues(
+            vat_sale=100.0,
+            vat_purchase=23.5,
+            amount_due=123.50,
+            pv_date="13/08/69",
+            line_8=123.50,
+        )
+        report_codes = fill_normal_jv(image, _form_config(), values, lambda _msg: None)
+        events = _typed_and_pressed(image.events)
+        codes = [event[1] for event in events if event[0] == "type_text"]
+        self.assertEqual(codes, ["2135-00", "100.00", "1154-00", "23.50", "2137-00"])
+        self.assertEqual(report_codes, ("2135-00", "1154-00", "2137-00"))
+        self.assertNotIn("1156-00", codes)
+        self.assertEqual(events[-2:], [("press", ("esc",)), ("press", ("esc",))])
+
+    def test_normal_pv_uses_2137_then_4200_then_cash(self) -> None:
+        image = RecordingImage()
+        values = Pp30FormValues(
+            vat_sale=100.0,
+            vat_purchase=23.5,
+            amount_due=123.50,
+            pv_date="13/08/69",
+            line_8=123.50,
+        )
+        fill_normal_pv(image, _form_config(), values, lambda _msg: None)
+        events = _typed_and_pressed(image.events)
+        codes = [event[1] for event in events if event[0] == "type_text"]
+        self.assertEqual(codes, ["2137-00", "123.50", "4200-03", "0.50", "1111-00"])
+        self.assertNotIn("1156-00", codes)
+        self.assertNotIn("5390-01", codes)
 
     def test_penalty_jv_uses_2135_then_1154_then_2137(self) -> None:
         image = RecordingImage()
@@ -342,6 +377,7 @@ class Pp30SpecialFillTests(unittest.TestCase):
         files = (
             root / "services/pp30_fill_no_pay_normal_service.py",
             root / "services/pp30_fill_new_shop_service.py",
+            root / "services/pp30_fill_normal_service.py",
             root / "services/pp30_fill_pay_service.py",
             root / "services/pp30_fill_penalty_service.py",
         )
@@ -357,6 +393,7 @@ class Pp30SpecialFillTests(unittest.TestCase):
         files = (
             root / "services/pp30_extract_no_pay_normal_service.py",
             root / "services/pp30_extract_new_shop_service.py",
+            root / "services/pp30_extract_normal_service.py",
             root / "services/pp30_extract_pay_service.py",
             root / "services/pp30_extract_penalty_service.py",
         )

@@ -125,6 +125,7 @@ RUN_SPEED_SCALES = {
     RUN_SPEED_100: 1.0,
 }
 
+PP30_KIND_NORMAL = "normal"
 PP30_KIND_NO_PAY_NORMAL = "no_pay_normal"
 PP30_KIND_NO_PAY_NEW_SHOP = "no_pay_new_shop"
 PP30_KIND_PAY = "pay"
@@ -132,6 +133,7 @@ PP30_KIND_PENALTY = "penalty"
 PP30_KIND_SKIP_ZERO = "skip_zero"
 PP30_KIND_UNKNOWN = "unknown"
 PP30_PAYMENT_KINDS = (
+    PP30_KIND_NORMAL,
     PP30_KIND_NO_PAY_NORMAL,
     PP30_KIND_NO_PAY_NEW_SHOP,
     PP30_KIND_PAY,
@@ -216,6 +218,7 @@ UI_TEXT = {
     ),
     "pp30_match_log": "เทียบชื่อ — PDF: {pdf_name} → Excel: {excel_name}",
     "pp30_kind_log": "เงื่อนไข: {kind}",
+    "pp30_kind_normal": "แบบปกติ",
     "pp30_kind_no_pay_normal": "ไม่จ่ายตัง — แบบปกติ",
     "pp30_kind_no_pay_new_shop": "ไม่จ่ายตัง — เปิดร้านใหม่",
     "pp30_kind_pay": "จ่ายตัง",
@@ -223,7 +226,7 @@ UI_TEXT = {
     "pp30_kind_skip_zero": "ข้าม — ยอดเป็น 0 ทั้งหมด",
     "pp30_kind_unknown": "ยังไม่เข้าเงื่อนไข",
     "pp30_skip_zero_log": "ข้าม {name} — ไม่กรอก เพราะยอดเป็น 0 ทั้งหมด",
-    "pp30_skip_not_pay_log": "ข้าม {name} — ไม่ใช่จ่ายตัง/เสียค่าปรับ ({kind})",
+    "pp30_skip_not_pay_log": "ข้าม {name} — ไม่ใช่จ่ายตัง/เสียค่าปรับ/แบบปกติ ({kind})",
     "pp30_skip_pay_log": "ข้าม {name} — {kind} ใช้แบบปกติ",
     "pp30_pdf_name_missing": "อ่านชื่อจาก PDF ไม่ได้: {path}",
     "pp30_unmatched": "เทียบชื่อกับ Excel ไม่ได้: {pdf_name} ({path})",

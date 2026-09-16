@@ -3,6 +3,7 @@ import unittest
 from constants.routes import (
     PP30_KIND_NO_PAY_NEW_SHOP,
     PP30_KIND_NO_PAY_NORMAL,
+    PP30_KIND_NORMAL,
     PP30_KIND_PAY,
     PP30_KIND_PENALTY,
     PP30_KIND_SKIP_ZERO,
@@ -100,19 +101,40 @@ class Pp30ClassifyServiceTests(unittest.TestCase):
         self.assertTrue(kind.runs_on_normal)
         self.assertFalse(kind.runs_on_special)
 
-    def test_pay_when_has_line_8_without_line_10(self) -> None:
+    def test_no_line_10_is_normal_not_pay(self) -> None:
         kind = Pp30ClassifyService.classify(
             _values(vat_sale=51235.94, vat_purchase=168.0, amount_due=51067.94, line_8=51067.94)
         )
-        self.assertEqual(kind.key, PP30_KIND_PAY)
+        self.assertEqual(kind.key, PP30_KIND_NORMAL)
+        self.assertTrue(kind.is_normal)
+        self.assertFalse(kind.is_pay)
+        self.assertFalse(kind.is_penalty)
+        self.assertEqual(kind.label, "แบบปกติ")
+        self.assertTrue(kind.runs_on_normal)
+        self.assertFalse(kind.runs_on_special)
 
-    def test_penalty_when_pay_like_and_has_line_13(self) -> None:
+    def test_no_line_10_with_line_13_is_normal_not_penalty(self) -> None:
         kind = Pp30ClassifyService.classify(
             _values(
                 vat_sale=20000.0,
                 vat_purchase=5000.0,
                 amount_due=15000.0,
                 line_8=15000.0,
+                line_13=200.0,
+            )
+        )
+        self.assertEqual(kind.key, PP30_KIND_NORMAL)
+        self.assertTrue(kind.is_normal)
+        self.assertFalse(kind.is_penalty)
+
+    def test_penalty_when_pay_like_and_has_line_13(self) -> None:
+        kind = Pp30ClassifyService.classify(
+            _values(
+                vat_sale=20000.0,
+                vat_purchase=5000.0,
+                amount_due=12000.0,
+                line_8=15000.0,
+                line_10=3000.0,
                 line_13=200.0,
             )
         )
@@ -127,8 +149,9 @@ class Pp30ClassifyServiceTests(unittest.TestCase):
             _values(
                 vat_sale=20000.0,
                 vat_purchase=5000.0,
-                amount_due=15000.0,
+                amount_due=12000.0,
                 line_8=15000.0,
+                line_10=3000.0,
                 line_14=500.0,
             )
         )
@@ -150,7 +173,7 @@ class Pp30ClassifyServiceTests(unittest.TestCase):
 
 
 class Pp30ExtractKindTests(unittest.TestCase):
-    def test_sample_rd_form_is_pay(self) -> None:
+    def test_sample_rd_form_without_line_10_is_normal(self) -> None:
         text = """
 ห้างหุ้นส่วนจำกัด เจนสิริการค้า
 5. ภาษีขายเดือนนี้
@@ -166,7 +189,8 @@ class Pp30ExtractKindTests(unittest.TestCase):
         values = Pp30PdfService.extract_form_values(text)
         self.assertIsNotNone(values)
         assert values is not None
-        self.assertEqual(Pp30ClassifyService.classify(values).key, PP30_KIND_PAY)
+        self.assertEqual(values.line_10, 0.0)
+        self.assertEqual(Pp30ClassifyService.classify(values).key, PP30_KIND_NORMAL)
 
     def test_extracts_new_shop_from_labeled_zero_sale(self) -> None:
         text = """
@@ -316,6 +340,7 @@ class Pp30ExtractKindTests(unittest.TestCase):
 5. ภาษีขายเดือนนี้ 20,000.00
 7. ภาษีซื้อเดือนนี้ 5,000.00
 8. ภาษีที่ต้องชำระเดือนนี้ 15,000.00
+10. ภาษีที่ชำระเกินยกมา 3,000.00
 11. ต้องชำระ 15,000.00
 13. เงินเพิ่ม 200.00
 ยื่นวันที่่ 13 เดือน สิงหาคม พ.ศ. 2569
@@ -334,6 +359,7 @@ class Pp30ExtractKindTests(unittest.TestCase):
 5. ภาษีขายเดือนนี้ 20,000.00
 7. ภาษีซื้อเดือนนี้ 5,000.00
 8. ภาษีที่ต้องชำระเดือนนี้ 15,000.00
+10. ภาษีที่ชำระเกินยกมา 3,000.00
 11. ต้องชำระ 15,000.00
 14. เบี้ยปรับ 500.00
 ยื่นวันที่่ 13 เดือน สิงหาคม พ.ศ. 2569
@@ -351,6 +377,7 @@ class Pp30ExtractKindTests(unittest.TestCase):
 5. ภาษีขายเดือนนี้ 20,000.00
 7. ภาษีซื้อเดือนนี้ 5,000.00
 8. ภาษีที่ต้องชำระเดือนนี้ 15,000.00
+10. ภาษีที่ชำระเกินยกมา 3,000.00
 11. ต้องชำระ 15,000.00
 13. เงินเพิ่ม 200.00
 14. เบี้ยปรับ 50.50
@@ -371,6 +398,7 @@ class Pp30ExtractKindTests(unittest.TestCase):
 5. ภาษีขายเดือนนี้ 20,000.00
 7. ภาษีซื้อเดือนนี้ 5,000.00
 8. ภาษีที่ต้องชำระเดือนนี้ 15,000.00
+10. ภาษีที่ชำระเกินยกมา 3,000.00
 13. เงินเพิ่ม 200.00
 (11.) 15. รวมภาษีที่ต้องชำระทั้งสิ้น 15,200.00
 ยื่นวันที่่ 13 เดือน สิงหาคม พ.ศ. 2569

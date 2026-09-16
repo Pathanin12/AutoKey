@@ -18,6 +18,7 @@ from services.menu_navigation_service import open_general_journal_menu
 from services.pp30_classify_service import Pp30ClassifyService
 from services.pp30_fill_new_shop_service import Pp30FillNewShopService
 from services.pp30_fill_no_pay_normal_service import Pp30FillNoPayNormalService
+from services.pp30_fill_normal_service import Pp30FillNormalService
 from services.pp30_fill_pay_service import Pp30FillPayService
 from services.pp30_fill_penalty_service import Pp30FillPenaltyService
 from services.template_click_service import TemplateClickService
@@ -72,8 +73,10 @@ class Pp30Workflow:
         self._search_company(job.excel_name)
         if kind.is_penalty:
             Pp30FillPenaltyService.run(self._fill_context(form_config, job))
-        else:
+        elif kind.is_pay:
             Pp30FillPayService.run(self._fill_context(form_config, job))
+        else:
+            Pp30FillNormalService.run(self._fill_context(form_config, job))
         return True
 
     def _run_special(self, form_config: Pp30FormConfig, job: Pp30MatchedJob) -> bool:

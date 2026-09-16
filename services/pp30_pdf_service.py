@@ -10,6 +10,7 @@ from services.lookup_match_service import is_plausible_vendor_name, tidy_vendor_
 from services.pp30_amount_service import eq_amount, line_8_and_9, line_money, money_amounts
 from services.pp30_extract_new_shop_service import complete_new_shop_lines
 from services.pp30_extract_no_pay_normal_service import complete_no_pay_normal_lines
+from services.pp30_extract_normal_service import complete_normal_lines
 from services.pp30_extract_pay_service import complete_pay_lines
 from services.pp30_extract_penalty_service import complete_penalty_lines
 
@@ -176,6 +177,9 @@ def _extract_tax_lines(text: str) -> dict[str, float] | None:
     pay = complete_pay_lines(line5, line7, labeled, amounts)
     if pay is not None:
         return pay
+    normal = complete_normal_lines(line5, line7, labeled, amounts)
+    if normal is not None:
+        return normal
     return _unclassified_lines(line5, line7, labeled)
 
 
