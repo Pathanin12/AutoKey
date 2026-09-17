@@ -242,6 +242,7 @@ UI_TEXT = {
     "pp30_pv_penalty_log": "กรอก PV เสียค่าปรับ {date} — 2137-00={due} 5390-01={penalty} 4200-03={decimal}",
     "pp30_pv_log": "กรอก PV {date} — 2137-00={due} 4200-03={decimal}",
     "pp30_report_log": "แคปรายงาน {codes}",
+    "pp30_return_company_log": "กลับ dialog เลือกข้อมูล",
     "pp30_run_mode": "รูปแบบ",
     "pp30_mode_normal": "แบบปกติ",
     "pp30_mode_special": "แบบพิเศษ",

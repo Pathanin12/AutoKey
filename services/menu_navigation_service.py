@@ -55,15 +55,10 @@ def open_payment_journal_menu(
     flyout_region = _flyout_search_region(daily_match)
     _status(on_status, f"คลิกเมนู {MENU_PAYMENT_JOURNAL_LABEL}")
     try:
-        _retry_action(
-            lambda: template_click.click("menu_payment_journal", search_region=flyout_region),
-            image=image,
-            retries=template_retries,
-            retry_delay=template_retry_delay,
-        )
+        template_click.click("menu_payment_journal", search_region=flyout_region)
     except TemplateNotFoundError:
-        _status(on_status, "จับภาพไม่เจอ — เลือกรายการที่ 2 ใน submenu")
-        image.press("2")
+        _status(on_status, "จับภาพไม่เจอ — คลิกรายการที่ 2 ของ submenu")
+        _click_flyout_item(image, daily_match, 1)
     image.wait(menu_wait)
 
 
@@ -102,23 +97,10 @@ def open_general_journal_menu(
     flyout_region = _flyout_search_region(daily_match)
     _status(on_status, f"คลิกเมนู {MENU_GENERAL_JOURNAL_LABEL}")
     try:
-        _retry_action(
-            lambda: template_click.click("menu_general_journal", search_region=flyout_region),
-            image=image,
-            retries=template_retries,
-            retry_delay=template_retry_delay,
-        )
+        template_click.click("menu_general_journal", search_region=flyout_region)
     except TemplateNotFoundError:
-        try:
-            _retry_action(
-                lambda: template_click.click("menu_general_journal"),
-                image=image,
-                retries=max(1, template_retries - 1),
-                retry_delay=template_retry_delay,
-            )
-        except TemplateNotFoundError:
-            _status(on_status, "จับภาพไม่เจอ — คลิกรายการแรกของ submenu")
-            _click_first_flyout_item(image, daily_match)
+        _status(on_status, "จับภาพไม่เจอ — คลิกรายการแรกของ submenu")
+        _click_flyout_item(image, daily_match, 0)
     image.wait(menu_wait)
 
 
@@ -131,9 +113,10 @@ def _flyout_search_region(daily_match: StepMatchResult) -> tuple[int, int, int, 
     return x0, y0, x1, y1
 
 
-def _click_first_flyout_item(image: ImageService, daily_match: StepMatchResult) -> None:
+def _click_flyout_item(image: ImageService, daily_match: StepMatchResult, index: int) -> None:
     x = min(SCREEN_WIDTH - 8, daily_match.x + daily_match.width + 48)
-    y = daily_match.y + max(8, daily_match.height // 2)
+    row = max(8, daily_match.height)
+    y = daily_match.y + max(8, row // 2) + (index * row)
     image.click_at(x, y)
 
 

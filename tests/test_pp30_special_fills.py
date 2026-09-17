@@ -372,6 +372,13 @@ class Pp30SpecialFillTests(unittest.TestCase):
         codes = [event[1] for event in events if event[0] == "type_text"]
         self.assertEqual(codes, ["2137-00", "88.00", "5390-01", "3.25", "4200-03", "0.25", "1111-00"])
 
+    def test_special_fills_do_not_capture_reports(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        for name in ("pp30_fill_new_shop_service.py", "pp30_fill_no_pay_normal_service.py"):
+            source = (root / "services" / name).read_text(encoding="utf-8")
+            self.assertNotIn("capture_account_reports", source)
+            self.assertIn("return_to_company_dialog", source)
+
     def test_special_fill_services_do_not_import_each_other(self) -> None:
         root = Path(__file__).resolve().parent.parent
         files = (

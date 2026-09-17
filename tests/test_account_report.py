@@ -26,6 +26,7 @@ from services.account_report_capture_service import (
     build_ledger_report_jobs,
     should_expand_ledger_report_tree,
 )
+from services.company_dialog_return_service import return_to_company_dialog
 
 
 class AccountReportTests(unittest.TestCase):
@@ -234,6 +235,25 @@ class AccountReportTests(unittest.TestCase):
     def test_new_report_open_uses_keys_not_templates(self) -> None:
         self.assertEqual(LedgerReportOpenPlan(expand_tree=True).after_f12_keys, ("5", "4", "1"))
         self.assertEqual(LedgerReportOpenPlan(expand_tree=False).after_f12_keys, ("1",))
+
+    def test_special_return_to_company_dialog_is_shift_f11_tab_enter_twice(self) -> None:
+        class FakeImage:
+            def __init__(self) -> None:
+                self.keys: list[tuple[str, ...]] = []
+
+            def press(self, *keys: str, presses: int = 1) -> None:
+                for _ in range(presses):
+                    self.keys.append(keys)
+
+            def wait(self, seconds: float | None = None) -> None:
+                del seconds
+
+        image = FakeImage()
+        return_to_company_dialog(image)  # type: ignore[arg-type]
+        self.assertEqual(
+            image.keys,
+            [("shift", "f11"), ("tab",), ("enter",), ("enter",)],
+        )
 
 
 if __name__ == "__main__":

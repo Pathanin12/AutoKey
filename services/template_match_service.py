@@ -18,6 +18,7 @@ MATCH_METHOD_OPAQUE = cv2.TM_CCOEFF_NORMED
 _TEMPLATE_IMAGE_CACHE: dict[str, "Image.Image"] = {}
 _TEMPLATE_CV_CACHE: dict[int, tuple[np.ndarray, np.ndarray | None]] = {}
 _MAX_CACHED_PIXELS = 200_000
+_SCREEN_RGB_CV: tuple[int, np.ndarray] | None = None
 
 
 @dataclass(frozen=True)
@@ -53,13 +54,23 @@ def load_step_template(step) -> Image.Image:
     return image
 
 
+def clear_screen_cv_cache(screen=None) -> None:
+    global _SCREEN_RGB_CV
+    if screen is None or (_SCREEN_RGB_CV is not None and _SCREEN_RGB_CV[0] == id(screen)):
+        _SCREEN_RGB_CV = None
+
+
 def _pil_to_cv(image: Image.Image) -> tuple[np.ndarray, np.ndarray | None]:
     ident = id(image)
     cached = _TEMPLATE_CV_CACHE.get(ident)
     if cached is not None:
         return cached
     if image.mode == "RGB":
+        global _SCREEN_RGB_CV
+        if _SCREEN_RGB_CV is not None and _SCREEN_RGB_CV[0] == ident:
+            return _SCREEN_RGB_CV[1], None
         bgr = cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
+        _SCREEN_RGB_CV = (ident, bgr)
         return bgr, None
     rgba = np.asarray(image.convert("RGBA"))
     bgr = cv2.cvtColor(rgba[:, :, :3], cv2.COLOR_RGB2BGR)

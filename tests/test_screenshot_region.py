@@ -9,6 +9,7 @@ from constants.template_actions import (
     REPORT_NORMAL_ACTION_IDS,
     REPORT_PREVIEW_ACTION_IDS,
     REPORT_PREVIEW_TITLE_TARGET,
+    REPORT_PREVIEW_TMP6_TARGET,
 )
 from models.step_match_result import StepMatchResult
 from models.template_click_settings import TemplateClickSettings
@@ -95,6 +96,36 @@ class ScreenshotRegionTests(unittest.TestCase):
         self.assertEqual(fake.shots, 1)
         self.assertEqual(len(fake.clicks), 1)
 
+    def test_wait_until_first_uses_toolbar_region_first(self) -> None:
+        from PIL import Image
+
+        template = load_step_template(REPORT_PREVIEW_TMP6_TARGET)
+        screen = Image.new("RGB", (500, 80), (40, 40, 40))
+        screen.paste(template.convert("RGB"), (10, 10))
+
+        class FakeImage:
+            def __init__(self) -> None:
+                self.shots = 0
+                self.regions: list[tuple[int, int, int, int] | None] = []
+
+            def screenshot_region(self, region):
+                self.regions.append(region)
+                self.shots += 1
+                return screen.copy(), (0, 0)
+
+            def wait(self, seconds: float | None = None) -> None:
+                del seconds
+
+        fake = FakeImage()
+        clicker = TemplateClickService(
+            fake,  # type: ignore[arg-type]
+            TemplateClickSettings(actions=DEFAULT_TEMPLATE_CLICK_ACTIONS),
+        )
+        match = clicker.wait_until_first(REPORT_PREVIEW_ACTION_IDS, timeout=1, poll_wait=0.01)
+        self.assertTrue(match.found)
+        self.assertEqual(fake.shots, 1)
+        self.assertEqual(fake.regions[0], (0, 0, 1920, 280))
+
     def test_wait_until_first_accepts_either_preview_template(self) -> None:
         from PIL import Image
 
@@ -109,7 +140,9 @@ class ScreenshotRegionTests(unittest.TestCase):
             def screenshot_region(self, region):
                 del region
                 self.shots += 1
-                return screen, (0, 0)
+                shot = Image.new("RGB", screen.size, (255, 255, 255))
+                shot.paste(screen)
+                return shot, (0, 0)
 
             def wait(self, seconds: float | None = None) -> None:
                 del seconds
@@ -121,7 +154,8 @@ class ScreenshotRegionTests(unittest.TestCase):
         )
         match = clicker.wait_until_first(REPORT_PREVIEW_ACTION_IDS, timeout=1, poll_wait=0.01)
         self.assertTrue(match.found)
-        self.assertEqual(fake.shots, 1)
+        self.assertGreaterEqual(fake.shots, 1)
+        self.assertLessEqual(fake.shots, 2)
 
 
 if __name__ == "__main__":

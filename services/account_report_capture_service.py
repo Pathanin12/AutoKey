@@ -12,8 +12,6 @@ from constants.routes import (
     ACCOUNT_REPORT_PREVIEW_POLL_WAIT,
     ACCOUNT_REPORT_PREVIEW_TIMEOUT,
     ACCOUNT_REPORT_USE_LEGACY_CAPTURE,
-    AFTER_SAVE_WAIT,
-    COMPANY_DIALOG_WAIT,
     MENU_LEDGER_REPORT_PATH,
 )
 from constants.template_actions import REPORT_PREVIEW_ACTION_IDS
@@ -23,6 +21,9 @@ from models.ledger_range_report_form import LedgerRangeReportForm
 from models.report_output_layout import ReportOutputLayout
 from models.run_config import RunConfig
 from services.account_report_capture_legacy_service import open_ledger_normal_report_menu
+from services.company_dialog_return_service import (
+    return_to_company_dialog as open_company_dialog,
+)
 from services.image_service import ImageService
 from services.template_click_service import TemplateClickService
 
@@ -143,7 +144,7 @@ def capture_account_reports(
     if on_status:
         on_status(f"บันทึกแคป {form.from_code}: {saved}")
     if return_to_company_dialog:
-        _return_to_company_dialog(image)
+        open_company_dialog(image)
 
 
 def _screenshot_path(
@@ -160,11 +161,3 @@ def _screenshot_path(
 def _type_report_field(image: ImageService, text: str) -> None:
     image.type_keys(text, clear_first=False)
     image.press("enter")
-
-
-def _return_to_company_dialog(image: ImageService) -> None:
-    image.press("shift", "f11")
-    image.wait(AFTER_SAVE_WAIT)
-    image.press("tab")
-    image.press("enter", presses=2)
-    image.wait(COMPANY_DIALOG_WAIT)

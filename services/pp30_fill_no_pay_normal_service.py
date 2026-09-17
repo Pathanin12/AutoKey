@@ -7,8 +7,6 @@ from constants.routes import (
     ACCOUNT_PP30_NEW_SHOP,
     ACCOUNT_PP30_VAT_PURCHASE,
     ACCOUNT_PP30_VAT_SALE,
-    PP30_LEDGER_REPORT_FROM_CODE,
-    PP30_LEDGER_REPORT_TO_CODE,
     AFTER_CLOSE_WAIT,
     AFTER_SAVE_WAIT,
     MENU_GENERAL_JOURNAL_PATH,
@@ -23,7 +21,7 @@ from constants.routes import (
 from models.pp30_fill_context import Pp30FillContext
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_form_values import Pp30FormValues
-from services.account_report_capture_service import capture_account_reports
+from services.company_dialog_return_service import return_to_company_dialog
 from services.image_service import ImageService
 from services.menu_navigation_service import open_general_journal_menu
 
@@ -33,7 +31,8 @@ class Pp30FillNoPayNormalService:
     def run(ctx: Pp30FillContext) -> None:
         _open_general_journal(ctx)
         fill_jv(ctx.image, ctx.form_config, ctx.job.form_values, ctx.on_status)
-        _capture_reports(ctx)
+        ctx.on_status(UI_TEXT["pp30_return_company_log"])
+        return_to_company_dialog(ctx.image)
 
 
 def fill_jv(
@@ -103,25 +102,6 @@ def _new_voucher(image: ImageService, voucher_date: str, description: str) -> No
         image.type_thai(description.strip(), clear_first=True)
     image.press("enter")
     image.wait(VOUCHER_FIELD_WAIT)
-
-
-def _capture_reports(ctx: Pp30FillContext) -> None:
-    ctx.on_status(
-        UI_TEXT["pp30_report_log"].format(
-            codes=f"{PP30_LEDGER_REPORT_FROM_CODE} {PP30_LEDGER_REPORT_TO_CODE}"
-        )
-    )
-    capture_account_reports(
-        ctx.image,
-        ctx.template_click,
-        month_date=ctx.form_config.jv_date,
-        report_output_dir=ctx.form_config.report_output_dir,
-        legal_name=ctx.job.excel_name,
-        on_status=ctx.on_status,
-        should_stop=ctx.should_stop,
-        template_retries=ctx.template_retries,
-        template_retry_delay=ctx.template_retry_delay,
-    )
 
 
 def _format_amount(value: float) -> str:

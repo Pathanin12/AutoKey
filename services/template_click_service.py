@@ -11,6 +11,7 @@ from models.template_click_settings import TemplateClickSettings
 from models.template_target import TemplateTarget
 from services.image_service import ImageService
 from services.template_detect_service import detect_step_match
+from services.template_match_service import clear_screen_cv_cache
 
 
 class TemplateNotFoundError(RuntimeError):
@@ -44,8 +45,11 @@ class TemplateClickService:
         action = self.settings.get_action(action_id)
         region = search_region if search_region is not None else action.search_region
         screen, origin = self.image.screenshot_region(region)
-        match = detect_step_match(screen, action.target)
-        return match.translated(origin[0], origin[1])
+        try:
+            match = detect_step_match(screen, action.target)
+            return match.translated(origin[0], origin[1])
+        finally:
+            _close_screen(screen)
 
     def click(
         self,
@@ -71,13 +75,16 @@ class TemplateClickService:
         screen, origin = self.image.screenshot_region(region)
         last_match: StepMatchResult | None = None
         last_threshold = first.target.match_threshold
-        for action_id in action_ids:
-            action = self.settings.get_action(action_id)
-            match = detect_step_match(screen, action.target).translated(origin[0], origin[1])
-            last_match = match
-            last_threshold = action.target.match_threshold
-            if match.found:
-                return self._click_match(action.target, match)
+        try:
+            for action_id in action_ids:
+                action = self.settings.get_action(action_id)
+                match = detect_step_match(screen, action.target).translated(origin[0], origin[1])
+                last_match = match
+                last_threshold = action.target.match_threshold
+                if match.found:
+                    return self._click_match(action.target, match)
+        finally:
+            _close_screen(screen)
         score = last_match.score if last_match else 0.0
         labels = " / ".join(
             self.settings.get_action(action_id).target.label for action_id in action_ids
@@ -144,9 +151,6 @@ class TemplateClickService:
         if not action_ids:
             raise TemplateNotFoundError("ไม่มีปุ่มให้จับภาพ")
         first = self.settings.get_action(action_ids[0])
-        region = _combined_search_region(
-            tuple(self.settings.get_action(action_id).search_region for action_id in action_ids)
-        )
         labels = " / ".join(
             self.settings.get_action(action_id).target.label for action_id in action_ids
         )
@@ -156,17 +160,21 @@ class TemplateClickService:
         while True:
             if should_stop and should_stop():
                 raise InterruptedError("หยุดโดยผู้ใช้")
-            screen, origin = self.image.screenshot_region(region)
             for action_id in action_ids:
                 action = self.settings.get_action(action_id)
-                match = detect_step_match(screen, action.target).translated(origin[0], origin[1])
-                last_match = match
-                last_threshold = action.target.match_threshold
-                if match.found:
-                    self._status(
-                        f"จับภาพผ่าน — {action.target.label} ({match.score:.0%})"
-                    )
-                    return match
+                region = action.search_region
+                screen, origin = self.image.screenshot_region(region)
+                try:
+                    match = detect_step_match(screen, action.target).translated(origin[0], origin[1])
+                    last_match = match
+                    last_threshold = action.target.match_threshold
+                    if match.found:
+                        self._status(
+                            f"จับภาพผ่าน — {action.target.label} ({match.score:.0%})"
+                        )
+                        return match
+                finally:
+                    _close_screen(screen)
             if time.monotonic() >= deadline:
                 score = last_match.score if last_match else 0.0
                 raise TemplateNotFoundError(
@@ -216,15 +224,9 @@ class TemplateClickService:
             self.on_status(message)
 
 
-def _combined_search_region(
-    regions: tuple[tuple[int, int, int, int] | None, ...],
-) -> tuple[int, int, int, int] | None:
-    boxes = [region for region in regions if region is not None]
-    if not boxes:
-        return None
-    return (
-        min(box[0] for box in boxes),
-        min(box[1] for box in boxes),
-        max(box[2] for box in boxes),
-        max(box[3] for box in boxes),
-    )
+def _close_screen(screen) -> None:
+    clear_screen_cv_cache(screen)
+    close = getattr(screen, "close", None)
+    if close is None:
+        return
+    close()

@@ -36,6 +36,13 @@ def map_region_to_grab(
     return (left, top, right - left, bottom - top), (x0, y0)
 
 
+def _rgb_from_shot(shot):
+    try:
+        return shot.convert("RGB")
+    finally:
+        shot.close()
+
+
 class ImageService:
     """ส่งคีย์/คลิก/จับภาพหน้าจอผ่าน pyautogui"""
 
@@ -84,19 +91,25 @@ class ImageService:
         )
         if grab is None:
             shot = pyautogui.screenshot()
-            image = shot.convert("RGB")
+            image = _rgb_from_shot(shot)
             if image.size != (self.screen_width, self.screen_height):
-                image = image.resize((self.screen_width, self.screen_height))
+                resized = image.resize((self.screen_width, self.screen_height))
+                if resized is not image:
+                    image.close()
+                image = resized
             return image, (0, 0)
 
         left, top, width, height = grab
         shot = pyautogui.screenshot(region=(left, top, width, height))
-        image = shot.convert("RGB")
+        image = _rgb_from_shot(shot)
         x0, y0, x1, y1 = region or (0, 0, self.screen_width, self.screen_height)
         logical_width = max(1, x1 - x0)
         logical_height = max(1, y1 - y0)
         if image.size != (logical_width, logical_height):
-            image = image.resize((logical_width, logical_height))
+            resized = image.resize((logical_width, logical_height))
+            if resized is not image:
+                image.close()
+            image = resized
         return image, origin
 
     def save_screenshot(self, path: Path) -> Path:
@@ -104,7 +117,10 @@ class ImageService:
         dest = Path(path)
         dest.parent.mkdir(parents=True, exist_ok=True)
         shot = pyautogui.screenshot()
-        shot.save(dest, compress_level=1)
+        try:
+            shot.save(dest)
+        finally:
+            shot.close()
         return dest
 
     def copy_selection(self) -> None:
