@@ -29,15 +29,16 @@ LOOKUP_OK_TARGET = TemplateTarget(
 
 COMPANY_DIALOG_REGION = (580, 520, 990, 670)
 
-MENU_BAR_REGION = (80, 0, 980, 90)
-MENU_DROPDOWN_REGION = (80, 40, 720, 480)
-MENU_SUBMENU_REGION = (280, 40, 980, 560)
+# แถบเมนูอยู่แถวเดียวกับ title bar — ชื่อ JV/PV ยาวจะดัน 5.บัญชี ไปทางขวา
+MENU_BAR_REGION = (0, 0, 1680, 96)
+MENU_DROPDOWN_REGION = (0, 24, 1680, 520)
+MENU_SUBMENU_REGION = (160, 24, 1680, 600)
 
 MENU_ACCOUNT_TARGET = TemplateTarget(
     step_id="menu_account",
     label="5.บัญชี",
     template_file="menu_account.png",
-    match_threshold=0.88,
+    match_threshold=0.80,
 )
 
 MENU_DAILY_ENTRY_TARGET = TemplateTarget(
@@ -61,8 +62,8 @@ MENU_GENERAL_JOURNAL_TARGET = TemplateTarget(
     match_threshold=0.80,
 )
 
-# ต้นไม้รายงาน F12 อยู่ซ้ายจอ — อย่าสแกนเกือบทั้งจอ
-F12_MENU_REGION = (20, 20, 880, 700)
+# ต้นไม้รายงาน F12 อยู่ซ้ายจอ — เริ่มใต้ title bar เพื่อไม่ไปชนเมนู 5.บัญชี
+F12_MENU_REGION = (20, 52, 880, 760)
 REPORT_NORMAL_ACTION_IDS = ("menu_report_normal_selected", "menu_report_normal")
 REPORT_PREVIEW_ACTION_IDS = ("report_preview_tmp6", "report_preview_title")
 

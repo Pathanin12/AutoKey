@@ -223,9 +223,20 @@ class AccountReportTests(unittest.TestCase):
 
     def test_f12_search_region_is_left_tree_not_full_screen(self) -> None:
         x0, y0, x1, y1 = F12_MENU_REGION
-        self.assertLessEqual((x1 - x0) * (y1 - y0), 880 * 700)
+        self.assertLessEqual((x1 - x0) * (y1 - y0), 880 * 720)
         self.assertLessEqual(x1, 900)
+        self.assertGreaterEqual(y0, 48)
         self.assertEqual(REPORT_NORMAL_ACTION_IDS, ("menu_report_normal_selected", "menu_report_normal"))
+
+    def test_menu_bar_region_covers_title_bar_shifted_account_menu(self) -> None:
+        from constants.template_actions import MENU_BAR_REGION, MENU_DROPDOWN_REGION
+
+        x0, y0, x1, y1 = MENU_BAR_REGION
+        self.assertEqual((x0, y0), (0, 0))
+        self.assertGreaterEqual(x1, 1600)
+        drop_x0, _drop_y0, drop_x1, drop_y1 = MENU_DROPDOWN_REGION
+        del drop_x0, drop_y1
+        self.assertGreaterEqual(drop_x1, 1600)
 
     def test_report_reopen_retries_cap_at_two(self) -> None:
         self.assertEqual(report_reopen_retries(4), 2)

@@ -55,43 +55,43 @@ template_click:
     menu_account:
       label: 5.บัญชี
       template_file: menu_account.png
-      match_threshold: 0.88
-      search_region: [80, 0, 980, 90]
+      match_threshold: 0.80
+      search_region: [0, 0, 1680, 96]
     menu_daily_entry:
       label: 1.ลงประจำวัน
       template_file: menu_daily_entry.png
       match_threshold: 0.88
-      search_region: [80, 40, 720, 480]
+      search_region: [0, 24, 1680, 520]
     menu_payment_journal:
       label: 2.สมุดรายวันจ่าย
       template_file: menu_payment_journal.png
       match_threshold: 0.80
-      search_region: [520, 35, 980, 140]
+      search_region: [160, 24, 1680, 600]
     menu_general_journal:
       label: 1.สมุดรายวันทั่วไป
       template_file: menu_general_journal.png
       match_threshold: 0.80
-      search_region: [520, 35, 980, 140]
+      search_region: [160, 24, 1680, 600]
     menu_account_report:
       label: 5. รายงานบัญชี
       template_file: menu_account_report.png
       match_threshold: 0.88
-      search_region: [20, 20, 880, 700]
+      search_region: [20, 52, 880, 760]
     menu_general_ledger:
       label: 4. แยกประเภท
       template_file: menu_general_ledger.png
       match_threshold: 0.88
-      search_region: [20, 20, 880, 700]
+      search_region: [20, 52, 880, 760]
     menu_report_normal:
       label: 1. แบบปกติ
       template_file: menu_report_normal.png
       match_threshold: 0.88
-      search_region: [20, 20, 880, 700]
+      search_region: [20, 52, 880, 760]
     menu_report_normal_selected:
       label: 1. แบบปกติ (เลือกอยู่)
       template_file: menu_report_normal_selected.png
       match_threshold: 0.88
-      search_region: [20, 20, 880, 700]
+      search_region: [20, 52, 880, 760]
     report_preview_tmp6:
       label: แถบเครื่องมือพรีวิว
       template_file: report_preview_tmp6.png
