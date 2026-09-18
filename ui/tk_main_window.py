@@ -4,7 +4,7 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from constants.date_utils import default_work_date, format_express_pv_date
+from constants.date_utils import default_work_date, format_express_pv_date, mask_express_pv_date
 from constants.routes import (
     EXCEL_OPEN_EXTENSIONS,
     MENU_BUTTON_IPADY,
@@ -287,6 +287,7 @@ class MainWindow:
         ttk.Label(form_frame, text=UI_TEXT["pp30_jv_date"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
         self.pp30_jv_date_entry = ttk.Entry(form_frame, textvariable=self.pp30_jv_date, width=20)
         self.pp30_jv_date_entry.grid(row=4, column=1, sticky="w", pady=(8, 0))
+        self.pp30_jv_date_entry.bind("<KeyRelease>", self._mask_pp30_jv_date)
         self.pp30_jv_date_entry.bind("<FocusOut>", self._format_pp30_jv_date)
 
         ttk.Label(form_frame, text=UI_TEXT["pp30_jv_description"]).grid(row=5, column=0, sticky="nw", pady=(8, 0))
@@ -540,6 +541,12 @@ class MainWindow:
             self.pp30_excel_summary.set(UI_TEXT["excel_summary_empty"])
             return
         self.pp30_excel_summary.set(UI_TEXT["excel_loaded"].format(path=excel_path.name))
+
+    def _mask_pp30_jv_date(self, _event=None) -> None:
+        raw = self.pp30_jv_date.get()
+        masked = mask_express_pv_date(raw)
+        if masked != raw:
+            self.pp30_jv_date.set(masked)
 
     def _format_pp30_jv_date(self, _event=None) -> None:
         formatted = format_express_pv_date(self.pp30_jv_date.get())
