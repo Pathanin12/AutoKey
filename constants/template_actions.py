@@ -39,6 +39,10 @@ MENU_ACCOUNT_TARGET = TemplateTarget(
     label="5.บัญชี",
     template_file="menu_account.png",
     match_threshold=0.80,
+    crop_x=0,
+    crop_y=6,
+    crop_width=82,
+    crop_height=17,
 )
 
 MENU_DAILY_ENTRY_TARGET = TemplateTarget(

@@ -56,6 +56,10 @@ template_click:
       label: 5.บัญชี
       template_file: menu_account.png
       match_threshold: 0.80
+      crop_x: 0
+      crop_y: 6
+      crop_width: 82
+      crop_height: 17
       search_region: [0, 0, 1680, 96]
     menu_daily_entry:
       label: 1.ลงประจำวัน

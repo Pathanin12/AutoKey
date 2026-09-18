@@ -57,6 +57,18 @@ class ScreenshotRegionTests(unittest.TestCase):
         first = load_step_template(MENU_ACCOUNT_TARGET)
         second = load_step_template(MENU_ACCOUNT_TARGET)
         self.assertIs(first, second)
+        self.assertEqual(first.size, (82, 17))
+
+    def test_menu_account_crop_skips_title_bar_blue_and_dark_client(self) -> None:
+        from PIL import Image
+        import numpy as np
+
+        cropped = load_step_template(MENU_ACCOUNT_TARGET).convert("RGB")
+        full = Image.open(MENU_ACCOUNT_TARGET.template_path).convert("RGB")
+        self.assertEqual(full.size, (82, 35))
+        self.assertEqual(cropped.size, (82, 17))
+        self.assertLess(float(np.asarray(full)[30].mean()), 140)
+        self.assertGreater(float(np.asarray(cropped).mean()), 180)
 
     def test_rgb_screenshot_matches_without_rgba_convert(self) -> None:
         from PIL import Image
