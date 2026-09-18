@@ -266,6 +266,25 @@ class AccountReportTests(unittest.TestCase):
             [("shift", "f11"), ("tab",), ("enter",), ("enter",)],
         )
 
+    def test_new_shop_return_to_company_dialog_enters_once(self) -> None:
+        class FakeImage:
+            def __init__(self) -> None:
+                self.keys: list[tuple[str, ...]] = []
+
+            def press(self, *keys: str, presses: int = 1) -> None:
+                for _ in range(presses):
+                    self.keys.append(keys)
+
+            def wait(self, seconds: float | None = None) -> None:
+                del seconds
+
+        image = FakeImage()
+        return_to_company_dialog(image, enter_presses=1)  # type: ignore[arg-type]
+        self.assertEqual(
+            image.keys,
+            [("shift", "f11"), ("tab",), ("enter",)],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

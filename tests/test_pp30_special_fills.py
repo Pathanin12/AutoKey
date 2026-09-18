@@ -378,6 +378,10 @@ class Pp30SpecialFillTests(unittest.TestCase):
             source = (root / "services" / name).read_text(encoding="utf-8")
             self.assertNotIn("capture_account_reports", source)
             self.assertIn("return_to_company_dialog", source)
+        new_shop = (root / "services" / "pp30_fill_new_shop_service.py").read_text(encoding="utf-8")
+        no_pay = (root / "services" / "pp30_fill_no_pay_normal_service.py").read_text(encoding="utf-8")
+        self.assertIn("enter_presses=1", new_shop)
+        self.assertNotIn("enter_presses=1", no_pay)
 
     def test_special_fill_services_do_not_import_each_other(self) -> None:
         root = Path(__file__).resolve().parent.parent

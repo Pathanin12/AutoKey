@@ -31,7 +31,7 @@ class Pp30FillNewShopService:
         _open_general_journal(ctx)
         fill_jv(ctx.image, ctx.form_config, ctx.job.form_values, ctx.on_status)
         ctx.on_status(UI_TEXT["pp30_return_company_log"])
-        return_to_company_dialog(ctx.image)
+        return_to_company_dialog(ctx.image, enter_presses=1)
 
 
 def fill_jv(
