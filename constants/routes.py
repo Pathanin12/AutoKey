@@ -20,11 +20,13 @@ SCREEN_HEIGHT = 1080
 
 TOPIC_PAYMENT_JOURNAL = "payment_journal"
 TOPIC_PP30 = "pp30"
+TOPIC_PND30 = "pnd30"
 TOPIC_LABEL = "สมุดรายวันจ่าย"
 
 PAGE_MENU = "menu"
 PAGE_KA_TAM = "ka_tam"
 PAGE_PP30 = "pp30"
+PAGE_PND30 = "pnd30"
 MENU_BUTTON_HEIGHT = 75
 MENU_BUTTON_IPADY = 26
 
@@ -67,6 +69,8 @@ PP30_PENALTY_REPORT_CODES = (
 )
 PP30_LEDGER_REPORT_FROM_CODE = ACCOUNT_PP30_VAT_PAYABLE
 PP30_LEDGER_REPORT_TO_CODE = ACCOUNT_PP30_VAT_PAYABLE
+PND30_LEDGER_REPORT_FROM_CODE = ACCOUNT_WT
+PND30_LEDGER_REPORT_TO_CODE = ACCOUNT_WT
 ACCOUNT_REPORT_CAPTURE_WAIT = 1.5
 ACCOUNT_REPORT_FIELD_WAIT = 0.05
 ACCOUNT_REPORT_MENU_WAIT = 0.2
@@ -150,6 +154,8 @@ UI_TEXT = {
     "menu_ka_tam_hint": "สมุดรายวันจ่าย — ค้นหาบริษัทแล้วกรอก PV",
     "menu_pp30": "ภพ.30",
     "menu_pp30_hint": "ภาษีมูลค่าเพิ่ม — อ่าน PDF แล้วเทียบชื่อกับ Excel",
+    "menu_pnd30": "ภงด.30",
+    "menu_pnd30_hint": "ภาษีเงินได้หัก ณ ที่จ่าย — อ่าน PDF แล้วเทียบชื่อกับ Excel",
     "menu_unavailable": "เมนูนี้ยังไม่พร้อมใช้",
     "back_to_menu": "กลับเมนู",
     "settings_frame": "ตั้งค่าก่อนรัน",
@@ -248,6 +254,22 @@ UI_TEXT = {
     "pp30_mode_special": "แบบพิเศษ",
     "pp30_mode_log": "รูปแบบ: {mode}",
     "pp30_mode_invalid": "กรุณาเลือกรูปแบบ แบบปกติ หรือ แบบพิเศษ",
+    "pnd30_pv_date": "วันที่",
+    "pnd30_pv_description": "รายละเอียด PV",
+    "pnd30_welcome_log": (
+        "Express อยู่ dialog เลือกข้อมูล → กดเริ่ม\n"
+        "AutoKey: อ่าน ภงด.30 → ค้นห้าง → PV 5-1-2 → แคปรายงาน\n"
+        "กด Ctrl+F9 หรือ Esc เพื่อยกเลิกขณะทำงาน"
+    ),
+    "pnd30_confirm_message": (
+        "Express ต้องเปิดอยู่ที่ dialog เลือกข้อมูล\n"
+        "AutoKey จะเทียบชื่อ PDF กับ Excel แล้วทำ PV / แคปรายงานทีละห้าง\n"
+        "ต้องการเริ่มหรือไม่?"
+    ),
+    "pnd30_done": "ทำ ภงด.30 ครบ {count} รายการ",
+    "pnd30_pdf_values_missing": "อ่านข้อ 2/3 หรือวันที่จาก PDF ไม่ได้: {path}",
+    "pnd30_pv_log": "กรอก PV {date} — 2132-02={tax} 5390-01={surcharge}",
+    "pnd30_pv_no_surcharge_log": "กรอก PV {date} — 2132-02={tax}",
     "run_speed": "ความเร็ว",
     "run_speed_hint": "x1 = ปกติ / x0.25 x0.5 x0.75 = ช้าลง",
     "run_speed_log": "ความเร็ว: {speed}",

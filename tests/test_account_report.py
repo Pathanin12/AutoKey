@@ -49,6 +49,17 @@ class AccountReportTests(unittest.TestCase):
             output = form.screenshot_path(Path(raw) / "reports", "หจก.เจนสิริการค้า")
             self.assertEqual(output.name, "2137-00.png")
 
+    def test_ledger_range_report_can_use_2132(self) -> None:
+        form = LedgerRangeReportForm.from_ui_date(
+            "08/07/69",
+            from_code="2132-02",
+            to_code="2132-02",
+        )
+        self.assertEqual(form.from_code, "2132-02")
+        self.assertEqual(form.to_code, "2132-02")
+        self.assertEqual(form.start_date, "01/07/69")
+        self.assertEqual(form.end_date, "31/07/69")
+
     def test_express_month_date_range_april(self) -> None:
         start, end = express_month_date_range("01/04/69")
         self.assertEqual(start, "01/04/69")

@@ -10,6 +10,7 @@ from constants.routes import (
     MENU_BUTTON_IPADY,
     PAGE_KA_TAM,
     PAGE_MENU,
+    PAGE_PND30,
     PAGE_PP30,
     PP30_MODE_NORMAL,
     PP30_MODE_SPECIAL,
@@ -20,6 +21,7 @@ from constants.routes import (
 from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
 from models.ka_tam_row import KaTamRow
+from models.pnd30_form_config import Pnd30FormConfig
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_run_mode import Pp30RunMode
 from models.run_config import ExcelSheetSummary, RunConfig
@@ -36,6 +38,7 @@ WIN_W = 560
 MENU_WIN_H = 540
 KA_TAM_WIN_H = 620
 PP30_WIN_H = 640
+PND30_WIN_H = 640
 
 
 class MainWindow:
@@ -88,6 +91,17 @@ class MainWindow:
         self.pp30_excel_summary = tk.StringVar(value=UI_TEXT["excel_summary_empty"])
         self.pp30_progress_text = tk.StringVar(value="0 / 0")
         self.pp30_pdf_files: list[Path] = []
+        self.pnd30_pdf_folder = tk.StringVar(value="")
+        self.pnd30_excel_path = tk.StringVar(value="")
+        self.pnd30_pv_date = tk.StringVar(value=initial_pv_date)
+        self.pnd30_pv_description = tk.StringVar(value="")
+        self.pnd30_report_dir = tk.StringVar(
+            value=str(defaults.get("report_output_dir", "") or "").strip()
+        )
+        self.pnd30_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
+        self.pnd30_excel_summary = tk.StringVar(value=UI_TEXT["excel_summary_empty"])
+        self.pnd30_progress_text = tk.StringVar(value="0 / 0")
+        self.pnd30_pdf_files: list[Path] = []
         self.sheet_summaries: list[ExcelSheetSummary] = []
         self.sheet_rows: dict[str, list[KaTamRow]] = {}
         self._current_page = PAGE_MENU
@@ -101,9 +115,11 @@ class MainWindow:
         self.menu_frame = ttk.Frame(self.root)
         self.ka_tam_frame = ttk.Frame(self.root)
         self.pp30_frame = ttk.Frame(self.root)
+        self.pnd30_frame = ttk.Frame(self.root)
         self._build_menu_page(self.menu_frame)
         self._build_ka_tam_page(self.ka_tam_frame)
         self._build_pp30_page(self.pp30_frame)
+        self._build_pnd30_page(self.pnd30_frame)
 
     def _build_menu_page(self, page: ttk.Frame) -> None:
         header = ttk.Frame(page)
@@ -385,6 +401,123 @@ class MainWindow:
         self.pp30_log_box.insert("end", UI_TEXT["pp30_welcome_log"] + "\n")
         self.pp30_log_box.config(state=tk.DISABLED)
 
+    def _build_pnd30_page(self, page: ttk.Frame) -> None:
+        padding = {"padx": 12, "pady": 6}
+
+        header = ttk.Frame(page)
+        header.pack(fill="x", padx=12, pady=(10, 0))
+        ttk.Button(header, text=f"← {UI_TEXT['back_to_menu']}", command=self._back_to_menu).pack(
+            side="left"
+        )
+        ttk.Label(
+            header,
+            text=UI_TEXT["menu_pnd30"],
+            font=("Tahoma", 12, "bold"),
+        ).pack(side="left", padx=(12, 0))
+
+        form_frame = ttk.LabelFrame(page, text=UI_TEXT["settings_frame"])
+        form_frame.pack(fill="x", **padding)
+
+        ttk.Label(form_frame, text=UI_TEXT["pp30_pdf_folder"]).grid(row=0, column=0, sticky="w")
+        self.pnd30_folder_entry = ttk.Entry(form_frame, textvariable=self.pnd30_pdf_folder, width=48)
+        self.pnd30_folder_entry.grid(row=0, column=1, sticky="ew")
+        ttk.Button(form_frame, text=UI_TEXT["choose_folder"], command=self._choose_pnd30_folder).grid(
+            row=0, column=2
+        )
+        ttk.Label(form_frame, textvariable=self.pnd30_pdf_summary, wraplength=500).grid(
+            row=1, column=0, columnspan=3, sticky="w", pady=(2, 0)
+        )
+
+        ttk.Label(form_frame, text=UI_TEXT["excel_file"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        self.pnd30_excel_path_entry = ttk.Entry(form_frame, textvariable=self.pnd30_excel_path, width=48)
+        self.pnd30_excel_path_entry.grid(row=2, column=1, sticky="ew", pady=(8, 0))
+        ttk.Button(form_frame, text=UI_TEXT["choose_file"], command=self._choose_pnd30_excel).grid(
+            row=2, column=2, pady=(8, 0)
+        )
+        ttk.Label(form_frame, textvariable=self.pnd30_excel_summary, wraplength=500).grid(
+            row=3, column=0, columnspan=3, sticky="w", pady=(2, 0)
+        )
+
+        ttk.Label(form_frame, text=UI_TEXT["pnd30_pv_date"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
+        self.pnd30_pv_date_entry = ttk.Entry(form_frame, textvariable=self.pnd30_pv_date, width=20)
+        self.pnd30_pv_date_entry.grid(row=4, column=1, sticky="w", pady=(8, 0))
+        self.pnd30_pv_date_entry.bind("<KeyRelease>", self._mask_pnd30_pv_date)
+        self.pnd30_pv_date_entry.bind("<FocusOut>", self._format_pnd30_pv_date)
+
+        ttk.Label(form_frame, text=UI_TEXT["pnd30_pv_description"]).grid(
+            row=5, column=0, sticky="nw", pady=(8, 0)
+        )
+        self.pnd30_pv_description_entry = ttk.Entry(
+            form_frame, textvariable=self.pnd30_pv_description, width=48
+        )
+        self.pnd30_pv_description_entry.grid(row=5, column=1, columnspan=2, sticky="ew", pady=(8, 0))
+
+        ttk.Label(form_frame, text=UI_TEXT["report_output_dir"]).grid(row=6, column=0, sticky="w", pady=(8, 0))
+        self.pnd30_report_dir_entry = ttk.Entry(form_frame, textvariable=self.pnd30_report_dir, width=48)
+        self.pnd30_report_dir_entry.grid(row=6, column=1, sticky="ew", pady=(8, 0))
+        ttk.Button(form_frame, text=UI_TEXT["choose_folder"], command=self._choose_pnd30_report_dir).grid(
+            row=6, column=2, pady=(8, 0)
+        )
+
+        ttk.Label(form_frame, text=UI_TEXT["run_speed"]).grid(row=7, column=0, sticky="w", pady=(8, 0))
+        speed_row = ttk.Frame(form_frame)
+        speed_row.grid(row=7, column=1, columnspan=2, sticky="w", pady=(8, 0))
+        self._add_speed_radios(speed_row)
+        ttk.Label(form_frame, text=UI_TEXT["run_speed_hint"], wraplength=500, foreground="#555555").grid(
+            row=8, column=0, columnspan=3, sticky="w", pady=(2, 0)
+        )
+        form_frame.columnconfigure(1, weight=1)
+        bind_excel_cell_paste(
+            [
+                self.pnd30_folder_entry,
+                self.pnd30_excel_path_entry,
+                self.pnd30_pv_date_entry,
+                self.pnd30_pv_description_entry,
+                self.pnd30_report_dir_entry,
+            ],
+        )
+
+        action_frame = ttk.Frame(page)
+        action_frame.pack(fill="x", **padding)
+        ttk.Button(action_frame, text=f"▶ {UI_TEXT['start']}", command=self._start).pack(side="left", padx=4)
+        self.pnd30_stop_button = ttk.Button(
+            action_frame,
+            text=f"■ {UI_TEXT['stop'].format(hotkey=self.hotkey_label)}",
+            command=self._stop,
+        )
+        self.pnd30_stop_button.pack(side="left", padx=4)
+
+        status_frame = ttk.LabelFrame(page, text=UI_TEXT["status_frame"])
+        status_frame.pack(fill="both", expand=True, **padding)
+        ttk.Label(status_frame, textvariable=self.pnd30_progress_text).pack(anchor="w", padx=8, pady=4)
+
+        log_toolbar = ttk.Frame(status_frame)
+        log_toolbar.pack(fill="x", padx=8, pady=(0, 4))
+        ttk.Button(log_toolbar, text=UI_TEXT["copy_log"], command=self._copy_all_log).pack(side="right")
+
+        log_container = ttk.Frame(status_frame)
+        log_container.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        log_container.rowconfigure(0, weight=1)
+        log_container.columnconfigure(0, weight=1)
+
+        self.pnd30_log_box = tk.Text(
+            log_container,
+            height=8,
+            wrap="word",
+            exportselection=True,
+            bg="#ffffff",
+            fg="#000000",
+            insertwidth=0,
+            cursor="arrow",
+        )
+        log_scroll = ttk.Scrollbar(log_container, orient="vertical", command=self.pnd30_log_box.yview)
+        self.pnd30_log_box.configure(yscrollcommand=log_scroll.set)
+        self.pnd30_log_box.grid(row=0, column=0, sticky="nsew")
+        log_scroll.grid(row=0, column=1, sticky="ns")
+        self._setup_log_box_bindings(self.pnd30_log_box)
+        self.pnd30_log_box.insert("end", UI_TEXT["pnd30_welcome_log"] + "\n")
+        self.pnd30_log_box.config(state=tk.DISABLED)
+
     def _open_topic(self, item: TopicMenuItem) -> None:
         if not item.enabled:
             messagebox.showinfo(UI_TEXT["app_title"], UI_TEXT["menu_unavailable"])
@@ -403,7 +536,13 @@ class MainWindow:
         self.menu_frame.pack_forget()
         self.ka_tam_frame.pack_forget()
         self.pp30_frame.pack_forget()
-        heights = {PAGE_MENU: MENU_WIN_H, PAGE_KA_TAM: KA_TAM_WIN_H, PAGE_PP30: PP30_WIN_H}
+        self.pnd30_frame.pack_forget()
+        heights = {
+            PAGE_MENU: MENU_WIN_H,
+            PAGE_KA_TAM: KA_TAM_WIN_H,
+            PAGE_PP30: PP30_WIN_H,
+            PAGE_PND30: PND30_WIN_H,
+        }
         height = heights.get(page_route, MENU_WIN_H)
         self.root.geometry(f"{WIN_W}x{height}")
         if page_route == PAGE_MENU:
@@ -415,6 +554,9 @@ class MainWindow:
         elif page_route == PAGE_PP30:
             self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pp30']} v{__version__}")
             self.pp30_frame.pack(fill="both", expand=True)
+        elif page_route == PAGE_PND30:
+            self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd30']} v{__version__}")
+            self.pnd30_frame.pack(fill="both", expand=True)
 
     def _bind_shortcuts(self) -> None:
         self.hotkey_service.bind_tk_shortcuts(self.root, self._stop)
@@ -553,6 +695,110 @@ class MainWindow:
         if formatted:
             self.pp30_jv_date.set(formatted)
 
+    def _choose_pnd30_folder(self) -> None:
+        selected = filedialog.askdirectory(title=UI_TEXT["choose_folder"])
+        if selected:
+            self.pnd30_pdf_folder.set(selected)
+            self._load_pnd30_folder()
+
+    def _choose_pnd30_report_dir(self) -> None:
+        selected = filedialog.askdirectory(title=UI_TEXT["choose_folder"])
+        if selected:
+            self.pnd30_report_dir.set(selected)
+
+    def _choose_pnd30_excel(self) -> None:
+        excel_types = " ".join(f"*.{ext}" for ext in EXCEL_OPEN_EXTENSIONS)
+        selected = filedialog.askopenfilename(
+            title=UI_TEXT["choose_file"],
+            filetypes=[("Excel", excel_types), ("All files", "*.*")],
+        )
+        if selected:
+            self.pnd30_excel_path.set(selected)
+            self._load_pnd30_excel()
+
+    def _load_pnd30_folder(self) -> None:
+        raw_path = self.pnd30_pdf_folder.get().strip()
+        if not raw_path:
+            self.pnd30_pdf_files = []
+            self.pnd30_pdf_summary.set(UI_TEXT["pp30_pdf_summary_empty"])
+            return
+        folder = Path(raw_path).expanduser()
+        if not folder.exists() or not folder.is_dir():
+            self.pnd30_pdf_files = []
+            self.pnd30_pdf_summary.set(UI_TEXT["pp30_pdf_summary_empty"])
+            return
+        self.pnd30_pdf_files = Pp30FolderService.list_pdfs(folder)
+        self.pnd30_pdf_summary.set(UI_TEXT["pp30_pdf_total"].format(count=len(self.pnd30_pdf_files)))
+
+    def _load_pnd30_excel(self) -> None:
+        raw_path = self.pnd30_excel_path.get().strip()
+        if not raw_path:
+            self.pnd30_excel_summary.set(UI_TEXT["excel_summary_empty"])
+            return
+        excel_path = Path(raw_path).expanduser()
+        if not excel_path.exists():
+            self.pnd30_excel_summary.set(UI_TEXT["excel_summary_empty"])
+            return
+        self.pnd30_excel_summary.set(UI_TEXT["excel_loaded"].format(path=excel_path.name))
+
+    def _mask_pnd30_pv_date(self, _event=None) -> None:
+        raw = self.pnd30_pv_date.get()
+        masked = mask_express_pv_date(raw)
+        if masked != raw:
+            self.pnd30_pv_date.set(masked)
+
+    def _format_pnd30_pv_date(self, _event=None) -> None:
+        formatted = format_express_pv_date(self.pnd30_pv_date.get())
+        if formatted:
+            self.pnd30_pv_date.set(formatted)
+
+    def _pnd30_form_config(self) -> Pnd30FormConfig:
+        return Pnd30FormConfig(
+            pdf_folder=Path(self.pnd30_pdf_folder.get().strip()).expanduser(),
+            excel_path=Path(self.pnd30_excel_path.get().strip()).expanduser(),
+            pv_date=format_express_pv_date(self.pnd30_pv_date.get()),
+            pv_description=self.pnd30_pv_description.get().strip(),
+            report_output_dir=Path(self.pnd30_report_dir.get().strip()).expanduser(),
+            pdf_files=list(self.pnd30_pdf_files),
+            run_mode=Pp30RunMode.normal(),
+            run_speed=RunSpeed.parse(self.run_speed.get()),
+        )
+
+    def _start_pnd30(self) -> None:
+        self._load_pnd30_folder()
+        config = self._pnd30_form_config()
+        if config.pv_date:
+            self.pnd30_pv_date.set(config.pv_date)
+        errors = config.validate()
+        if errors:
+            messagebox.showwarning("AutoKey", "\n".join(errors))
+            return
+        self._append_log(UI_TEXT["pp30_pdf_total"].format(count=len(config.pdf_files)))
+        self._append_log(UI_TEXT["excel_loaded"].format(path=config.excel_path.name))
+        if not messagebox.askyesno(
+            UI_TEXT["confirm_title"],
+            f"{UI_TEXT['pnd30_confirm_message']}\n\nจะค้นหา {len(config.pdf_files)} ห้าง",
+        ):
+            return
+
+        self.is_running = True
+        self._total_rows = len(config.pdf_files)
+        if self.clear_log_on_start:
+            self._clear_log()
+        self._append_log(UI_TEXT["cancel_hotkey_hint"].format(hotkey=self.hotkey_label))
+        self.hotkey_service.start_listening(self._stop)
+        if self.hide_on_start:
+            self.root.withdraw()
+
+        self.automation_service.run_pnd30_async(
+            form_config=config,
+            on_status=self._set_status,
+            on_progress=self._set_progress,
+            on_step=self._set_step,
+            on_finished=self._on_finished,
+            verbose_log=self.verbose_log,
+        )
+
     def _pp30_form_config(self) -> Pp30FormConfig:
         return Pp30FormConfig(
             pdf_folder=Path(self.pp30_pdf_folder.get().strip()).expanduser(),
@@ -606,6 +852,9 @@ class MainWindow:
             return
         if self._current_page == PAGE_PP30:
             self._start_pp30()
+            return
+        if self._current_page == PAGE_PND30:
+            self._start_pnd30()
             return
         if self._current_page != PAGE_KA_TAM:
             return
@@ -691,6 +940,9 @@ class MainWindow:
         if self._current_page == PAGE_PP30:
             self.root.after(0, lambda: self.pp30_progress_text.set(progress))
             return
+        if self._current_page == PAGE_PND30:
+            self.root.after(0, lambda: self.pnd30_progress_text.set(progress))
+            return
         self.root.after(0, lambda: self.progress_text.set(progress))
 
     def _set_step(self, step_index: int, step_label: str, detail: str) -> None:
@@ -713,6 +965,8 @@ class MainWindow:
     def _active_log_box(self) -> tk.Text:
         if self._current_page == PAGE_PP30:
             return self.pp30_log_box
+        if self._current_page == PAGE_PND30:
+            return self.pnd30_log_box
         return self.log_box
 
     def _set_log_readonly(self, readonly: bool) -> None:

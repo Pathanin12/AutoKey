@@ -16,11 +16,16 @@ class LedgerRangeReportForm:
     end_date: str
 
     @staticmethod
-    def from_ui_date(month_date: str) -> LedgerRangeReportForm:
+    def from_ui_date(
+        month_date: str,
+        *,
+        from_code: str = PP30_LEDGER_REPORT_FROM_CODE,
+        to_code: str = PP30_LEDGER_REPORT_TO_CODE,
+    ) -> LedgerRangeReportForm:
         start_date, end_date = express_month_date_range(month_date)
         return LedgerRangeReportForm(
-            from_code=PP30_LEDGER_REPORT_FROM_CODE,
-            to_code=PP30_LEDGER_REPORT_TO_CODE,
+            from_code=from_code,
+            to_code=to_code,
             start_date=start_date,
             end_date=end_date,
         )

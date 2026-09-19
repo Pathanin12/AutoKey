@@ -13,6 +13,8 @@ from constants.routes import (
     ACCOUNT_REPORT_PREVIEW_TIMEOUT,
     ACCOUNT_REPORT_USE_LEGACY_CAPTURE,
     MENU_LEDGER_REPORT_PATH,
+    PP30_LEDGER_REPORT_FROM_CODE,
+    PP30_LEDGER_REPORT_TO_CODE,
 )
 from constants.template_actions import REPORT_PREVIEW_ACTION_IDS
 from models.account_report_capture_job import AccountReportCaptureJob
@@ -75,6 +77,8 @@ def capture_account_reports(
     month_date: str | None = None,
     report_output_dir: Path | None = None,
     legal_name: str | None = None,
+    from_code: str | None = None,
+    to_code: str | None = None,
     expand_tree_first: bool = True,
     return_to_company_dialog: bool = True,
     on_status: Callable[[str], None] | None = None,
@@ -107,7 +111,11 @@ def capture_account_reports(
 
     if not month_date:
         raise RuntimeError("ต้องมีวันที่จาก UI สำหรับเรียกรายงาน")
-    form = LedgerRangeReportForm.from_ui_date(month_date)
+    form = LedgerRangeReportForm.from_ui_date(
+        month_date,
+        from_code=from_code or PP30_LEDGER_REPORT_FROM_CODE,
+        to_code=to_code or PP30_LEDGER_REPORT_TO_CODE,
+    )
     output_file = _screenshot_path(form, report_output_dir, legal_name)
     if on_status:
         on_status(f"แคปรายงาน {form.from_code} {form.to_code}")
