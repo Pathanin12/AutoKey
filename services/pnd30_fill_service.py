@@ -118,7 +118,7 @@ def _capture_reports(ctx: Pnd30FillContext) -> None:
         template_retry_delay=ctx.template_retry_delay,
     )
     ctx.on_status(UI_TEXT["pp30_return_company_log"])
-    return_to_company_dialog(ctx.image, enter_presses=1)
+    return_to_company_dialog(ctx.image, enter_presses=2)
 
 
 def _format_amount(value: float) -> str:

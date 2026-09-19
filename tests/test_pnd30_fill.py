@@ -170,6 +170,11 @@ class Pnd30FillTests(unittest.TestCase):
         self.assertEqual(codes, ["2132-02", "36.00", "1111-00"])
         self.assertNotIn("5390-01", codes)
 
+    def test_returns_to_company_dialog_with_enter_twice(self) -> None:
+        root = Path(__file__).resolve().parent.parent
+        source = (root / "services" / "pnd30_fill_service.py").read_text(encoding="utf-8")
+        self.assertIn("enter_presses=2", source)
+
 
 if __name__ == "__main__":
     unittest.main()
