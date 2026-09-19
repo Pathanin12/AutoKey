@@ -152,9 +152,9 @@ UI_TEXT = {
     "menu_hint": "เลือกงานที่ต้องการทำ",
     "menu_ka_tam": "ค่าทำ",
     "menu_ka_tam_hint": "สมุดรายวันจ่าย — ค้นหาบริษัทแล้วกรอก PV",
-    "menu_pp30": "ภพ.30",
+    "menu_pp30": "ภ.พ.30",
     "menu_pp30_hint": "ภาษีมูลค่าเพิ่ม — อ่าน PDF แล้วเทียบชื่อกับ Excel",
-    "menu_pnd30": "ภงด.30",
+    "menu_pnd30": "ภ.ง.ด.53",
     "menu_pnd30_hint": "ภาษีเงินได้หัก ณ ที่จ่าย — อ่าน PDF แล้วเทียบชื่อกับ Excel",
     "menu_unavailable": "เมนูนี้ยังไม่พร้อมใช้",
     "back_to_menu": "กลับเมนู",
@@ -214,7 +214,7 @@ UI_TEXT = {
     "pp30_pv_description": "รายละเอียด PV",
     "pp30_welcome_log": (
         "Express อยู่ dialog เลือกข้อมูล → กดเริ่ม\n"
-        "AutoKey: อ่าน ภพ.30 → ค้นห้าง → JV 5-1-1 → PV 5-1-2 → แคปรายงาน\n"
+        "AutoKey: อ่าน ภ.พ.30 → ค้นห้าง → JV 5-1-1 → PV 5-1-2 → แคปรายงาน\n"
         "กด Ctrl+F9 หรือ Esc เพื่อยกเลิกขณะทำงาน"
     ),
     "pp30_confirm_message": (
@@ -237,7 +237,7 @@ UI_TEXT = {
     "pp30_pdf_name_missing": "อ่านชื่อจาก PDF ไม่ได้: {path}",
     "pp30_unmatched": "เทียบชื่อกับ Excel ไม่ได้: {pdf_name} ({path})",
     "pp30_search_log": "ค้นหาห้าง: {name}",
-    "pp30_done": "ทำ ภพ.30 ครบ {count} รายการ",
+    "pp30_done": "ทำ ภ.พ.30 ครบ {count} รายการ",
     "pp30_pdf_values_missing": "อ่านข้อ 5/7/11 หรือวันที่จาก PDF ไม่ได้: {path}",
     "pp30_jv_log": "กรอก JV {date} — 2135-00={sale} 1154-00={purchase}",
     "pp30_jv_new_shop_log": "กรอก JV เปิดร้านใหม่ {date} — 1156-00={purchase}",
@@ -258,7 +258,7 @@ UI_TEXT = {
     "pnd30_pv_description": "รายละเอียด PV",
     "pnd30_welcome_log": (
         "Express อยู่ dialog เลือกข้อมูล → กดเริ่ม\n"
-        "AutoKey: อ่าน ภงด.30 → ค้นห้าง → PV 5-1-2 → แคปรายงาน\n"
+        "AutoKey: อ่าน ภ.ง.ด.53 → ค้นห้าง → PV 5-1-2 → แคปรายงาน\n"
         "กด Ctrl+F9 หรือ Esc เพื่อยกเลิกขณะทำงาน"
     ),
     "pnd30_confirm_message": (
@@ -266,7 +266,7 @@ UI_TEXT = {
         "AutoKey จะเทียบชื่อ PDF กับ Excel แล้วทำ PV / แคปรายงานทีละห้าง\n"
         "ต้องการเริ่มหรือไม่?"
     ),
-    "pnd30_done": "ทำ ภงด.30 ครบ {count} รายการ",
+    "pnd30_done": "ทำ ภ.ง.ด.53 ครบ {count} รายการ",
     "pnd30_pdf_values_missing": "อ่านข้อ 2/3 หรือวันที่จาก PDF ไม่ได้: {path}",
     "pnd30_pv_log": "กรอก PV {date} — 2132-02={tax} 5390-01={surcharge}",
     "pnd30_pv_no_surcharge_log": "กรอก PV {date} — 2132-02={tax}",
