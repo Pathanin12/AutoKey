@@ -78,7 +78,7 @@ class Pnd30ExtractTests(unittest.TestCase):
     def test_empty_line_3_is_zero(self) -> None:
         lines = extract_line_2_and_3(_SAMPLE_NO_SURCHARGE)
         self.assertEqual(lines, (36.00, 0.0))
-        self.assertEqual(extract_pv_date(_SAMPLE_NO_SURCHARGE), "08/07/69")
+        self.assertEqual(extract_pv_date(_SAMPLE_NO_SURCHARGE), "13/07/69")
 
     def test_reads_company_and_values_from_form_text(self) -> None:
         name = Pnd30PdfService.extract_company_name(_SAMPLE_SURCHARGE)
@@ -109,7 +109,7 @@ class Pnd30ExtractTests(unittest.TestCase):
         assert values is not None
         self.assertEqual(values.tax_withheld, 36.00)
         self.assertFalse(values.has_surcharge)
-        self.assertEqual(values.pv_date, "08/07/69")
+        self.assertEqual(values.pv_date, "13/07/69")
 
 
 class Pnd30MatchTests(unittest.TestCase):
@@ -163,7 +163,7 @@ class Pnd30FillTests(unittest.TestCase):
 
     def test_skips_surcharge_when_line_3_empty(self) -> None:
         image = RecordingImage()
-        values = Pnd30FormValues(tax_withheld=36.00, surcharge=0.0, pv_date="08/07/69")
+        values = Pnd30FormValues(tax_withheld=36.00, surcharge=0.0, pv_date="13/07/69")
         fill_pv(image, _config(), values, lambda _msg: None)
         events = _typed_and_pressed(image.events)
         codes = [event[1] for event in events if event[0] == "type_text"]
