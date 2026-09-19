@@ -254,7 +254,6 @@ UI_TEXT = {
     "pp30_mode_special": "แบบพิเศษ",
     "pp30_mode_log": "รูปแบบ: {mode}",
     "pp30_mode_invalid": "กรุณาเลือกรูปแบบ แบบปกติ หรือ แบบพิเศษ",
-    "pnd30_pv_date": "วันที่",
     "pnd30_pv_description": "รายละเอียด PV",
     "pnd30_welcome_log": (
         "Express อยู่ dialog เลือกข้อมูล → กดเริ่ม\n"

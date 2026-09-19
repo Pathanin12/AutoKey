@@ -93,7 +93,6 @@ class MainWindow:
         self.pp30_pdf_files: list[Path] = []
         self.pnd30_pdf_folder = tk.StringVar(value="")
         self.pnd30_excel_path = tk.StringVar(value="")
-        self.pnd30_pv_date = tk.StringVar(value=initial_pv_date)
         self.pnd30_pv_description = tk.StringVar(value="")
         self.pnd30_report_dir = tk.StringVar(
             value=str(defaults.get("report_output_dir", "") or "").strip()
@@ -438,40 +437,33 @@ class MainWindow:
             row=3, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
 
-        ttk.Label(form_frame, text=UI_TEXT["pnd30_pv_date"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
-        self.pnd30_pv_date_entry = ttk.Entry(form_frame, textvariable=self.pnd30_pv_date, width=20)
-        self.pnd30_pv_date_entry.grid(row=4, column=1, sticky="w", pady=(8, 0))
-        self.pnd30_pv_date_entry.bind("<KeyRelease>", self._mask_pnd30_pv_date)
-        self.pnd30_pv_date_entry.bind("<FocusOut>", self._format_pnd30_pv_date)
-
         ttk.Label(form_frame, text=UI_TEXT["pnd30_pv_description"]).grid(
-            row=5, column=0, sticky="nw", pady=(8, 0)
+            row=4, column=0, sticky="nw", pady=(8, 0)
         )
         self.pnd30_pv_description_entry = ttk.Entry(
             form_frame, textvariable=self.pnd30_pv_description, width=48
         )
-        self.pnd30_pv_description_entry.grid(row=5, column=1, columnspan=2, sticky="ew", pady=(8, 0))
+        self.pnd30_pv_description_entry.grid(row=4, column=1, columnspan=2, sticky="ew", pady=(8, 0))
 
-        ttk.Label(form_frame, text=UI_TEXT["report_output_dir"]).grid(row=6, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(form_frame, text=UI_TEXT["report_output_dir"]).grid(row=5, column=0, sticky="w", pady=(8, 0))
         self.pnd30_report_dir_entry = ttk.Entry(form_frame, textvariable=self.pnd30_report_dir, width=48)
-        self.pnd30_report_dir_entry.grid(row=6, column=1, sticky="ew", pady=(8, 0))
+        self.pnd30_report_dir_entry.grid(row=5, column=1, sticky="ew", pady=(8, 0))
         ttk.Button(form_frame, text=UI_TEXT["choose_folder"], command=self._choose_pnd30_report_dir).grid(
-            row=6, column=2, pady=(8, 0)
+            row=5, column=2, pady=(8, 0)
         )
 
-        ttk.Label(form_frame, text=UI_TEXT["run_speed"]).grid(row=7, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(form_frame, text=UI_TEXT["run_speed"]).grid(row=6, column=0, sticky="w", pady=(8, 0))
         speed_row = ttk.Frame(form_frame)
-        speed_row.grid(row=7, column=1, columnspan=2, sticky="w", pady=(8, 0))
+        speed_row.grid(row=6, column=1, columnspan=2, sticky="w", pady=(8, 0))
         self._add_speed_radios(speed_row)
         ttk.Label(form_frame, text=UI_TEXT["run_speed_hint"], wraplength=500, foreground="#555555").grid(
-            row=8, column=0, columnspan=3, sticky="w", pady=(2, 0)
+            row=7, column=0, columnspan=3, sticky="w", pady=(2, 0)
         )
         form_frame.columnconfigure(1, weight=1)
         bind_excel_cell_paste(
             [
                 self.pnd30_folder_entry,
                 self.pnd30_excel_path_entry,
-                self.pnd30_pv_date_entry,
                 self.pnd30_pv_description_entry,
                 self.pnd30_report_dir_entry,
             ],
@@ -741,22 +733,10 @@ class MainWindow:
             return
         self.pnd30_excel_summary.set(UI_TEXT["excel_loaded"].format(path=excel_path.name))
 
-    def _mask_pnd30_pv_date(self, _event=None) -> None:
-        raw = self.pnd30_pv_date.get()
-        masked = mask_express_pv_date(raw)
-        if masked != raw:
-            self.pnd30_pv_date.set(masked)
-
-    def _format_pnd30_pv_date(self, _event=None) -> None:
-        formatted = format_express_pv_date(self.pnd30_pv_date.get())
-        if formatted:
-            self.pnd30_pv_date.set(formatted)
-
     def _pnd30_form_config(self) -> Pnd30FormConfig:
         return Pnd30FormConfig(
             pdf_folder=Path(self.pnd30_pdf_folder.get().strip()).expanduser(),
             excel_path=Path(self.pnd30_excel_path.get().strip()).expanduser(),
-            pv_date=format_express_pv_date(self.pnd30_pv_date.get()),
             pv_description=self.pnd30_pv_description.get().strip(),
             report_output_dir=Path(self.pnd30_report_dir.get().strip()).expanduser(),
             pdf_files=list(self.pnd30_pdf_files),
@@ -767,8 +747,6 @@ class MainWindow:
     def _start_pnd30(self) -> None:
         self._load_pnd30_folder()
         config = self._pnd30_form_config()
-        if config.pv_date:
-            self.pnd30_pv_date.set(config.pv_date)
         errors = config.validate()
         if errors:
             messagebox.showwarning("AutoKey", "\n".join(errors))

@@ -241,7 +241,7 @@ class MainWindow:
         self._build_menu_page(self._menu_view)
         self._build_ka_tam_page(self._ka_tam_view, initial_pv_date, initial_start_from_no)
         self._build_pp30_page(self._pp30_view, initial_pv_date)
-        self._build_pnd30_page(self._pnd30_view, initial_pv_date)
+        self._build_pnd30_page(self._pnd30_view)
         self._set_run_speed(self._run_speed.key)
         self.window.makeKeyAndOrderFront_(None)
 
@@ -386,7 +386,7 @@ class MainWindow:
         self.pp30_log_view.setString_(UI_TEXT["pp30_welcome_log"] + "\n")
         del settings_box, _status_box
 
-    def _build_pnd30_page(self, page, initial_pv_date: str) -> None:
+    def _build_pnd30_page(self, page) -> None:
         y = 24
         _button(
             page,
@@ -400,7 +400,7 @@ class MainWindow:
         _static_label(page, UI_TEXT["menu_pnd30"], 188, y + 6, WIN_W - 212, 24, size=16, bold=True)
         y = 76
 
-        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 246)
+        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 216)
         sy = 8
         _static_label(settings, UI_TEXT["run_speed"], 8, sy, 110, 22)
         pnd30_speed_row = _radio_group(settings, 120, sy - 2, 380, 26)
@@ -424,12 +424,6 @@ class MainWindow:
             settings, UI_TEXT["excel_summary_empty"], 8, sy, 500, 20, size=11, gray=True
         )
         sy += 28
-        _static_label(settings, UI_TEXT["pnd30_pv_date"], 8, sy, 110, 22)
-        self.pnd30_pv_date_field = _edit_field(settings, 120, sy, 160)
-        self.pnd30_pv_date_field.setStringValue_(initial_pv_date)
-        self.pnd30_pv_date_field.setPlaceholderString_(PV_DATE_EXAMPLE)
-        self.pnd30_pv_date_field.setDelegate_(self._date_delegate)
-        sy += 30
         _static_label(settings, UI_TEXT["pnd30_pv_description"], 8, sy, 110, 22)
         self.pnd30_pv_description_field = _edit_field(settings, 120, sy, 356)
         self.pnd30_pv_description_field.setDelegate_(self._plain_delegate)
@@ -452,7 +446,7 @@ class MainWindow:
         if initial_report_dir:
             self.pnd30_report_dir_field.setStringValue_(initial_report_dir)
 
-        y = 338
+        y = 308
         _button(
             page,
             f"▶ {UI_TEXT['start']}",
@@ -472,7 +466,7 @@ class MainWindow:
             self._keep(self._stop),
         )
 
-        y = 382
+        y = 352
         _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, PND30_WIN_H - y - 12)
         self.pnd30_progress_field = _static_label(status, "0 / 0", 8, 8, 300, 22)
         _button(status, UI_TEXT["copy_log"], 368, 4, 120, 28, self._keep(self._copy_all_log))
@@ -896,7 +890,6 @@ class MainWindow:
         return Pnd30FormConfig(
             pdf_folder=folder,
             excel_path=Path(self._field_text(self.pnd30_excel_path_field)).expanduser(),
-            pv_date=format_express_pv_date(self._field_text(self.pnd30_pv_date_field)),
             pv_description=self._field_text(self.pnd30_pv_description_field),
             report_output_dir=Path(self._field_text(self.pnd30_report_dir_field)).expanduser(),
             pdf_files=list(self.pnd30_pdf_files),
@@ -907,8 +900,6 @@ class MainWindow:
     def _start_pnd30(self) -> None:
         self._load_pnd30_folder()
         config = self._pnd30_form_config()
-        if config.pv_date:
-            self.pnd30_pv_date_field.setStringValue_(config.pv_date)
         errors = config.validate()
         if errors:
             _alert("AutoKey", "\n".join(errors))

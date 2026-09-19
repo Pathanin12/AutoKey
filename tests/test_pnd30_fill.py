@@ -60,7 +60,6 @@ def _config() -> Pnd30FormConfig:
     return Pnd30FormConfig(
         pdf_folder=Path("/tmp"),
         excel_path=Path("/tmp/a.xlsx"),
-        pv_date="01/01/69",
         pv_description="รายละเอียด PV",
         report_output_dir=Path("/tmp/out"),
     )
@@ -135,6 +134,7 @@ class Pnd30FillTests(unittest.TestCase):
         self.assertEqual(
             events,
             [
+                ("press", ("alt", "a")),
                 ("press", ("enter",)),
                 ("type_keys", "16/06/69", True),
                 ("press", ("enter",)),
@@ -159,7 +159,7 @@ class Pnd30FillTests(unittest.TestCase):
                 ("press", ("esc",)),
             ],
         )
-        self.assertNotIn(("press", ("alt", "a")), events)
+        self.assertEqual(events[0], ("press", ("alt", "a")))
 
     def test_skips_surcharge_when_line_3_empty(self) -> None:
         image = RecordingImage()

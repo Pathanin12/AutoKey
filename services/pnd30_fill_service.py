@@ -17,6 +17,8 @@ from constants.routes import (
     VOUCHER_AFTER_DATE_WAIT,
     VOUCHER_FIELD_WAIT,
     VOUCHER_FORM_WAIT,
+    PV_NEW_FILE_KEYS,
+    VOUCHER_AFTER_NEW_WAIT,
 )
 from models.pnd30_fill_context import Pnd30FillContext
 from models.pnd30_form_config import Pnd30FormConfig
@@ -80,6 +82,8 @@ def _open_payment_journal(ctx: Pnd30FillContext) -> None:
 
 
 def _start_voucher(image: ImageService, voucher_date: str, description: str) -> None:
+    image.press(*PV_NEW_FILE_KEYS)
+    image.wait(VOUCHER_AFTER_NEW_WAIT)
     image.press("enter")
     image.wait(VOUCHER_FORM_WAIT)
     if voucher_date:

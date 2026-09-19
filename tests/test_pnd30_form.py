@@ -16,18 +16,17 @@ class Pnd30MenuTests(unittest.TestCase):
 
 
 class Pnd30FormConfigTests(unittest.TestCase):
-    def test_validate_requires_folder_excel_date_and_output(self) -> None:
+    def test_validate_requires_folder_excel_and_output(self) -> None:
         config = Pnd30FormConfig(
             pdf_folder=Path("/tmp/missing-pnd30"),
             excel_path=Path("/tmp/missing.xlsx"),
-            pv_date="",
             pv_description="",
             report_output_dir=Path(""),
         )
         errors = config.validate()
         self.assertTrue(any("โฟลเดอร์ PDF" in item for item in errors))
         self.assertTrue(any("Excel" in item for item in errors))
-        self.assertTrue(any("วันที่" in item for item in errors))
+        self.assertFalse(any("วันที่" in item for item in errors))
         self.assertFalse(any("JV" in item for item in errors))
         self.assertTrue(any("โฟลเดอร์เก็บไฟล์" in item for item in errors))
 
@@ -35,7 +34,6 @@ class Pnd30FormConfigTests(unittest.TestCase):
         config = Pnd30FormConfig(
             pdf_folder=Path("/tmp/missing-pnd30"),
             excel_path=Path("/tmp/missing.xlsx"),
-            pv_date="",
             pv_description="",
             report_output_dir=Path(""),
         )
