@@ -33,9 +33,13 @@ class CdxIndexService:
             _insert_into_tag(data, tag, key, recno)
             added += 1
         if added:
-            count = unpack("<H", data[12:14])[0] + 1
-            data[12:14] = pack("<H", count)
+            _bump_file_version(data)
         cdx_path.write_bytes(data)
+
+
+def _bump_file_version(data: bytearray) -> None:
+    version = unpack(">I", data[8:12])[0] + 1
+    data[8:12] = pack(">I", version)
 
 
 def _tags(data: bytes) -> list[CdxTag]:
@@ -103,8 +107,6 @@ def _field_width(name: str) -> int:
 def _insert_into_tag(data: bytearray, tag: CdxTag, key: bytes, recno: int) -> None:
     page_off = _find_leaf(data, tag, key, recno)
     _insert_leaf_key(data, tag, page_off, key, recno)
-    counter = unpack("<I", data[tag.offset + 8 : tag.offset + 12])[0] + 1
-    data[tag.offset + 8 : tag.offset + 12] = pack("<I", counter)
 
 
 def _find_leaf(data: bytearray, tag: CdxTag, key: bytes, recno: int) -> int:

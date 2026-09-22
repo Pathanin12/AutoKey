@@ -5,7 +5,7 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from constants.date_utils import PV_DATE_EXAMPLE, format_express_pv_date, mask_express_pv_date
+from constants.date_utils import PV_DATE_EXAMPLE, format_express_pv_date, is_complete_express_date
 from constants.routes import (
     MENU_BUTTON_IPADY,
     PAGE_CONFIG,
@@ -148,7 +148,6 @@ class MainWindow:
         ttk.Label(form, text=UI_TEXT["pp30_jv_date"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
         jv_date_entry = ttk.Entry(form, textvariable=self.pp30_jv_date, width=14)
         jv_date_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
-        jv_date_entry.bind("<KeyRelease>", self._mask_pp30_jv_date)
         jv_date_entry.bind("<FocusOut>", self._format_pp30_jv_date)
         ttk.Label(form, text=PV_DATE_EXAMPLE, foreground="#555555").grid(
             row=3, column=2, sticky="w", pady=(8, 0)
@@ -222,14 +221,10 @@ class MainWindow:
             run_mode=Pp30RunMode.parse(self.pp30_run_mode.get()),
         )
 
-    def _mask_pp30_jv_date(self, _event=None) -> None:
-        current = self.pp30_jv_date.get()
-        masked = mask_express_pv_date(current)
-        if masked != current:
-            self.pp30_jv_date.set(masked)
-
     def _format_pp30_jv_date(self, _event=None) -> None:
-        self.pp30_jv_date.set(format_express_pv_date(self.pp30_jv_date.get()))
+        current = self.pp30_jv_date.get()
+        if is_complete_express_date(current):
+            self.pp30_jv_date.set(format_express_pv_date(current))
 
     def _start_pp30(self) -> None:
         if self._pp30_running:

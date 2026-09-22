@@ -36,7 +36,7 @@ from AppKit import (  # type: ignore
 from Foundation import NSObject  # type: ignore
 from PyObjCTools import AppHelper  # type: ignore
 
-from constants.date_utils import PV_DATE_EXAMPLE, format_express_pv_date, mask_express_pv_date
+from constants.date_utils import PV_DATE_EXAMPLE, format_express_pv_date, is_complete_express_date
 from constants.routes import (
     MENU_BUTTON_HEIGHT,
     PAGE_CONFIG,
@@ -85,16 +85,11 @@ class _WindowDelegate(NSObject):
 
 
 class _DateFieldDelegate(NSObject):
-    def controlTextDidChange_(self, notification) -> None:
-        field = notification.object()
-        raw = str(field.stringValue() or "")
-        masked = mask_express_pv_date(raw)
-        if masked != raw:
-            field.setStringValue_(masked)
-
     def controlTextDidEndEditing_(self, notification) -> None:
         field = notification.object()
-        field.setStringValue_(format_express_pv_date(str(field.stringValue() or "")))
+        raw = str(field.stringValue() or "")
+        if is_complete_express_date(raw):
+            field.setStringValue_(format_express_pv_date(raw))
 
 
 class MainWindow:
