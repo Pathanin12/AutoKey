@@ -43,14 +43,19 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AutoKey-v${{ steps.version.outputs.version }}
-          path: dist/AutoKey.exe
+          path: dist/AutoKey
           retention-days: 30
+
+      - name: Zip release folder
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: Compress-Archive -Path dist/AutoKey\* -DestinationPath dist/AutoKey-v${{ steps.version.outputs.version }}.zip
 
       - name: Create GitHub Release (tag only)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/AutoKey.exe
+          files: dist/AutoKey-v${{ steps.version.outputs.version }}.zip
           name: AutoKey v${{ steps.version.outputs.version }}
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
