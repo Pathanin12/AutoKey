@@ -3,15 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from models.express_company import ExpressCompany
 from models.pp30_form_values import Pp30FormValues
-from models.pp30_payment_kind import Pp30PaymentKind
 
 
 @dataclass(frozen=True)
-class Pp30MatchedJob:
+class Pp30PdfRecord:
     pdf_path: Path
-    pdf_name: str
-    company: ExpressCompany
+    company_name: str
     form_values: Pp30FormValues | None = None
-    kind: Pp30PaymentKind | None = None

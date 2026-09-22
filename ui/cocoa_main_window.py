@@ -1,8 +1,9 @@
-"""หน้าต่าง AutoKey บน macOS — ช่องกรอกเป็น NSTextField ของระบบ"""
+"""หน้าต่าง AutoKey บน macOS — เมนูใหญ่"""
 
 from __future__ import annotations
 
 from pathlib import Path
+import threading
 
 from AppKit import (  # type: ignore
     NSAlert,
@@ -15,18 +16,14 @@ from AppKit import (  # type: ignore
     NSButton,
     NSButtonTypeRadio,
     NSColor,
-    NSEvent,
-    NSEventModifierFlagCommand,
-    NSEventModifierFlagControl,
     NSFont,
     NSImage,
-    NSKeyDownMask,
     NSMakeRect,
-    NSMenu,
-    NSMenuItem,
     NSOpenPanel,
     NSPasteboard,
     NSPasteboardTypeString,
+    NSProgressIndicator,
+    NSProgressIndicatorStyleBar,
     NSScrollView,
     NSTextField,
     NSTextView,
@@ -36,74 +33,39 @@ from AppKit import (  # type: ignore
     NSWindowStyleMaskMiniaturizable,
     NSWindowStyleMaskTitled,
 )
-from Foundation import NSObject, NSOperationQueue  # type: ignore
-import objc
+from Foundation import NSObject  # type: ignore
 from PyObjCTools import AppHelper  # type: ignore
 
-from constants.date_utils import (
-    PV_DATE_EXAMPLE,
-    default_work_date,
-    format_express_pv_date,
-    mask_express_pv_date,
-)
 from constants.routes import (
-    EXCEL_OPEN_EXTENSIONS,
     MENU_BUTTON_HEIGHT,
-    PAGE_KA_TAM,
+    PAGE_CONFIG,
     PAGE_MENU,
-    PAGE_PND30,
     PAGE_PP30,
     PP30_MODE_NORMAL,
     PP30_MODE_SPECIAL,
-    RUN_SPEEDS,
-    TOPIC_PAYMENT_JOURNAL,
     UI_TEXT,
 )
 from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
-from models.ka_tam_row import KaTamRow
-from models.pnd30_form_config import Pnd30FormConfig
+from models.app_config import AppConfig
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_run_mode import Pp30RunMode
-from models.run_config import ExcelSheetSummary, RunConfig
-from models.run_speed import RunSpeed
 from models.topic_menu_item import TopicMenuItem
-from services.automation_service import AutomationService
-from services.clipboard_service import normalize_pasted_cell
-from services.excel_service import ExcelService
-from services.hotkey_service import HotkeyService
+from services.app_config_service import AppConfigService
+from services.express_data_folder_service import ExpressDataFolderService
 from services.pp30_folder_service import Pp30FolderService
+from services.pp30_match_run_service import Pp30MatchRunService
 from ui.app_icon import icon_dir
 
 WIN_W = 560
 MENU_WIN_H = 560
-KA_TAM_WIN_H = 730
-PP30_WIN_H = 720
-PND30_WIN_H = 690
+CONFIG_WIN_H = 360
+PP30_WIN_H = 640
 
 
 class FlippedView(NSView):
     def isFlipped(self) -> bool:
         return True
-
-
-class MainNSWindow(NSWindow):
-    def performKeyEquivalent_(self, event) -> bool:
-        flags = int(event.modifierFlags())
-        if flags & int(NSEventModifierFlagCommand):
-            chars = str(event.charactersIgnoringModifiers() or "").lower()
-            responder = self.firstResponder()
-            method = {"v": "paste_", "c": "copy_", "x": "cut_", "a": "selectAll_"}.get(chars)
-            if method and responder is not None and hasattr(responder, method):
-                getattr(responder, method)(None)
-                if method == "paste_" and responder.respondsToSelector_("isEditable") and responder.isEditable():
-                    raw = str(responder.string() or "")
-                    cleaned = normalize_pasted_cell(raw)
-                    if cleaned != raw:
-                        responder.setString_(cleaned)
-                        responder.setSelectedRange_((len(cleaned), 0))
-                return True
-        return objc.super(MainNSWindow, self).performKeyEquivalent_(event)
 
 
 class _CallbackTarget(NSObject):
@@ -121,78 +83,21 @@ class _WindowDelegate(NSObject):
         return True
 
 
-class _DateFieldDelegate(NSObject):
-    def controlTextDidChange_(self, notification) -> None:
-        field = notification.object()
-        raw = str(field.stringValue() or "")
-        masked = mask_express_pv_date(raw)
-        if masked == raw:
-            return
-        field.setStringValue_(masked)
-        editor = field.currentEditor()
-        if editor is not None:
-            editor.setSelectedRange_((len(masked), 0))
-
-    def controlTextDidEndEditing_(self, notification) -> None:
-        field = notification.object()
-        formatted = format_express_pv_date(str(field.stringValue() or ""))
-        if formatted:
-            field.setStringValue_(formatted)
-
-
-class _PlainFieldDelegate(NSObject):
-    """ช่องบรรทัดเดียว — ตัด CR/LF ที่ Excel ก๊อปเซลล์มาด้วย"""
-
-    def controlTextDidChange_(self, notification) -> None:
-        field = notification.object()
-        raw = str(field.stringValue() or "")
-        cleaned = normalize_pasted_cell(raw)
-        if cleaned == raw:
-            return
-        field.setStringValue_(cleaned)
-        editor = field.currentEditor()
-        if editor is not None:
-            editor.setSelectedRange_((len(cleaned), 0))
-
-
 class MainWindow:
     def __init__(self) -> None:
-        self.automation_service = AutomationService()
-        ui_settings = self.automation_service.ui_settings
-        self.hide_on_start = bool(ui_settings.get("hide_on_start", False))
-        self.clear_log_on_start = bool(ui_settings.get("clear_log_on_start", True))
-        raw_log_max = ui_settings.get("log_max_lines", 0)
-        self.log_max_lines = max(0, int(raw_log_max if raw_log_max is not None else 0))
-        self.verbose_log = bool(ui_settings.get("verbose_log", False))
-        cancel_hotkeys = ui_settings.get("cancel_hotkeys") or ui_settings.get("cancel_hotkey", "esc")
-        self.hotkey_service = HotkeyService(cancel_hotkeys)
-        self.hotkey_label = self.hotkey_service.display_label
-        self.is_running = False
-        self._total_rows = 0
-        self.sheet_summaries: list[ExcelSheetSummary] = []
-        self.sheet_rows: dict[str, list[KaTamRow]] = {}
-        self.pp30_pdf_files: list[Path] = []
-        self.pnd30_pdf_files: list[Path] = []
         self._targets: list[_CallbackTarget] = []
-        self._key_monitor = None
-        self._status_value = UI_TEXT["ready"]
-
-        defaults = self.automation_service.default_settings
-        initial_pv_date = format_express_pv_date(
-            str(defaults.get("pv_date", "")).strip() or default_work_date()
-        )
-        initial_start_from_no = str(defaults.get("start_from_no", 1) or 1).strip() or "1"
-        self._run_speed = RunSpeed.parse(str(defaults.get("run_speed", "") or ""))
+        self._current_page = PAGE_MENU
+        self.app_config_service = AppConfigService()
+        self.app_config = self.app_config_service.load()
+        self.pp30_pdf_files: list[Path] = []
+        self._pp30_mode = Pp30RunMode.normal()
+        self._pp30_running = False
 
         self._app = NSApplication.sharedApplication()
         self._app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
-        _install_standard_edit_menu()
         self._set_app_icon()
-        self._current_page = PAGE_MENU
-        self._build_window(initial_pv_date, initial_start_from_no)
-        self._bind_shortcuts()
+        self._build_window()
         self._show_page(PAGE_MENU)
-        self._load_excel()
 
     def _keep(self, callback) -> _CallbackTarget:
         target = _CallbackTarget.alloc().init()
@@ -208,15 +113,14 @@ class MainWindow:
         if image is not None:
             self._app.setApplicationIconImage_(image)
 
-    def _build_window(self, initial_pv_date: str, initial_start_from_no: str) -> None:
+    def _build_window(self) -> None:
         style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable
-        self.window = MainNSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+        self.window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
             NSMakeRect(0, 0, WIN_W, MENU_WIN_H),
             style,
             2,
             False,
         )
-        self.window.setTitle_(f"{UI_TEXT['app_title']} v{__version__}")
         self.window.center()
         delegate = _WindowDelegate.alloc().init()
         delegate._owner = self
@@ -226,30 +130,33 @@ class MainWindow:
         root = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, MENU_WIN_H))
         self.window.setContentView_(root)
         self._root = root
-        self._plain_delegate = _PlainFieldDelegate.alloc().init()
-        self._date_delegate = _DateFieldDelegate.alloc().init()
-
         self._menu_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, MENU_WIN_H))
-        self._ka_tam_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, KA_TAM_WIN_H))
+        self._config_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, CONFIG_WIN_H))
         self._pp30_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PP30_WIN_H))
-        self._pnd30_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PND30_WIN_H))
         root.addSubview_(self._menu_view)
-        root.addSubview_(self._ka_tam_view)
+        root.addSubview_(self._config_view)
         root.addSubview_(self._pp30_view)
-        root.addSubview_(self._pnd30_view)
-
         self._build_menu_page(self._menu_view)
-        self._build_ka_tam_page(self._ka_tam_view, initial_pv_date, initial_start_from_no)
-        self._build_pp30_page(self._pp30_view, initial_pv_date)
-        self._build_pnd30_page(self._pnd30_view)
-        self._set_run_speed(self._run_speed.key)
+        self._build_config_page(self._config_view)
+        self._build_pp30_page(self._pp30_view)
         self.window.makeKeyAndOrderFront_(None)
 
     def _build_menu_page(self, page) -> None:
         margin = 24
         content_w = WIN_W - margin * 2
+        _button(
+            page,
+            UI_TEXT["menu_config"],
+            WIN_W - margin - 110,
+            28,
+            110,
+            32,
+            self._keep(lambda: self._show_page(PAGE_CONFIG)),
+            font_size=13,
+            bezel=NSBezelStyleRounded,
+        )
         y = 36
-        _static_label(page, UI_TEXT["menu_title"], margin, y, content_w, 28, size=18, bold=True)
+        _static_label(page, UI_TEXT["menu_title"], margin, y, content_w - 120, 28, size=18, bold=True)
         y = 80
         button_h = MENU_BUTTON_HEIGHT
         gap = 16
@@ -263,25 +170,63 @@ class MainWindow:
                 button_h,
                 self._keep(lambda selected=item: self._open_topic(selected)),
                 font_size=17,
-                bezel=NSBezelStyleRegularSquare,
             )
             y += button_h + gap
 
-    def _build_pp30_page(self, page, initial_jv_date: str) -> None:
-        y = 24
+    def _build_config_page(self, page) -> None:
         _button(
             page,
             f"← {UI_TEXT['back_to_menu']}",
             16,
-            y,
+            24,
             160,
             36,
-            self._keep(self._back_to_menu),
+            self._keep(lambda: self._show_page(PAGE_MENU)),
+            bezel=NSBezelStyleRounded,
         )
-        _static_label(page, UI_TEXT["menu_pp30"], 188, y + 6, WIN_W - 212, 24, size=16, bold=True)
-        y = 76
+        _static_label(page, UI_TEXT["config_title"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
+        _static_label(page, UI_TEXT["express_data_dir"], 24, 84, 140, 22)
+        self.express_data_dir_field = _edit_field(page, 170, 84, 250)
+        _button(
+            page,
+            UI_TEXT["choose_folder"],
+            428,
+            80,
+            108,
+            28,
+            self._keep(self._choose_express_data_dir),
+            bezel=NSBezelStyleRounded,
+        )
+        _static_label(page, UI_TEXT["express_data_dir_hint"], 24, 116, WIN_W - 48, 20, size=11, gray=True)
+        self.express_data_summary_field = _static_label(
+            page, UI_TEXT["express_data_dir_empty"], 24, 144, WIN_W - 48, 20, size=12, gray=True
+        )
+        _button(
+            page,
+            UI_TEXT["save"],
+            24,
+            184,
+            120,
+            36,
+            self._keep(self._save_config),
+            bezel=NSBezelStyleRounded,
+        )
+        self._refresh_config_fields()
 
-        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 304)
+    def _build_pp30_page(self, page) -> None:
+        _button(
+            page,
+            f"← {UI_TEXT['back_to_menu']}",
+            16,
+            24,
+            160,
+            36,
+            self._keep(lambda: self._show_page(PAGE_MENU)),
+            bezel=NSBezelStyleRounded,
+        )
+        _static_label(page, UI_TEXT["menu_pp30"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
+
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 196)
         sy = 8
         _static_label(settings, UI_TEXT["pp30_run_mode"], 8, sy, 110, 22)
         self.pp30_mode_normal = _radio(
@@ -303,798 +248,235 @@ class MainWindow:
             self._keep(lambda: self._set_pp30_mode(PP30_MODE_SPECIAL)),
         )
         self._set_pp30_mode(PP30_MODE_NORMAL)
-        sy += 28
-        _static_label(settings, UI_TEXT["run_speed"], 8, sy, 110, 22)
-        pp30_speed_row = _radio_group(settings, 120, sy - 2, 380, 26)
-        self.pp30_speed_radios = self._add_speed_radios(pp30_speed_row)
-        sy += 28
+        sy += 32
         _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
         self.pp30_folder_field = _edit_field(settings, 120, sy, 248)
-        _button(settings, UI_TEXT["choose_folder"], 376, sy - 2, 108, 28, self._keep(self._choose_pp30_folder))
-        self.pp30_folder_field.setDelegate_(self._plain_delegate)
+        _button(
+            settings,
+            UI_TEXT["choose_folder"],
+            376,
+            sy - 2,
+            108,
+            28,
+            self._keep(self._choose_pp30_folder),
+            bezel=NSBezelStyleRounded,
+        )
         sy += 26
         self.pp30_folder_summary_field = _static_label(
             settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
         )
         sy += 28
-        _static_label(settings, UI_TEXT["excel_file"], 8, sy, 110, 22)
-        self.pp30_excel_path_field = _edit_field(settings, 120, sy, 248)
-        _button(settings, UI_TEXT["choose_file"], 376, sy - 2, 108, 28, self._keep(self._choose_pp30_excel))
-        self.pp30_excel_path_field.setDelegate_(self._plain_delegate)
-        sy += 26
-        self.pp30_excel_summary_field = _static_label(
-            settings, UI_TEXT["excel_summary_empty"], 8, sy, 500, 20, size=11, gray=True
-        )
-        sy += 28
-        _static_label(settings, UI_TEXT["pp30_jv_date"], 8, sy, 110, 22)
-        self.pp30_jv_date_field = _edit_field(settings, 120, sy, 160)
-        self.pp30_jv_date_field.setStringValue_(initial_jv_date)
-        self.pp30_jv_date_field.setPlaceholderString_(PV_DATE_EXAMPLE)
-        self.pp30_jv_date_field.setDelegate_(self._date_delegate)
-        sy += 30
         _static_label(settings, UI_TEXT["pp30_jv_description"], 8, sy, 110, 22)
         self.pp30_jv_description_field = _edit_field(settings, 120, sy, 356)
-        self.pp30_jv_description_field.setDelegate_(self._plain_delegate)
         sy += 30
         _static_label(settings, UI_TEXT["pp30_pv_description"], 8, sy, 110, 22)
         self.pp30_pv_description_field = _edit_field(settings, 120, sy, 356)
-        self.pp30_pv_description_field.setDelegate_(self._plain_delegate)
-        sy += 30
-        _static_label(settings, UI_TEXT["report_output_dir"], 8, sy, 110, 22)
-        self.pp30_report_dir_field = _edit_field(settings, 120, sy, 248)
-        _button(
-            settings,
-            UI_TEXT["choose_folder"],
-            376,
-            sy - 2,
-            108,
-            28,
-            self._keep(self._choose_pp30_report_dir),
-        )
-        self.pp30_report_dir_field.setDelegate_(self._plain_delegate)
-        initial_report_dir = str(
-            self.automation_service.default_settings.get("report_output_dir", "") or ""
-        ).strip()
-        if initial_report_dir:
-            self.pp30_report_dir_field.setStringValue_(initial_report_dir)
 
-        y = 396
         _button(
             page,
             f"▶ {UI_TEXT['start']}",
             16,
-            y,
-            150,
-            32,
-            self._keep(self._start),
-        )
-        self.pp30_stop_button = _button(
-            page,
-            f"■ {UI_TEXT['stop'].format(hotkey=self.hotkey_label)}",
-            176,
-            y,
-            200,
-            32,
-            self._keep(self._stop),
+            280,
+            160,
+            36,
+            self._keep(self._start_pp30),
+            bezel=NSBezelStyleRounded,
         )
 
-        y = 440
+        y = 328
         _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, PP30_WIN_H - y - 12)
-        self.pp30_progress_field = _static_label(status, "0 / 0", 8, 8, 300, 22)
-        _button(status, UI_TEXT["copy_log"], 368, 4, 120, 28, self._keep(self._copy_all_log))
-        self.pp30_log_view = _log_view(status, 8, 36, WIN_W - 56, PP30_WIN_H - y - 64)
+        self.pp30_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
+        self.pp30_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
+        self.pp30_progress_bar.setIndeterminate_(False)
+        self.pp30_progress_bar.setMinValue_(0)
+        self.pp30_progress_bar.setMaxValue_(100)
+        self.pp30_progress_bar.setDoubleValue_(0)
+        status.addSubview_(self.pp30_progress_bar)
+        self.pp30_progress_field = _static_label(status, UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0), 376, 4, 140, 22)
+        _button(status, UI_TEXT["copy_log"], 376, 28, 120, 28, self._keep(self._copy_pp30_log), bezel=NSBezelStyleRounded)
+        self.pp30_log_view = _log_view(status, 8, 60, WIN_W - 56, PP30_WIN_H - y - 100)
         self.pp30_log_view.setString_(UI_TEXT["pp30_welcome_log"] + "\n")
-        del settings_box, _status_box
+        del _settings_box, _status_box
 
-    def _build_pnd30_page(self, page) -> None:
-        y = 24
-        _button(
-            page,
-            f"← {UI_TEXT['back_to_menu']}",
-            16,
-            y,
-            160,
-            36,
-            self._keep(self._back_to_menu),
-        )
-        _static_label(page, UI_TEXT["menu_pnd30"], 188, y + 6, WIN_W - 212, 24, size=16, bold=True)
-        y = 76
-
-        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 216)
-        sy = 8
-        _static_label(settings, UI_TEXT["run_speed"], 8, sy, 110, 22)
-        pnd30_speed_row = _radio_group(settings, 120, sy - 2, 380, 26)
-        self.pnd30_speed_radios = self._add_speed_radios(pnd30_speed_row)
-        sy += 28
-        _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
-        self.pnd30_folder_field = _edit_field(settings, 120, sy, 248)
-        _button(settings, UI_TEXT["choose_folder"], 376, sy - 2, 108, 28, self._keep(self._choose_pnd30_folder))
-        self.pnd30_folder_field.setDelegate_(self._plain_delegate)
-        sy += 26
-        self.pnd30_folder_summary_field = _static_label(
-            settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
-        )
-        sy += 28
-        _static_label(settings, UI_TEXT["excel_file"], 8, sy, 110, 22)
-        self.pnd30_excel_path_field = _edit_field(settings, 120, sy, 248)
-        _button(settings, UI_TEXT["choose_file"], 376, sy - 2, 108, 28, self._keep(self._choose_pnd30_excel))
-        self.pnd30_excel_path_field.setDelegate_(self._plain_delegate)
-        sy += 26
-        self.pnd30_excel_summary_field = _static_label(
-            settings, UI_TEXT["excel_summary_empty"], 8, sy, 500, 20, size=11, gray=True
-        )
-        sy += 28
-        _static_label(settings, UI_TEXT["pnd30_pv_description"], 8, sy, 110, 22)
-        self.pnd30_pv_description_field = _edit_field(settings, 120, sy, 356)
-        self.pnd30_pv_description_field.setDelegate_(self._plain_delegate)
-        sy += 30
-        _static_label(settings, UI_TEXT["report_output_dir"], 8, sy, 110, 22)
-        self.pnd30_report_dir_field = _edit_field(settings, 120, sy, 248)
-        _button(
-            settings,
-            UI_TEXT["choose_folder"],
-            376,
-            sy - 2,
-            108,
-            28,
-            self._keep(self._choose_pnd30_report_dir),
-        )
-        self.pnd30_report_dir_field.setDelegate_(self._plain_delegate)
-        initial_report_dir = str(
-            self.automation_service.default_settings.get("report_output_dir", "") or ""
-        ).strip()
-        if initial_report_dir:
-            self.pnd30_report_dir_field.setStringValue_(initial_report_dir)
-
-        y = 308
-        _button(
-            page,
-            f"▶ {UI_TEXT['start']}",
-            16,
-            y,
-            150,
-            32,
-            self._keep(self._start),
-        )
-        self.pnd30_stop_button = _button(
-            page,
-            f"■ {UI_TEXT['stop'].format(hotkey=self.hotkey_label)}",
-            176,
-            y,
-            200,
-            32,
-            self._keep(self._stop),
-        )
-
-        y = 352
-        _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, PND30_WIN_H - y - 12)
-        self.pnd30_progress_field = _static_label(status, "0 / 0", 8, 8, 300, 22)
-        _button(status, UI_TEXT["copy_log"], 368, 4, 120, 28, self._keep(self._copy_all_log))
-        self.pnd30_log_view = _log_view(status, 8, 36, WIN_W - 56, PND30_WIN_H - y - 64)
-        self.pnd30_log_view.setString_(UI_TEXT["pnd30_welcome_log"] + "\n")
-        del settings_box, _status_box
-
-    def _build_ka_tam_page(self, page, initial_pv_date: str, initial_start_from_no: str) -> None:
-        y = 24
-        _button(
-            page,
-            f"← {UI_TEXT['back_to_menu']}",
-            16,
-            y,
-            160,
-            36,
-            self._keep(self._back_to_menu),
-        )
-        _static_label(page, UI_TEXT["menu_ka_tam"], 188, y + 6, WIN_W - 212, 24, size=16, bold=True)
-        y = 76
-
-        settings_box, settings = _box(page, UI_TEXT["settings_frame"], 12, y, WIN_W - 24, 338)
-        sy = 8
-        _static_label(settings, UI_TEXT["run_speed"], 8, sy, 110, 22)
-        ka_tam_speed_row = _radio_group(settings, 120, sy - 2, 380, 26)
-        self.ka_tam_speed_radios = self._add_speed_radios(ka_tam_speed_row)
-        sy += 28
-        _static_label(settings, UI_TEXT["excel_file"], 8, sy, 90, 22)
-        self.excel_path_field = _edit_field(settings, 100, sy, 268)
-        _button(settings, UI_TEXT["choose_file"], 376, sy - 2, 108, 28, self._keep(self._choose_excel))
-        self.excel_path_field.setDelegate_(self._plain_delegate)
-        sy += 30
-        self.excel_summary_field = _static_label(settings, UI_TEXT["excel_summary_empty"], 8, sy, 500, 32, size=11, gray=True)
-        self.excel_summary_field.setUsesSingleLineMode_(False)
-        sy += 34
-        _static_label(settings, UI_TEXT["pv_date"], 8, sy, 110, 18)
-        self.pv_date_field = _edit_field(settings, 120, sy, 160)
-        self.pv_date_field.setStringValue_(initial_pv_date)
-        self.pv_date_field.setPlaceholderString_(PV_DATE_EXAMPLE)
-        self.pv_date_field.setDelegate_(self._date_delegate)
-        sy += 22
-        _static_label(settings, UI_TEXT["pv_date_hint"], 8, sy, 500, 28, size=11, gray=True)
-        sy += 32
-        _static_label(settings, UI_TEXT["start_from_no"], 8, sy, 110, 18)
-        self.start_from_no_field = _edit_field(settings, 120, sy, 80)
-        self.start_from_no_field.setStringValue_(initial_start_from_no)
-        self.start_from_no_field.setDelegate_(self._plain_delegate)
-        sy += 22
-        _static_label(settings, UI_TEXT["start_from_no_hint"], 8, sy, 500, 28, size=11, gray=True)
-        sy += 32
-        _static_label(settings, UI_TEXT["description"], 8, sy, 110, 18)
-        self.description_field = _edit_field(settings, 120, sy, 356)
-        self.description_field.setDelegate_(self._plain_delegate)
-        sy += 26
-        _static_label(settings, UI_TEXT["description_hint"], 8, sy, 500, 28, size=11, gray=True)
-        sy += 32
-        _static_label(settings, UI_TEXT["tax_payer_id"], 8, sy, 110, 18)
-        self.tax_payer_id_field = _edit_field(settings, 120, sy, 356)
-        self.tax_payer_id_field.setDelegate_(self._plain_delegate)
-        sy += 22
-        _static_label(settings, UI_TEXT["tax_payer_id_hint"], 8, sy, 500, 28, size=11, gray=True)
-
-        y = 428
-        _button(
-            page,
-            f"▶ {UI_TEXT['start']}",
-            16,
-            y,
-            150,
-            32,
-            self._keep(self._start),
-        )
-        self.stop_button = _button(
-            page,
-            f"■ {UI_TEXT['stop'].format(hotkey=self.hotkey_label)}",
-            176,
-            y,
-            200,
-            32,
-            self._keep(self._stop),
-        )
-
-        y = 476
-        _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, KA_TAM_WIN_H - y - 12)
-        self.progress_field = _static_label(status, "0 / 0", 8, 8, 300, 22)
-        _button(status, UI_TEXT["copy_log"], 368, 4, 120, 28, self._keep(self._copy_all_log))
-        self.log_view = _log_view(status, 8, 36, WIN_W - 56, KA_TAM_WIN_H - y - 64)
-        self._write_log(UI_TEXT["welcome_log"] + "\n", trim=False)
-        del settings_box, _status_box
-
-    def _open_topic(self, item: TopicMenuItem) -> None:
-        if not item.enabled:
-            _alert(UI_TEXT["app_title"], UI_TEXT["menu_unavailable"])
-            return
-        self._show_page(item.page_route)
-
-    def _back_to_menu(self) -> None:
-        if self.is_running:
-            return
-        self._show_page(PAGE_MENU)
-
-    def _show_page(self, page_route: str) -> None:
-        if self.is_running and page_route == PAGE_MENU:
-            return
-        self._current_page = page_route
-        self._menu_view.setHidden_(page_route != PAGE_MENU)
-        self._ka_tam_view.setHidden_(page_route != PAGE_KA_TAM)
-        self._pp30_view.setHidden_(page_route != PAGE_PP30)
-        self._pnd30_view.setHidden_(page_route != PAGE_PND30)
-        heights = {
-            PAGE_MENU: MENU_WIN_H,
-            PAGE_KA_TAM: KA_TAM_WIN_H,
-            PAGE_PP30: PP30_WIN_H,
-            PAGE_PND30: PND30_WIN_H,
-        }
-        self._resize_window(heights.get(page_route, MENU_WIN_H))
-        if page_route == PAGE_MENU:
-            self.window.setTitle_(f"{UI_TEXT['app_title']} v{__version__}")
-        elif page_route == PAGE_KA_TAM:
-            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_ka_tam']} v{__version__}")
-            self.window.makeFirstResponder_(self.description_field)
-        elif page_route == PAGE_PP30:
-            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pp30']} v{__version__}")
-            self.window.makeFirstResponder_(self.pp30_jv_description_field)
-        elif page_route == PAGE_PND30:
-            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd30']} v{__version__}")
-            self.window.makeFirstResponder_(self.pnd30_pv_description_field)
-
-    def _resize_window(self, height: int) -> None:
-        self.window.setContentSize_((WIN_W, height))
-        self._root.setFrame_(NSMakeRect(0, 0, WIN_W, height))
-        self._menu_view.setFrame_(NSMakeRect(0, 0, WIN_W, MENU_WIN_H))
-        self._ka_tam_view.setFrame_(NSMakeRect(0, 0, WIN_W, KA_TAM_WIN_H))
-        self._pp30_view.setFrame_(NSMakeRect(0, 0, WIN_W, PP30_WIN_H))
-        self._pnd30_view.setFrame_(NSMakeRect(0, 0, WIN_W, PND30_WIN_H))
-
-    def _bind_shortcuts(self) -> None:
-        def monitor(event):
-            flags = int(event.modifierFlags())
-            if flags & NSEventModifierFlagCommand:
-                return event
-            keycode = event.keyCode()
-            if keycode == 53:
-                self._stop()
-            elif keycode == 101 and flags & NSEventModifierFlagControl:
-                self._stop()
-            return event
-
-        self._key_monitor = NSEvent.addLocalMonitorForEventsMatchingMask_handler_(NSKeyDownMask, monitor)
-
-    def _on_close(self) -> None:
-        if self.is_running:
-            self._stop()
-        self.hotkey_service.stop_listening()
-        NSApp.terminate_(None)
-
-    def _field_text(self, field: NSTextField) -> str:
-        return normalize_pasted_cell(str(field.stringValue() or "")).strip()
-
-    def _load_excel(self) -> None:
-        raw_path = self._field_text(self.excel_path_field)
-        if not raw_path:
-            self.sheet_summaries = []
-            self.sheet_rows = {}
-            self.excel_summary_field.setStringValue_(UI_TEXT["excel_summary_empty"])
-            return
-
-        excel_path = Path(raw_path).expanduser()
-        if not excel_path.exists():
-            self.sheet_summaries = []
-            self.sheet_rows = {}
-            self.excel_summary_field.setStringValue_(UI_TEXT["excel_summary_empty"])
-            return
-
-        try:
-            self.sheet_summaries, self.sheet_rows = ExcelService.load_workbook(excel_path)
-        except Exception as exc:
-            self.sheet_summaries = []
-            self.sheet_rows = {}
-            self.excel_summary_field.setStringValue_(str(exc))
-            return
-
-        if not self.sheet_summaries:
-            self.excel_summary_field.setStringValue_(UI_TEXT["no_excel_data"])
-            self._append_log(UI_TEXT["no_excel_data"])
-            return
-
-        total_rows = sum(summary.row_count for summary in self.sheet_summaries)
-        self.excel_summary_field.setStringValue_(UI_TEXT["excel_total"].format(rows=total_rows))
-        self._append_log(UI_TEXT["excel_loaded"].format(path=excel_path.name))
-        self._append_log(UI_TEXT["excel_total"].format(rows=total_rows))
-
-    def _parse_start_from_no(self) -> int:
-        raw = self._field_text(self.start_from_no_field)
-        if not raw:
-            return 1
-        try:
-            return int(raw)
-        except ValueError:
-            return 0
-
-    def _choose_excel(self) -> None:
-        panel = NSOpenPanel.openPanel()
-        panel.setAllowedFileTypes_(list(EXCEL_OPEN_EXTENSIONS))
-        panel.setCanChooseFiles_(True)
-        panel.setCanChooseDirectories_(False)
-        if panel.runModal() != 1:
-            return
-        urls = panel.URLs()
-        if not urls:
-            return
-        self.excel_path_field.setStringValue_(str(urls[0].path()))
-        self._load_excel()
-
-    def _choose_pp30_folder(self) -> None:
-        panel = NSOpenPanel.openPanel()
-        panel.setCanChooseFiles_(False)
-        panel.setCanChooseDirectories_(True)
-        panel.setAllowsMultipleSelection_(False)
-        if panel.runModal() != 1:
-            return
-        urls = panel.URLs()
-        if not urls:
-            return
-        self.pp30_folder_field.setStringValue_(str(urls[0].path()))
-        self._load_pp30_folder()
-
-    def _choose_pp30_report_dir(self) -> None:
-        panel = NSOpenPanel.openPanel()
-        panel.setCanChooseFiles_(False)
-        panel.setCanChooseDirectories_(True)
-        panel.setAllowsMultipleSelection_(False)
-        if panel.runModal() != 1:
-            return
-        urls = panel.URLs()
-        if not urls:
-            return
-        self.pp30_report_dir_field.setStringValue_(str(urls[0].path()))
-
-    def _choose_pp30_excel(self) -> None:
-        panel = NSOpenPanel.openPanel()
-        panel.setAllowedFileTypes_(list(EXCEL_OPEN_EXTENSIONS))
-        panel.setCanChooseFiles_(True)
-        panel.setCanChooseDirectories_(False)
-        if panel.runModal() != 1:
-            return
-        urls = panel.URLs()
-        if not urls:
-            return
-        self.pp30_excel_path_field.setStringValue_(str(urls[0].path()))
-        self._load_pp30_excel()
-
-    def _load_pp30_folder(self) -> None:
-        raw_path = self._field_text(self.pp30_folder_field)
-        if not raw_path:
-            self.pp30_pdf_files = []
-            self.pp30_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
-            return
-        folder = Path(raw_path).expanduser()
-        self.pp30_pdf_files = Pp30FolderService.list_pdfs(folder)
-        if not folder.exists() or not folder.is_dir():
-            self.pp30_pdf_files = []
-            self.pp30_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
-            return
-        self.pp30_folder_summary_field.setStringValue_(
-            UI_TEXT["pp30_pdf_total"].format(count=len(self.pp30_pdf_files))
-        )
-
-    def _load_pp30_excel(self) -> None:
-        raw_path = self._field_text(self.pp30_excel_path_field)
-        if not raw_path:
-            self.pp30_excel_summary_field.setStringValue_(UI_TEXT["excel_summary_empty"])
-            return
-        excel_path = Path(raw_path).expanduser()
-        if not excel_path.exists():
-            self.pp30_excel_summary_field.setStringValue_(UI_TEXT["excel_summary_empty"])
-            return
-        self.pp30_excel_summary_field.setStringValue_(UI_TEXT["excel_loaded"].format(path=excel_path.name))
-
-    def _set_pp30_mode(self, mode: str) -> None:
-        self._pp30_mode = Pp30RunMode.parse(mode)
+    def _set_pp30_mode(self, key: str) -> None:
+        self._pp30_mode = Pp30RunMode.parse(key)
         self.pp30_mode_normal.setState_(1 if self._pp30_mode.key == PP30_MODE_NORMAL else 0)
         self.pp30_mode_special.setState_(1 if self._pp30_mode.key == PP30_MODE_SPECIAL else 0)
 
-    def _add_speed_radios(self, parent) -> dict:
-        buttons = {}
-        for index, key in enumerate(RUN_SPEEDS):
-            buttons[key] = _radio(
-                parent,
-                RunSpeed.parse(key).label,
-                index * 82,
-                0,
-                78,
-                26,
-                self._keep(lambda selected=key: self._set_run_speed(selected)),
-            )
-        return buttons
+    def _open_topic(self, item: TopicMenuItem) -> None:
+        if item.page_route == PAGE_PP30:
+            self._show_page(PAGE_PP30)
+            return
+        _alert(UI_TEXT["app_title"], UI_TEXT["menu_unavailable"])
 
-    def _set_run_speed(self, speed: str) -> None:
-        self._run_speed = RunSpeed.parse(speed)
-        for radios in (self.pp30_speed_radios, self.pnd30_speed_radios, self.ka_tam_speed_radios):
-            for key, button in radios.items():
-                button.setState_(1 if key == self._run_speed.key else 0)
+    def _choose_express_data_dir(self) -> None:
+        selected = _pick_folder()
+        if not selected:
+            return
+        self.express_data_dir_field.setStringValue_(selected)
+        self._save_config()
+
+    def _choose_pp30_folder(self) -> None:
+        selected = _pick_folder()
+        if not selected:
+            return
+        self.pp30_folder_field.setStringValue_(selected)
+        self._load_pp30_folder()
+
+    def _load_pp30_folder(self) -> None:
+        folder = Path(str(self.pp30_folder_field.stringValue() or "")).expanduser()
+        self.pp30_pdf_files = Pp30FolderService.list_pdfs(folder)
+        if self.pp30_pdf_files:
+            self.pp30_folder_summary_field.setStringValue_(
+                UI_TEXT["pp30_pdf_total"].format(count=len(self.pp30_pdf_files))
+            )
+        else:
+            self.pp30_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
 
     def _pp30_form_config(self) -> Pp30FormConfig:
-        folder = Path(self._field_text(self.pp30_folder_field)).expanduser()
+        folder = Path(str(self.pp30_folder_field.stringValue() or "")).expanduser()
         return Pp30FormConfig(
             pdf_folder=folder,
-            excel_path=Path(self._field_text(self.pp30_excel_path_field)).expanduser(),
-            jv_date=format_express_pv_date(self._field_text(self.pp30_jv_date_field)),
-            jv_description=self._field_text(self.pp30_jv_description_field),
-            pv_description=self._field_text(self.pp30_pv_description_field),
-            report_output_dir=Path(self._field_text(self.pp30_report_dir_field)).expanduser(),
+            jv_description=str(self.pp30_jv_description_field.stringValue() or "").strip(),
+            pv_description=str(self.pp30_pv_description_field.stringValue() or "").strip(),
             pdf_files=list(self.pp30_pdf_files),
             run_mode=self._pp30_mode,
-            run_speed=self._run_speed,
         )
 
     def _start_pp30(self) -> None:
+        if self._pp30_running:
+            return
+        self.app_config = self.app_config_service.load()
+        errors = self.app_config.validate()
         self._load_pp30_folder()
-        config = self._pp30_form_config()
-        if config.jv_date:
-            self.pp30_jv_date_field.setStringValue_(config.jv_date)
-        errors = config.validate()
+        errors.extend(self._pp30_form_config().validate())
         if errors:
-            _alert("AutoKey", "\n".join(errors))
+            _alert(UI_TEXT["app_title"], "\n".join(errors))
             return
-        self._append_log(UI_TEXT["pp30_pdf_total"].format(count=len(config.pdf_files)))
-        self._append_log(UI_TEXT["excel_loaded"].format(path=config.excel_path.name))
-        if not _confirm(
-            UI_TEXT["confirm_title"],
-            f"{UI_TEXT['pp30_confirm_message']}\n\nจะค้นหา {len(config.pdf_files)} ห้าง",
-        ):
-            return
+        total = len(self.pp30_pdf_files)
+        self._set_pp30_progress(0, total)
+        self._append_pp30_log(UI_TEXT["pp30_pdf_total"].format(count=total))
+        pdf_files = list(self.pp30_pdf_files)
+        express_data_dir = self.app_config.express_data_dir
+        form_config = self._pp30_form_config()
+        self._pp30_running = True
+        threading.Thread(
+            target=self._run_pp30_match,
+            args=(pdf_files, express_data_dir, form_config),
+            daemon=True,
+        ).start()
 
-        self.is_running = True
-        self._total_rows = len(config.pdf_files)
-        if self.clear_log_on_start:
-            self._clear_log()
-        self._append_log(UI_TEXT["cancel_hotkey_hint"].format(hotkey=self.hotkey_label))
-        self.hotkey_service.start_listening(self._stop)
-        if self.hide_on_start:
-            self.window.orderOut_(None)
+    def _run_pp30_match(self, pdf_files: list[Path], express_data_dir: Path, form_config) -> None:
+        try:
+            Pp30MatchRunService.run(
+                pdf_files,
+                express_data_dir,
+                form_config=form_config,
+                on_status=lambda message: AppHelper.callAfter(lambda m=message: self._append_pp30_log(m)),
+                on_progress=lambda done, total: AppHelper.callAfter(
+                    lambda d=done, t=total: self._set_pp30_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        finally:
+            AppHelper.callAfter(self._pp30_match_finished)
 
-        self.automation_service.run_pp30_async(
-            form_config=config,
-            on_status=self._set_status,
-            on_progress=self._set_progress,
-            on_step=self._set_step,
-            on_finished=self._on_finished,
-            verbose_log=self.verbose_log,
+    def _pp30_match_finished(self) -> None:
+        self._pp30_running = False
+
+    def _set_pp30_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.pp30_progress_bar.setDoubleValue_(percent)
+        self.pp30_progress_field.setStringValue_(
+            UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent)
         )
 
-    def _choose_pnd30_folder(self) -> None:
-        panel = NSOpenPanel.openPanel()
-        panel.setCanChooseFiles_(False)
-        panel.setCanChooseDirectories_(True)
-        panel.setAllowsMultipleSelection_(False)
-        if panel.runModal() != 1:
-            return
-        urls = panel.URLs()
-        if not urls:
-            return
-        self.pnd30_folder_field.setStringValue_(str(urls[0].path()))
-        self._load_pnd30_folder()
+    def _append_pp30_log(self, message: str) -> None:
+        current = str(self.pp30_log_view.string() or "")
+        current += message + "\n"
+        self.pp30_log_view.setString_(current)
+        self.pp30_log_view.scrollRangeToVisible_((len(current), 0))
 
-    def _choose_pnd30_report_dir(self) -> None:
-        panel = NSOpenPanel.openPanel()
-        panel.setCanChooseFiles_(False)
-        panel.setCanChooseDirectories_(True)
-        panel.setAllowsMultipleSelection_(False)
-        if panel.runModal() != 1:
-            return
-        urls = panel.URLs()
-        if not urls:
-            return
-        self.pnd30_report_dir_field.setStringValue_(str(urls[0].path()))
-
-    def _choose_pnd30_excel(self) -> None:
-        panel = NSOpenPanel.openPanel()
-        panel.setAllowedFileTypes_(list(EXCEL_OPEN_EXTENSIONS))
-        panel.setCanChooseFiles_(True)
-        panel.setCanChooseDirectories_(False)
-        if panel.runModal() != 1:
-            return
-        urls = panel.URLs()
-        if not urls:
-            return
-        self.pnd30_excel_path_field.setStringValue_(str(urls[0].path()))
-        self._load_pnd30_excel()
-
-    def _load_pnd30_folder(self) -> None:
-        raw_path = self._field_text(self.pnd30_folder_field)
-        if not raw_path:
-            self.pnd30_pdf_files = []
-            self.pnd30_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
-            return
-        folder = Path(raw_path).expanduser()
-        self.pnd30_pdf_files = Pp30FolderService.list_pdfs(folder)
-        if not folder.exists() or not folder.is_dir():
-            self.pnd30_pdf_files = []
-            self.pnd30_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
-            return
-        self.pnd30_folder_summary_field.setStringValue_(
-            UI_TEXT["pp30_pdf_total"].format(count=len(self.pnd30_pdf_files))
-        )
-
-    def _load_pnd30_excel(self) -> None:
-        raw_path = self._field_text(self.pnd30_excel_path_field)
-        if not raw_path:
-            self.pnd30_excel_summary_field.setStringValue_(UI_TEXT["excel_summary_empty"])
-            return
-        excel_path = Path(raw_path).expanduser()
-        if not excel_path.exists():
-            self.pnd30_excel_summary_field.setStringValue_(UI_TEXT["excel_summary_empty"])
-            return
-        self.pnd30_excel_summary_field.setStringValue_(UI_TEXT["excel_loaded"].format(path=excel_path.name))
-
-    def _pnd30_form_config(self) -> Pnd30FormConfig:
-        folder = Path(self._field_text(self.pnd30_folder_field)).expanduser()
-        return Pnd30FormConfig(
-            pdf_folder=folder,
-            excel_path=Path(self._field_text(self.pnd30_excel_path_field)).expanduser(),
-            pv_description=self._field_text(self.pnd30_pv_description_field),
-            report_output_dir=Path(self._field_text(self.pnd30_report_dir_field)).expanduser(),
-            pdf_files=list(self.pnd30_pdf_files),
-            run_mode=Pp30RunMode.normal(),
-            run_speed=self._run_speed,
-        )
-
-    def _start_pnd30(self) -> None:
-        self._load_pnd30_folder()
-        config = self._pnd30_form_config()
-        errors = config.validate()
-        if errors:
-            _alert("AutoKey", "\n".join(errors))
-            return
-        self._append_log(UI_TEXT["pp30_pdf_total"].format(count=len(config.pdf_files)))
-        self._append_log(UI_TEXT["excel_loaded"].format(path=config.excel_path.name))
-        if not _confirm(
-            UI_TEXT["confirm_title"],
-            f"{UI_TEXT['pnd30_confirm_message']}\n\nจะค้นหา {len(config.pdf_files)} ห้าง",
-        ):
-            return
-
-        self.is_running = True
-        self._total_rows = len(config.pdf_files)
-        if self.clear_log_on_start:
-            self._clear_log()
-        self._append_log(UI_TEXT["cancel_hotkey_hint"].format(hotkey=self.hotkey_label))
-        self.hotkey_service.start_listening(self._stop)
-        if self.hide_on_start:
-            self.window.orderOut_(None)
-
-        self.automation_service.run_pnd30_async(
-            form_config=config,
-            on_status=self._set_status,
-            on_progress=self._set_progress,
-            on_step=self._set_step,
-            on_finished=self._on_finished,
-            verbose_log=self.verbose_log,
-        )
-
-    def _start(self) -> None:
-        if self.is_running:
-            return
-        if self._current_page == PAGE_PP30:
-            self._start_pp30()
-            return
-        if self._current_page == PAGE_PND30:
-            self._start_pnd30()
-            return
-        if self._current_page != PAGE_KA_TAM:
-            return
-        if not self.sheet_summaries:
-            self._load_excel()
-        if not self.sheet_summaries:
-            _alert("AutoKey", UI_TEXT["no_excel_loaded"])
-            return
-
-        run_config = RunConfig(
-            topic=TOPIC_PAYMENT_JOURNAL,
-            excel_path=Path(self._field_text(self.excel_path_field)).expanduser(),
-            pv_date=format_express_pv_date(self._field_text(self.pv_date_field)),
-            description=self._field_text(self.description_field),
-            tax_payer_id=self._field_text(self.tax_payer_id_field),
-            start_from_no=self._parse_start_from_no(),
-            sheet_summaries=self.sheet_summaries,
-            sheet_rows=self.sheet_rows,
-            run_speed=self._run_speed,
-        )
-        if run_config.pv_date:
-            self.pv_date_field.setStringValue_(run_config.pv_date)
-        errors = run_config.validate()
-        if errors:
-            _alert("AutoKey", "\n".join(errors))
-            return
-
-        confirm_rows = run_config.planned_row_count()
-        start_label = f"เริ่มที่ No. {run_config.start_from_no}"
-        if not _confirm(UI_TEXT["confirm_title"], f"{UI_TEXT['confirm_message']}\n\n{start_label} — จะทำ {confirm_rows} รายการ"):
-            return
-
-        self.is_running = True
-        self._total_rows = confirm_rows
-        if self.clear_log_on_start:
-            self._clear_log()
-        self._append_log(UI_TEXT["cancel_hotkey_hint"].format(hotkey=self.hotkey_label))
-        self.hotkey_service.start_listening(self._stop)
-        if self.hide_on_start:
-            self.window.orderOut_(None)
-
-        self.automation_service.run_async(
-            run_config=run_config,
-            on_status=self._set_status,
-            on_progress=self._set_progress,
-            on_step=self._set_step,
-            on_finished=self._on_finished,
-            verbose_log=self.verbose_log,
-        )
-
-    def _stop(self) -> None:
-        if not self.is_running:
-            return
-        self.automation_service.request_stop()
-        self._append_log(UI_TEXT["stop_requested"])
-
-    def _restore_window(self) -> None:
-        if self.hide_on_start:
-            self.window.makeKeyAndOrderFront_(None)
-            NSApp.activateIgnoringOtherApps_(True)
-            self._append_log(UI_TEXT["window_restored"])
-        view = self._active_log_view()
-        view.scrollRangeToVisible_((len(view.string()), 0))
-
-    def _cleanup_run(self) -> None:
-        self.is_running = False
-        self.hotkey_service.stop_listening()
-
-    def _call_main(self, fn) -> None:
-        NSOperationQueue.mainQueue().addOperationWithBlock_(fn)
-
-    def _set_status(self, message: str) -> None:
-        self._call_main(lambda: self._append_log(message))
-
-    def _set_progress(self, current: int, total: int) -> None:
-        progress = f"{current} / {total}"
-        self._call_main(lambda: self._active_progress_field().setStringValue_(progress))
-
-    def _set_step(self, step_index: int, step_label: str, detail: str) -> None:
-        del step_index, step_label, detail
-
-    def _on_finished(self, success: bool, message: str) -> None:
-        def update() -> None:
-            self._cleanup_run()
-            self._restore_window()
-            self._status_value = message
-            self._append_log(message, trim=success)
-            if success:
-                _alert("AutoKey", message)
-            else:
-                _alert("AutoKey — หยุดทำงาน", message)
-
-        self._call_main(update)
-
-    def _active_log_view(self):
-        if self._current_page == PAGE_PP30:
-            return self.pp30_log_view
-        if self._current_page == PAGE_PND30:
-            return self.pnd30_log_view
-        return self.log_view
-
-    def _active_progress_field(self):
-        if self._current_page == PAGE_PP30:
-            return self.pp30_progress_field
-        if self._current_page == PAGE_PND30:
-            return self.pnd30_progress_field
-        return self.progress_field
-
-    def _write_log(self, text: str, *, trim: bool = True) -> None:
-        view = self._active_log_view()
-        current = str(view.string() or "")
-        current += text
-        if trim:
-            current = _trim_log_text(current, self.log_max_lines, self.is_running)
-        view.setString_(current)
-        view.scrollRangeToVisible_((len(current), 0))
-
-    def _append_log(self, message: str, *, trim: bool = True) -> None:
-        self._write_log(message + "\n", trim=trim)
-        self._status_value = message
-
-    def _clear_log(self) -> None:
-        self._active_log_view().setString_("")
-
-    def _copy_all_log(self) -> None:
-        text = str(self._active_log_view().string() or "")
+    def _copy_pp30_log(self) -> None:
+        text = str(self.pp30_log_view.string() or "")
         if not text.strip():
             return
         board = NSPasteboard.generalPasteboard()
         board.clearContents()
         board.setString_forType_(text, NSPasteboardTypeString)
 
+    def _save_config(self) -> None:
+        config = AppConfig(
+            express_data_dir=Path(str(self.express_data_dir_field.stringValue() or "")).expanduser()
+        )
+        errors = config.validate()
+        if errors:
+            _alert(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        self.app_config_service.save(config)
+        self.app_config = config
+        self._refresh_config_fields()
+        count = len(ExpressDataFolderService.list_company_dirs(config.express_data_dir))
+        if count:
+            _alert(UI_TEXT["app_title"], UI_TEXT["express_data_dir_saved"].format(count=count))
+        else:
+            _alert(UI_TEXT["app_title"], UI_TEXT["express_data_dir_none"])
+
+    def _refresh_config_fields(self) -> None:
+        path = str(self.app_config.express_data_dir).strip()
+        self.express_data_dir_field.setStringValue_(path)
+        if not path:
+            self.express_data_summary_field.setStringValue_(UI_TEXT["express_data_dir_empty"])
+            return
+        count = len(ExpressDataFolderService.list_company_dirs(self.app_config.express_data_dir))
+        self.express_data_summary_field.setStringValue_(
+            UI_TEXT["express_data_dir_saved"].format(count=count)
+            if count
+            else UI_TEXT["express_data_dir_none"]
+        )
+
+    def _show_page(self, page_route: str) -> None:
+        self._current_page = page_route
+        self._menu_view.setHidden_(page_route != PAGE_MENU)
+        self._config_view.setHidden_(page_route != PAGE_CONFIG)
+        self._pp30_view.setHidden_(page_route != PAGE_PP30)
+        heights = {PAGE_MENU: MENU_WIN_H, PAGE_CONFIG: CONFIG_WIN_H, PAGE_PP30: PP30_WIN_H}
+        height = heights.get(page_route, MENU_WIN_H)
+        self.window.setContentSize_((WIN_W, height))
+        self._root.setFrame_(NSMakeRect(0, 0, WIN_W, height))
+        if page_route == PAGE_CONFIG:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['config_title']} v{__version__}")
+            self._refresh_config_fields()
+        elif page_route == PAGE_PP30:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pp30']} v{__version__}")
+        else:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} v{__version__}")
+
+    def _on_close(self) -> None:
+        NSApp.terminate_(None)
+
     def run(self) -> None:
         NSApp.activateIgnoringOtherApps_(True)
         AppHelper.runEventLoop()
 
 
-def _install_standard_edit_menu() -> None:
-    """เมนู Edit ของระบบ — ส่ง cut:/copy:/paste:/selectAll: ไป first responder"""
-    menubar = NSMenu.alloc().init()
-    app_item = NSMenuItem.alloc().init()
-    menubar.addItem_(app_item)
-    app_item.setSubmenu_(NSMenu.alloc().init())
-
-    edit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Edit", None, "")
-    menubar.addItem_(edit_item)
-    edit = NSMenu.alloc().initWithTitle_("Edit")
-    edit.addItemWithTitle_action_keyEquivalent_("Cut", "cut:", "x")
-    edit.addItemWithTitle_action_keyEquivalent_("Copy", "copy:", "c")
-    edit.addItemWithTitle_action_keyEquivalent_("Paste", "paste:", "v")
-    edit.addItem_(NSMenuItem.separatorItem())
-    edit.addItemWithTitle_action_keyEquivalent_("Select All", "selectAll:", "a")
-    edit_item.setSubmenu_(edit)
-    NSApp.setMainMenu_(menubar)
+def _pick_folder() -> str:
+    panel = NSOpenPanel.openPanel()
+    panel.setCanChooseFiles_(False)
+    panel.setCanChooseDirectories_(True)
+    panel.setAllowsMultipleSelection_(False)
+    if panel.runModal() != 1:
+        return ""
+    urls = panel.URLs()
+    if not urls:
+        return ""
+    return str(urls[0].path())
 
 
-def _static_label(parent, text: str, x, y, w, h, *, size: float = 13, gray: bool = False, bold: bool = False):
+def _static_label(parent, text: str, x, y, w, h, *, size: float = 13, bold: bool = False, gray: bool = False):
     field = NSTextField.alloc().initWithFrame_(NSMakeRect(x, y, w, h))
     field.setStringValue_(text)
     field.setEditable_(False)
@@ -1120,12 +502,6 @@ def _edit_field(parent, x, y, w, h: float = 22):
     return field
 
 
-def _radio_group(parent, x, y, w, h):
-    row = FlippedView.alloc().initWithFrame_(NSMakeRect(x, y, w, h))
-    parent.addSubview_(row)
-    return row
-
-
 def _radio(parent, title: str, x, y, w, h, target: _CallbackTarget):
     button = NSButton.alloc().initWithFrame_(NSMakeRect(x, y, w, h))
     button.setButtonType_(NSButtonTypeRadio)
@@ -1137,18 +513,7 @@ def _radio(parent, title: str, x, y, w, h, target: _CallbackTarget):
     return button
 
 
-def _button(
-    parent,
-    title: str,
-    x,
-    y,
-    w,
-    h,
-    target: _CallbackTarget,
-    *,
-    font_size: float = 13,
-    bezel=NSBezelStyleRounded,
-):
+def _button(parent, title: str, x, y, w, h, target: _CallbackTarget, *, font_size: float = 13, bezel=NSBezelStyleRegularSquare):
     button = NSButton.alloc().initWithFrame_(NSMakeRect(x, y, w, h))
     button.setBezelStyle_(bezel)
     button.setTitle_(title)
@@ -1161,7 +526,10 @@ def _button(
 
 def _box(parent, title: str, x, y, w, h):
     box = NSBox.alloc().initWithFrame_(NSMakeRect(x, y, w, h))
-    box.setTitle_(title)
+    if title:
+        box.setTitle_(title)
+    else:
+        box.setTitlePosition_(0)
     parent.addSubview_(box)
     content = box.contentView()
     inner = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, max(w - 16, 80), max(h - 26, 80)))
@@ -1194,21 +562,3 @@ def _alert(title: str, message: str) -> None:
     alert.setInformativeText_(message)
     alert.addButtonWithTitle_("ตกลง")
     alert.runModal()
-
-
-def _confirm(title: str, message: str) -> bool:
-    alert = NSAlert.alloc().init()
-    alert.setMessageText_(title)
-    alert.setInformativeText_(message)
-    alert.addButtonWithTitle_("ใช่")
-    alert.addButtonWithTitle_("ไม่")
-    return alert.runModal() == 1000
-
-
-def _trim_log_text(text: str, log_max_lines: int, is_running: bool) -> str:
-    if is_running or log_max_lines <= 0:
-        return text
-    lines = text.splitlines(keepends=True)
-    if len(lines) <= log_max_lines:
-        return text
-    return "".join(lines[-log_max_lines:])

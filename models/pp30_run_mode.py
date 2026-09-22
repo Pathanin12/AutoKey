@@ -2,12 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from constants.routes import (
-    PP30_MODE_NORMAL,
-    PP30_MODE_SPECIAL,
-    PP30_RUN_MODES,
-    UI_TEXT,
-)
+from constants.routes import PP30_MODE_NORMAL, PP30_MODE_SPECIAL, PP30_RUN_MODES, UI_TEXT
 
 
 @dataclass(frozen=True)

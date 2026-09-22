@@ -1,8 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_submodules
-
 root = Path(SPECPATH)
 
 a = Analysis(
@@ -14,24 +12,14 @@ a = Analysis(
         (str(root / "assets"), "assets"),
     ],
     hiddenimports=[
-        "pandas",
-        "openpyxl",
-        "pypdf",
         "PIL",
         "PIL.ImageTk",
         "yaml",
-        "pyperclip",
-        "pynput",
-        "cv2",
-        "numpy",
-        "uiautomation",
-        "pytesseract",
+        "pypdf",
         "tkinter",
         "tkinter.filedialog",
         "tkinter.messagebox",
         "tkinter.ttk",
-        *collect_submodules("openpyxl"),
-        *collect_submodules("pypdf"),
     ],
     hookspath=[],
     hooksconfig={},

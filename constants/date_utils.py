@@ -123,3 +123,43 @@ def express_month_folder_name(pv_date: str) -> str:
         raise ValueError(f"วันที่ใบสำคัญไม่ถูกต้อง: {pv_date}")
     _day, month, year = parts
     return f"{month:02d}-{_express_year(year):02d}"
+
+
+def jv_date_from_pv_date(pv_date: str) -> str:
+    """วันสุดท้ายเดือนก่อนวันที่ใบเสร็จ เช่น 18/09/69 → 31/08/69"""
+    formatted = format_express_pv_date(pv_date)
+    parts = _date_parts(formatted)
+    if parts is None:
+        raise ValueError(f"วันที่ใบสำคัญไม่ถูกต้อง: {pv_date}")
+    _day, month, year = parts
+    ce_year = _ce_year(year)
+    month -= 1
+    if month < 1:
+        month = 12
+        ce_year -= 1
+    last_day = calendar.monthrange(ce_year, month)[1]
+    return f"{last_day:02d}/{month:02d}/{_express_year(ce_year):02d}"
+
+
+def express_date_to_dbf(pv_date: str) -> str:
+    """31/08/69 → 20260831"""
+    formatted = format_express_pv_date(pv_date)
+    parts = _date_parts(formatted)
+    if parts is None:
+        raise ValueError(f"วันที่ใบสำคัญไม่ถูกต้อง: {pv_date}")
+    day, month, year = parts
+    return f"{_ce_year(year):04d}{month:02d}{day:02d}"
+
+
+def dbf_date_today() -> str:
+    today = date.today()
+    return today.strftime("%Y%m%d")
+
+
+def voucher_year_month(pv_date: str) -> tuple[str, str]:
+    formatted = format_express_pv_date(pv_date)
+    parts = _date_parts(formatted)
+    if parts is None:
+        raise ValueError(f"วันที่ใบสำคัญไม่ถูกต้อง: {pv_date}")
+    _day, month, year = parts
+    return f"{_express_year(year):02d}", f"{month:02d}"

@@ -168,7 +168,7 @@ class Pp30ClassifyServiceTests(unittest.TestCase):
             _values(vat_sale=20000.0, vat_purchase=5000.0, line_8=15000.0, line_10=15000.0)
         )
         self.assertEqual(kind.key, PP30_KIND_UNKNOWN)
-        self.assertTrue(kind.runs_on_special)
+        self.assertFalse(kind.runs_on_special)
         self.assertFalse(kind.runs_on_normal)
 
 

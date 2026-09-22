@@ -5,8 +5,8 @@ from pathlib import Path
 
 from constants.date_utils import THAI_MONTHS, format_express_pv_date
 from models.pp30_form_values import Pp30FormValues
-from models.pp30_matched_job import Pp30PdfRecord
-from services.lookup_match_service import is_plausible_vendor_name, tidy_vendor_name
+from models.pp30_pdf_record import Pp30PdfRecord
+from services.name_match_service import tidy_name
 from services.pp30_amount_service import eq_amount, line_8_and_9, line_money, money_amounts
 from services.pp30_extract_new_shop_service import complete_new_shop_lines
 from services.pp30_extract_no_pay_normal_service import complete_no_pay_normal_lines
@@ -77,7 +77,7 @@ class Pp30PdfService:
 
     @staticmethod
     def extract_company_name(text: str) -> str:
-        lines = [tidy_vendor_name(line) for line in (text or "").splitlines()]
+        lines = [tidy_name(line) for line in (text or "").splitlines()]
         lines = [line for line in lines if line]
         after_label: str | None = None
         saw_label = False
@@ -104,25 +104,26 @@ class Pp30PdfService:
         return Pp30FormValues(pv_date=pv_date, **lines)
 
     @staticmethod
+    def load_record(pdf_path: Path) -> Pp30PdfRecord:
+        text = Pp30PdfService.read_text(pdf_path)
+        name = Pp30PdfService.extract_company_name(text)
+        if not name:
+            name = company_hint_from_filename(pdf_path)
+        values = Pp30PdfService.extract_form_values(text)
+        return Pp30PdfRecord(pdf_path=pdf_path, company_name=name, form_values=values)
+
+    @staticmethod
     def load_records(pdf_files: list[Path]) -> list[Pp30PdfRecord]:
-        records: list[Pp30PdfRecord] = []
-        for pdf_path in pdf_files:
-            text = Pp30PdfService.read_text(pdf_path)
-            name = Pp30PdfService.extract_company_name(text)
-            values = Pp30PdfService.extract_form_values(text)
-            records.append(
-                Pp30PdfRecord(pdf_path=pdf_path, company_name=name, form_values=values)
-            )
-        return records
+        return [Pp30PdfService.load_record(pdf_path) for pdf_path in pdf_files]
 
 
 def company_hint_from_filename(pdf_path: Path) -> str:
     """ชื่อจากไฟล์ ภพ.30 เช่น 'ฉัตราภัทร์ 2569 07 P30 Form 01.pdf' → 'ฉัตราภัทร์'"""
-    return tidy_vendor_name(_P30_FILE_SUFFIX.sub("", pdf_path.stem))
+    return tidy_name(_P30_FILE_SUFFIX.sub("", pdf_path.stem))
 
 
 def _is_company_line(line: str) -> bool:
-    if line in _SKIP_LINES or not is_plausible_vendor_name(line):
+    if line in _SKIP_LINES:
         return False
     compact = line.replace(" ", "")
     if compact in {item.replace(" ", "") for item in _SKIP_LINES}:

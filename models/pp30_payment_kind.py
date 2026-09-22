@@ -97,4 +97,4 @@ class Pp30PaymentKind:
 
     @property
     def runs_on_special(self) -> bool:
-        return not self.is_skip and not self.runs_on_normal
+        return self.is_no_pay_normal or self.is_new_shop

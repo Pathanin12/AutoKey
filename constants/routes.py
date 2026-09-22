@@ -1,8 +1,6 @@
 import sys
 from pathlib import Path
 
-from constants.date_utils import PV_DATE_EXAMPLE
-
 
 def _resolve_project_root() -> Path:
     if getattr(sys, "frozen", False):
@@ -12,122 +10,54 @@ def _resolve_project_root() -> Path:
 
 PROJECT_ROOT = _resolve_project_root()
 ASSETS_DIR = PROJECT_ROOT / "assets"
-TEMPLATES_DIR = ASSETS_DIR / "templates"
-CONFIG_PATH = PROJECT_ROOT / "config.yaml"
 
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
 
-TOPIC_PAYMENT_JOURNAL = "payment_journal"
-TOPIC_PP30 = "pp30"
-TOPIC_PND30 = "pnd30"
-TOPIC_LABEL = "สมุดรายวันจ่าย"
+def _resolve_config_path() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent / "config.yaml"
+    return PROJECT_ROOT / "config.yaml"
+
+
+CONFIG_PATH = _resolve_config_path()
 
 PAGE_MENU = "menu"
+PAGE_CONFIG = "config"
 PAGE_KA_TAM = "ka_tam"
 PAGE_PP30 = "pp30"
 PAGE_PND30 = "pnd30"
 MENU_BUTTON_HEIGHT = 75
 MENU_BUTTON_IPADY = 26
+PDF_OPEN_EXTENSIONS = ("pdf",)
+DBF_ENCODING = "cp874"
+ISINFO_FILE_NAMES = ("ISINFO.DBF", "isinfo.dbf")
+ISINFO_SHOP_NAME_FIELD = "THINAM"
 
-ACCOUNT_SERVICE = "5330-05"
-ACCOUNT_VAT = "1154-00"
-ACCOUNT_WT = "2132-02"
+PP30_MODE_NORMAL = "normal"
+PP30_MODE_SPECIAL = "special"
+PP30_RUN_MODES = (PP30_MODE_NORMAL, PP30_MODE_SPECIAL)
+
 ACCOUNT_CASH = "1111-00"
+ACCOUNT_VAT = "1154-00"
 ACCOUNT_PP30_VAT_SALE = "2135-00"
 ACCOUNT_PP30_VAT_PURCHASE = ACCOUNT_VAT
 ACCOUNT_PP30_VAT_PAYABLE = "2137-00"
 ACCOUNT_PP30_NEW_SHOP = "1156-00"
 ACCOUNT_PP30_PENALTY = "5390-01"
 ACCOUNT_PP30_DECIMAL = "4200-03"
-ACCOUNT_REPORT_CODES = (ACCOUNT_SERVICE, ACCOUNT_VAT, ACCOUNT_WT)
-PP30_ACCOUNT_REPORT_CODES = (
-    ACCOUNT_PP30_VAT_PURCHASE,
-    ACCOUNT_PP30_VAT_SALE,
-    ACCOUNT_PP30_VAT_PAYABLE,
-)
-PP30_NEW_SHOP_REPORT_CODES = (
-    ACCOUNT_PP30_VAT_PURCHASE,
-    ACCOUNT_PP30_NEW_SHOP,
-)
-PP30_NO_PAY_NORMAL_REPORT_CODES = (
-    ACCOUNT_PP30_VAT_SALE,
-    ACCOUNT_PP30_VAT_PURCHASE,
-    ACCOUNT_PP30_NEW_SHOP,
-)
-PP30_PAY_REPORT_CODES = (
-    ACCOUNT_PP30_VAT_SALE,
-    ACCOUNT_PP30_VAT_PURCHASE,
-    ACCOUNT_PP30_NEW_SHOP,
-    ACCOUNT_PP30_VAT_PAYABLE,
-)
-PP30_PENALTY_REPORT_CODES = (
-    ACCOUNT_PP30_VAT_SALE,
-    ACCOUNT_PP30_PENALTY,
-    ACCOUNT_PP30_VAT_PURCHASE,
-    ACCOUNT_PP30_VAT_PAYABLE,
-)
-PP30_LEDGER_REPORT_FROM_CODE = ACCOUNT_PP30_VAT_PAYABLE
-PP30_LEDGER_REPORT_TO_CODE = ACCOUNT_PP30_VAT_PAYABLE
-PND30_LEDGER_REPORT_FROM_CODE = ACCOUNT_WT
-PND30_LEDGER_REPORT_TO_CODE = ACCOUNT_WT
-ACCOUNT_REPORT_CAPTURE_WAIT = 1.5
-ACCOUNT_REPORT_FIELD_WAIT = 0.05
-ACCOUNT_REPORT_MENU_WAIT = 0.2
-ACCOUNT_REPORT_PREVIEW_TIMEOUT = 60.0
-ACCOUNT_REPORT_PREVIEW_POLL_WAIT = 0.25
-ACCOUNT_REPORT_AFTER_F6_WAIT = 2.0
-ACCOUNT_REPORT_AFTER_JPEG_WAIT = 1.0
-ACCOUNT_REPORT_JPEG_KEY = "2"
-ACCOUNT_REPORT_JPEG_KEY_PRESSES = 2
-ACCOUNT_REPORT_FOCUS_CLICK = (24, 420)
-MENU_OPEN_PRE_WAIT = 0.35
-MENU_FLYOUT_WAIT = 0.18
-MENU_AFTER_OPEN_WAIT = 0.3
-VOUCHER_AFTER_NEW_WAIT = 0.15
-VOUCHER_FORM_WAIT = 0.2
-VOUCHER_AFTER_DATE_WAIT = 0.1
-VOUCHER_FIELD_WAIT = 0.08
-AFTER_SAVE_WAIT = 0.15
-AFTER_CLOSE_WAIT = 0.25
-COMPANY_DIALOG_WAIT = 0.3
 
-# เส้นทางเมนู 5 > 1 > 2 — คลิกจับภาพ (Express ไม่มีคีย์ลัด)
-MENU_ACCOUNT_LABEL = "5.บัญชี"
-MENU_DAILY_ENTRY_LABEL = "1.ลงประจำวัน"
-MENU_PAYMENT_JOURNAL_LABEL = "2.สมุดรายวันจ่าย"
-MENU_PAYMENT_JOURNAL_PATH = "5 > 1 > 2"
-MENU_GENERAL_JOURNAL_LABEL = "1.สมุดรายวันทั่วไป"
-MENU_GENERAL_JOURNAL_PATH = "5 > 1 > 1"
-MENU_ACCOUNT_REPORT_LABEL = "5. รายงานบัญชี"
-MENU_GENERAL_LEDGER_LABEL = "4. แยกประเภท"
-MENU_REPORT_NORMAL_LABEL = "1. แบบปกติ"
-MENU_LEDGER_REPORT_PATH = "F12 > 5. รายงานบัญชี > 4. แยกประเภท > 1. แบบปกติ"
-ACCOUNT_REPORT_FLOW_PATH = "F12 → 5-4-1 → 2137-00/2137-00 → F5 → รอพรีวิว → แคป → Shift+F11"
-ACCOUNT_REPORT_CAPTURE_ENABLED = False
-ACCOUNT_REPORT_USE_LEGACY_CAPTURE = False
-PV_NEW_FILE_KEYS = ("alt", "a")
-MENU_OTHERS = "8"
-MENU_OTHERS_CHANGE_COMPANY = "8"
-VENDOR_LOOKUP_KEY = "f8"
-EXCEL_OPEN_EXTENSIONS = ("xlsx", "xlsm")
-PDF_OPEN_EXTENSIONS = ("pdf",)
-
-PP30_MODE_NORMAL = "normal"
-PP30_MODE_SPECIAL = "special"
-PP30_RUN_MODES = (PP30_MODE_NORMAL, PP30_MODE_SPECIAL)
-
-RUN_SPEED_025 = "0.25"
-RUN_SPEED_050 = "0.5"
-RUN_SPEED_075 = "0.75"
-RUN_SPEED_100 = "1"
-RUN_SPEEDS = (RUN_SPEED_025, RUN_SPEED_050, RUN_SPEED_075, RUN_SPEED_100)
-RUN_SPEED_SCALES = {
-    RUN_SPEED_025: 0.25,
-    RUN_SPEED_050: 0.5,
-    RUN_SPEED_075: 0.75,
-    RUN_SPEED_100: 1.0,
-}
+GLJNL_FILE_NAMES = ("GLJNL.DBF", "gljnl.dbf")
+GLJNLIT_FILE_NAMES = ("GLJNLIT.DBF", "gljnlit.dbf")
+JNLTYP_JV = "00"
+JNLTYP_PV = "01"
+VOUCHER_JV_PREFIX = "JV"
+VOUCHER_PV_PREFIX = "PV"
+JOURNAL_SRCJNL = "GL"
+JOURNAL_TRNSTAT = "P"
+JOURNAL_DOCSTAT = "N"
+JOURNAL_CREBY_DEFAULT = "BIT9"
+TRNTYP_DEBIT = ""
+TRNTYP_CREDIT = "1"
+SEQIT_DEFAULT = " 1"
 
 PP30_KIND_NORMAL = "normal"
 PP30_KIND_NO_PAY_NORMAL = "no_pay_normal"
@@ -150,80 +80,44 @@ UI_TEXT = {
     "app_title": "AutoKey",
     "menu_title": "เลือกเมนู",
     "menu_hint": "เลือกงานที่ต้องการทำ",
+    "menu_config": "Config",
     "menu_ka_tam": "ค่าทำ",
     "menu_ka_tam_hint": "สมุดรายวันจ่าย — ค้นหาบริษัทแล้วกรอก PV",
     "menu_pp30": "ภ.พ.30",
-    "menu_pp30_hint": "ภาษีมูลค่าเพิ่ม — อ่าน PDF แล้วเทียบชื่อกับ Excel",
+    "menu_pp30_hint": "ภาษีมูลค่าเพิ่ม — อ่าน PDF แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
     "menu_pnd30": "ภ.ง.ด.53",
     "menu_pnd30_hint": "ภาษีเงินได้หัก ณ ที่จ่าย — อ่าน PDF แล้วเทียบชื่อกับ Excel",
     "menu_unavailable": "เมนูนี้ยังไม่พร้อมใช้",
     "back_to_menu": "กลับเมนู",
-    "settings_frame": "ตั้งค่าก่อนรัน",
-    "excel_file": "ไฟล์ Excel",
-    "choose_file": "เลือกไฟล์...",
-    "excel_summary_empty": "ยังไม่ได้เลือกไฟล์ Excel",
-    "pv_date": "วันที่ใบสำคัญ",
-    "pv_date_hint": f"รูปแบบ วัน/เดือน/ปี(2 หลัก) เช่น {PV_DATE_EXAMPLE} — ค่าเริ่มต้นเป็นวันนี้",
-    "start_from_no": "เริ่มที่ No.",
-    "start_from_no_hint": "คอลัมน์ No ใน Excel — ใช้ resume หลัง error (เช่น เริ่มใหม่ที่ 5)",
-    "description": "รายละเอียด",
-    "description_hint": "ใช้เหมือนกันทุกแถวในรอบนั้น — พิมพ์ในช่องรายละเอียดหลัง Alt+A",
-    "tax_payer_id": "เลขผู้เสียภาษี",
-    "tax_payer_id_hint": "ใช้ค่าจากช่องนี้ทุกแถวตอนกรอกใบกำกับ — ไม่ได้อ่านจาก Excel",
-    "report_output_dir": "โฟลเดอร์เก็บไฟล์",
+    "config_title": "ตั้งค่า",
     "choose_folder": "เลือก...",
-    "report_output_dir_hint": "เก็บแคปรายงานเป็น โฟลเดอร์หลัก / ชื่อห้าง / รหัส.png",
+    "save": "บันทึก",
     "start": "เริ่มทำงาน",
-    "stop": "หยุด ({hotkey})",
-    "cancel_hotkey_hint": "กด {hotkey} เพื่อยกเลิกขณะทำงาน",
-    "window_hidden": "ซ่อนหน้าต่างแล้ว — กำลังทำงาน...",
-    "window_restored": "แสดงหน้าต่างอีกครั้ง",
     "status_frame": "สถานะ",
     "copy_log": "คัดลอก log",
-    "select_all_log": "เลือกทั้งหมด",
-    "copy_all_log": "คัดลอกทั้งหมด",
-    "welcome_log": (
-        "Express อยู่ dialog เลือกข้อมูล → กดเริ่ม\n"
-        "AutoKey: ค้นหา + verify → 5 > 1 > 2 → ทำ PV ทุกแถว\n"
-        "กด Ctrl+F9 หรือ Esc เพื่อยกเลิกขณะทำงาน"
-    ),
-    "ready": "พร้อมทำงาน",
-    "confirm_title": "ยืนยันการทำงาน",
-    "confirm_message": (
-        "Express ต้องเปิดอยู่ (AutoKey จะโฟกัส Express ให้อัตโนมัติ)\n"
-        "AutoKey: PV ทุกแถว (F10 แล้วกรอกภาษีซื้อต่อแถว)\n"
-        "ต้องการเริ่ม Auto หรือไม่?"
-    ),
-    "stop_requested": "ส่งคำสั่งหยุด...",
-    "starting": "กำลังเริ่ม — โฟกัส Express...",
-    "warming_up": "เตรียมระบบจับภาพ...",
-    "type_log": "พิมพ์ — {field}: {text}",
-    "paste_log": "วาง — {field}: {text}",
-    "clipboard_copy_log": "คัดลอก — {field}: {text}",
-    "excel_copy_log": "Excel copy — {cell}: {text}",
-    "excel_loaded": "โหลดไฟล์: {path}",
-    "excel_sheet_line": "  • {sheet}: {rows} รายการ",
-    "excel_total": "พบ {rows} รายการ",
-    "no_excel_data": "ไม่พบข้อมูลที่รองรับในไฟล์นี้",
-    "no_excel_loaded": "กรุณาเลือกไฟล์ Excel ก่อน",
+    "express_data_dir": "โฟลเดอร์ข้อมูล",
+    "express_data_dir_hint": "โฟลเดอร์ที่รวมโฟลเดอร์ห้าง Express ไว้ด้วยกัน",
+    "express_data_dir_empty": "ยังไม่ได้เลือกโฟลเดอร์ข้อมูล",
+    "express_data_dir_invalid": "กรุณาเลือกโฟลเดอร์ข้อมูล Express",
+    "express_data_dir_saved": "บันทึกแล้ว — พบ {count} ห้าง",
+    "express_data_dir_none": "บันทึกแล้ว — ยังไม่พบโฟลเดอร์ห้างใน path นี้",
     "pp30_pdf_folder": "โฟลเดอร์ PDF",
     "pp30_pdf_summary_empty": "ยังไม่ได้เลือกโฟลเดอร์ PDF",
-    "pp30_pdf_total": "พบ {count} ไฟล์ PDF",
-    "pp30_jv_date": "วันที่",
+    "pp30_pdf_total": "พบ PDF {count} ไฟล์",
     "pp30_jv_description": "รายละเอียด JV",
     "pp30_pv_description": "รายละเอียด PV",
-    "pp30_welcome_log": (
-        "Express อยู่ dialog เลือกข้อมูล → กดเริ่ม\n"
-        "AutoKey: อ่าน ภ.พ.30 → ค้นห้าง → JV 5-1-1 → PV 5-1-2 → แคปรายงาน\n"
-        "กด Ctrl+F9 หรือ Esc เพื่อยกเลิกขณะทำงาน"
-    ),
-    "pp30_confirm_message": (
-        "Express ต้องเปิดอยู่ที่ dialog เลือกข้อมูล\n"
-        "AutoKey จะเทียบชื่อ PDF กับ Excel แล้วทำ JV / PV / แคปรายงานทีละห้าง\n"
-        "ต้องการเริ่มหรือไม่?"
-    ),
-    "pp30_match_log": "เทียบชื่อ — PDF: {pdf_name} → Excel: {excel_name}",
-    "pp30_kind_log": "เงื่อนไข: {kind}",
+    "pp30_run_mode": "รูปแบบ",
+    "pp30_mode_normal": "แบบปกติ",
+    "pp30_mode_special": "แบบพิเศษ",
+    "pp30_mode_invalid": "กรุณาเลือกรูปแบบ แบบปกติ หรือ แบบพิเศษ",
+    "pp30_welcome_log": "เลือกโฟลเดอร์ PDF แล้วกดเริ่ม — จะเทียบห้างจากโฟลเดอร์ข้อมูลใน Config",
+    "pp30_progress": "{done} / {total}  ({percent}%)",
+    "pp30_shops_total": "พบห้างใน Config {count} รายการ",
+    "pp30_shops_none": "ไม่พบโฟลเดอร์ห้างใน path Config",
+    "pp30_pdf_name_missing": "อ่านชื่อห้างจาก PDF ไม่ได้ — {path}",
+    "pp30_match_log": "ตรง — PDF: {pdf_name} → {shop_name}",
+    "pp30_unmatched": "ไม่ตรง — PDF: {pdf_name} ({path})",
+    "pp30_match_done": "เทียบชื่อเสร็จ {matched}/{total}",
     "pp30_kind_normal": "แบบปกติ",
     "pp30_kind_no_pay_normal": "ไม่จ่ายตัง — แบบปกติ",
     "pp30_kind_no_pay_new_shop": "ไม่จ่ายตัง — เปิดร้านใหม่",
@@ -231,45 +125,10 @@ UI_TEXT = {
     "pp30_kind_penalty": "เสียค่าปรับ",
     "pp30_kind_skip_zero": "ข้าม — ยอดเป็น 0 ทั้งหมด",
     "pp30_kind_unknown": "ยังไม่เข้าเงื่อนไข",
-    "pp30_skip_zero_log": "ข้าม {name} — ไม่กรอก เพราะยอดเป็น 0 ทั้งหมด",
-    "pp30_skip_not_pay_log": "ข้าม {name} — ไม่ใช่จ่ายตัง/เสียค่าปรับ/แบบปกติ ({kind})",
-    "pp30_skip_pay_log": "ข้าม {name} — {kind} ใช้แบบปกติ",
-    "pp30_pdf_name_missing": "อ่านชื่อจาก PDF ไม่ได้: {path}",
-    "pp30_unmatched": "เทียบชื่อกับ Excel ไม่ได้: {pdf_name} ({path})",
-    "pp30_search_log": "ค้นหาห้าง: {name}",
-    "pp30_done": "ทำ ภ.พ.30 ครบ {count} รายการ",
-    "pp30_pdf_values_missing": "อ่านข้อ 5/7/11 หรือวันที่จาก PDF ไม่ได้: {path}",
-    "pp30_jv_log": "กรอก JV {date} — 2135-00={sale} 1154-00={purchase}",
-    "pp30_jv_new_shop_log": "กรอก JV เปิดร้านใหม่ {date} — 1156-00={purchase}",
-    "pp30_jv_no_pay_normal_log": "กรอก JV ไม่จ่ายตังแบบปกติ {date} — 2135-00={sale} 1154-00={purchase} 1156-00",
-    "pp30_jv_pay_log": "กรอก JV จ่ายตัง {date} — 2135-00={sale} 1154-00={purchase} 1156-00={carry}",
-    "pp30_pv_pay_log": "กรอก PV จ่ายตัง {date} — 2137-00={due} 4200-03={decimal}",
-    "pp30_jv_penalty_log": "กรอก JV เสียค่าปรับ {date} — 2135-00={sale} 1154-00={purchase}",
-    "pp30_pv_penalty_log": "กรอก PV เสียค่าปรับ {date} — 2137-00={due} 5390-01={penalty} 4200-03={decimal}",
-    "pp30_pv_log": "กรอก PV {date} — 2137-00={due} 4200-03={decimal}",
-    "pp30_report_log": "แคปรายงาน {codes}",
-    "pp30_return_company_log": "กลับ dialog เลือกข้อมูล",
-    "pp30_run_mode": "รูปแบบ",
-    "pp30_mode_normal": "แบบปกติ",
-    "pp30_mode_special": "แบบพิเศษ",
-    "pp30_mode_log": "รูปแบบ: {mode}",
-    "pp30_mode_invalid": "กรุณาเลือกรูปแบบ แบบปกติ หรือ แบบพิเศษ",
-    "pnd30_pv_description": "รายละเอียด PV",
-    "pnd30_welcome_log": (
-        "Express อยู่ dialog เลือกข้อมูล → กดเริ่ม\n"
-        "AutoKey: อ่าน ภ.ง.ด.53 → ค้นห้าง → PV 5-1-2 → แคปรายงาน\n"
-        "กด Ctrl+F9 หรือ Esc เพื่อยกเลิกขณะทำงาน"
-    ),
-    "pnd30_confirm_message": (
-        "Express ต้องเปิดอยู่ที่ dialog เลือกข้อมูล\n"
-        "AutoKey จะเทียบชื่อ PDF กับ Excel แล้วทำ PV / แคปรายงานทีละห้าง\n"
-        "ต้องการเริ่มหรือไม่?"
-    ),
-    "pnd30_done": "ทำ ภ.ง.ด.53 ครบ {count} รายการ",
-    "pnd30_pdf_values_missing": "อ่านข้อ 2/3 หรือวันที่จาก PDF ไม่ได้: {path}",
-    "pnd30_pv_log": "กรอก PV {date} — 2132-02={tax} 5390-01={surcharge}",
-    "pnd30_pv_no_surcharge_log": "กรอก PV {date} — 2132-02={tax}",
-    "run_speed": "ความเร็ว",
-    "run_speed_hint": "x1 = ปกติ / x0.25 x0.5 x0.75 = ช้าลง",
-    "run_speed_log": "ความเร็ว: {speed}",
+    "pp30_kind_log": "เงื่อนไข: {kind}",
+    "pp30_skip_mode_log": "ข้าม — เงื่อนไข {kind} ไม่ใช่โหมดที่เลือก",
+    "pp30_skip_zero_log": "ข้าม — {name} ยอดเป็น 0",
+    "pp30_values_missing": "อ่านยอดจาก PDF ไม่ได้ — {path}",
+    "pp30_insert_log": "สรุป — {shop}: {kind} {detail}",
+    "pp30_insert_done": "insert เสร็จ {inserted}/{total}",
 }
