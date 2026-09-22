@@ -53,7 +53,7 @@ class DbfTableService:
             header_len=header_len,
             rec_len=rec_len,
             records_blob=data[header_len:body_end],
-            eof=eof if eof else b"\x1a",
+            eof=eof,
         )
 
     @staticmethod
