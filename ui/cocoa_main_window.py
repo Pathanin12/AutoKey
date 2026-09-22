@@ -36,6 +36,7 @@ from AppKit import (  # type: ignore
 from Foundation import NSObject  # type: ignore
 from PyObjCTools import AppHelper  # type: ignore
 
+from constants.date_utils import PV_DATE_EXAMPLE, format_express_pv_date, mask_express_pv_date
 from constants.routes import (
     MENU_BUTTON_HEIGHT,
     PAGE_CONFIG,
@@ -60,7 +61,7 @@ from ui.app_icon import icon_dir
 WIN_W = 560
 MENU_WIN_H = 560
 CONFIG_WIN_H = 360
-PP30_WIN_H = 640
+PP30_WIN_H = 680
 
 
 class FlippedView(NSView):
@@ -81,6 +82,19 @@ class _WindowDelegate(NSObject):
         if owner is not None:
             owner._on_close()
         return True
+
+
+class _DateFieldDelegate(NSObject):
+    def controlTextDidChange_(self, notification) -> None:
+        field = notification.object()
+        raw = str(field.stringValue() or "")
+        masked = mask_express_pv_date(raw)
+        if masked != raw:
+            field.setStringValue_(masked)
+
+    def controlTextDidEndEditing_(self, notification) -> None:
+        field = notification.object()
+        field.setStringValue_(format_express_pv_date(str(field.stringValue() or "")))
 
 
 class MainWindow:
@@ -226,7 +240,7 @@ class MainWindow:
         )
         _static_label(page, UI_TEXT["menu_pp30"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
 
-        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 196)
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 228)
         sy = 8
         _static_label(settings, UI_TEXT["pp30_run_mode"], 8, sy, 110, 22)
         self.pp30_mode_normal = _radio(
@@ -266,6 +280,13 @@ class MainWindow:
             settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
         )
         sy += 28
+        _static_label(settings, UI_TEXT["pp30_jv_date"], 8, sy, 110, 22)
+        self.pp30_jv_date_field = _edit_field(settings, 120, sy, 120)
+        self.pp30_jv_date_field.setPlaceholderString_(PV_DATE_EXAMPLE)
+        date_delegate = _DateFieldDelegate.alloc().init()
+        self.pp30_jv_date_field.setDelegate_(date_delegate)
+        self._pp30_date_delegate = date_delegate
+        sy += 30
         _static_label(settings, UI_TEXT["pp30_jv_description"], 8, sy, 110, 22)
         self.pp30_jv_description_field = _edit_field(settings, 120, sy, 356)
         sy += 30
@@ -276,14 +297,14 @@ class MainWindow:
             page,
             f"▶ {UI_TEXT['start']}",
             16,
-            280,
+            312,
             160,
             36,
             self._keep(self._start_pp30),
             bezel=NSBezelStyleRounded,
         )
 
-        y = 328
+        y = 360
         _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, PP30_WIN_H - y - 12)
         self.pp30_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
         self.pp30_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
@@ -339,6 +360,7 @@ class MainWindow:
             pdf_folder=folder,
             jv_description=str(self.pp30_jv_description_field.stringValue() or "").strip(),
             pv_description=str(self.pp30_pv_description_field.stringValue() or "").strip(),
+            jv_date=format_express_pv_date(str(self.pp30_jv_date_field.stringValue() or "")),
             pdf_files=list(self.pp30_pdf_files),
             run_mode=self._pp30_mode,
         )

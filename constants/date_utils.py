@@ -56,6 +56,21 @@ def format_express_pv_date(value: str) -> str:
     return f"{day:02d}/{month:02d}/{year:02d}"
 
 
+def is_complete_express_date(value: str) -> bool:
+    digits = "".join(ch for ch in value if ch.isdigit())
+    if len(digits) not in (6, 8):
+        return False
+    formatted = format_express_pv_date(value)
+    parts = _date_parts(formatted)
+    if parts is None:
+        return False
+    day, month, year = parts
+    if month < 1 or month > 12:
+        return False
+    last_day = calendar.monthrange(_ce_year(year), month)[1]
+    return 1 <= day <= last_day
+
+
 def _date_parts(text: str) -> tuple[int, int, int] | None:
     chunks = [part for part in _SEPARATORS.split(text) if part]
     if len(chunks) == 3:

@@ -5,6 +5,7 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
+from constants.date_utils import PV_DATE_EXAMPLE, format_express_pv_date, mask_express_pv_date
 from constants.routes import (
     MENU_BUTTON_IPADY,
     PAGE_CONFIG,
@@ -29,7 +30,7 @@ from ui.app_icon import apply_window_icon, load_title_photo
 WIN_W = 560
 MENU_WIN_H = 540
 CONFIG_WIN_H = 320
-PP30_WIN_H = 620
+PP30_WIN_H = 660
 
 
 class MainWindow:
@@ -46,6 +47,7 @@ class MainWindow:
         self.pp30_run_mode = tk.StringVar(value=PP30_MODE_NORMAL)
         self.pp30_pdf_folder = tk.StringVar(value="")
         self.pp30_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
+        self.pp30_jv_date = tk.StringVar(value="")
         self.pp30_jv_description = tk.StringVar(value="")
         self.pp30_pv_description = tk.StringVar(value="")
         self.pp30_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
@@ -143,13 +145,21 @@ class MainWindow:
         ttk.Label(form, textvariable=self.pp30_pdf_summary, wraplength=500).grid(
             row=2, column=0, columnspan=3, sticky="w", pady=(4, 0)
         )
-        ttk.Label(form, text=UI_TEXT["pp30_jv_description"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(form, textvariable=self.pp30_jv_description, width=42).grid(
-            row=3, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
+        ttk.Label(form, text=UI_TEXT["pp30_jv_date"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
+        jv_date_entry = ttk.Entry(form, textvariable=self.pp30_jv_date, width=14)
+        jv_date_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        jv_date_entry.bind("<KeyRelease>", self._mask_pp30_jv_date)
+        jv_date_entry.bind("<FocusOut>", self._format_pp30_jv_date)
+        ttk.Label(form, text=PV_DATE_EXAMPLE, foreground="#555555").grid(
+            row=3, column=2, sticky="w", pady=(8, 0)
         )
-        ttk.Label(form, text=UI_TEXT["pp30_pv_description"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(form, textvariable=self.pp30_pv_description, width=42).grid(
+        ttk.Label(form, text=UI_TEXT["pp30_jv_description"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(form, textvariable=self.pp30_jv_description, width=42).grid(
             row=4, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
+        )
+        ttk.Label(form, text=UI_TEXT["pp30_pv_description"]).grid(row=5, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(form, textvariable=self.pp30_pv_description, width=42).grid(
+            row=5, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
         )
         form.columnconfigure(1, weight=1)
 
@@ -207,9 +217,19 @@ class MainWindow:
             pdf_folder=Path(self.pp30_pdf_folder.get().strip()).expanduser(),
             jv_description=self.pp30_jv_description.get().strip(),
             pv_description=self.pp30_pv_description.get().strip(),
+            jv_date=format_express_pv_date(self.pp30_jv_date.get()),
             pdf_files=list(self.pp30_pdf_files),
             run_mode=Pp30RunMode.parse(self.pp30_run_mode.get()),
         )
+
+    def _mask_pp30_jv_date(self, _event=None) -> None:
+        current = self.pp30_jv_date.get()
+        masked = mask_express_pv_date(current)
+        if masked != current:
+            self.pp30_jv_date.set(masked)
+
+    def _format_pp30_jv_date(self, _event=None) -> None:
+        self.pp30_jv_date.set(format_express_pv_date(self.pp30_jv_date.get()))
 
     def _start_pp30(self) -> None:
         if self._pp30_running:

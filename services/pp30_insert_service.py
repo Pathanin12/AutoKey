@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from constants.date_utils import format_express_pv_date, jv_date_from_pv_date
+from constants.date_utils import format_express_pv_date
 from models.journal_voucher import JournalVoucher
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_form_values import Pp30FormValues
@@ -19,7 +19,7 @@ class Pp30InsertService:
     @staticmethod
     def vouchers(kind: Pp30PaymentKind, values: Pp30FormValues, form: Pp30FormConfig) -> list[JournalVoucher]:
         pv_date = format_express_pv_date(values.pv_date)
-        jv_date = jv_date_from_pv_date(pv_date)
+        jv_date = format_express_pv_date(form.jv_date)
         if kind.is_new_shop:
             return [jv_new_shop(values, jv_date, form.jv_description)]
         if kind.is_no_pay_normal:

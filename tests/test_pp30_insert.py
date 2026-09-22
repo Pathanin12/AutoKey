@@ -1,6 +1,8 @@
 import unittest
 
-from constants.date_utils import jv_date_from_pv_date
+from pathlib import Path
+
+from constants.date_utils import is_complete_express_date
 from constants.routes import (
     ACCOUNT_CASH,
     ACCOUNT_PP30_DECIMAL,
@@ -10,7 +12,9 @@ from constants.routes import (
     ACCOUNT_PP30_VAT_PURCHASE,
     ACCOUNT_PP30_VAT_SALE,
 )
+from models.pp30_form_config import Pp30FormConfig
 from models.pp30_form_values import Pp30FormValues
+from models.pp30_payment_kind import Pp30PaymentKind
 from services.pp30_insert_lines_service import (
     jv_new_shop,
     jv_no_pay_normal,
@@ -19,6 +23,7 @@ from services.pp30_insert_lines_service import (
     pv_pay_or_normal,
     pv_penalty,
 )
+from services.pp30_insert_service import Pp30InsertService
 
 
 def _values(**kwargs) -> Pp30FormValues:
@@ -33,8 +38,22 @@ def _values(**kwargs) -> Pp30FormValues:
 
 
 class Pp30InsertLinesTests(unittest.TestCase):
-    def test_jv_date_is_last_day_of_month_before_pv(self) -> None:
-        self.assertEqual(jv_date_from_pv_date("18/09/69"), "31/08/69")
+    def test_jv_date_must_be_complete(self) -> None:
+        self.assertFalse(is_complete_express_date(""))
+        self.assertFalse(is_complete_express_date("31/08"))
+        self.assertTrue(is_complete_express_date("31/08/69"))
+
+    def test_insert_uses_form_jv_date(self) -> None:
+        values = _values(vat_sale=14238, vat_purchase=784, amount_due=13454, line_8=13454)
+        form = Pp30FormConfig(
+            pdf_folder=Path("."),
+            jv_description="ปิดภาษี",
+            pv_description="ภพ.30",
+            jv_date="15/07/69",
+        )
+        vouchers = Pp30InsertService.vouchers(Pp30PaymentKind.normal(), values, form)
+        self.assertEqual(vouchers[0].voudat_express, "15/07/69")
+        self.assertEqual(vouchers[1].voudat_express, "18/09/69")
 
     def test_normal_jv_and_pv(self) -> None:
         values = _values(vat_sale=14238, vat_purchase=784, amount_due=13454, line_8=13454)

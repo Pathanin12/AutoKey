@@ -18,13 +18,28 @@ class Pp30FormTests(unittest.TestCase):
         errors = config.validate()
         self.assertTrue(any("โฟลเดอร์ PDF" in item for item in errors))
         self.assertFalse(any("Excel" in item for item in errors))
-        self.assertFalse(any("วันที่" in item for item in errors))
+        self.assertIn(UI_TEXT["pp30_jv_date_invalid"], errors)
 
     def test_default_mode_is_normal(self) -> None:
         config = Pp30FormConfig(pdf_folder=Path("/tmp"), jv_description="", pv_description="")
         self.assertEqual(config.run_mode.key, PP30_MODE_NORMAL)
         self.assertEqual(Pp30RunMode.special().key, PP30_MODE_SPECIAL)
         self.assertEqual(Pp30RunMode.special().label, UI_TEXT["pp30_mode_special"])
+
+    def test_validate_requires_complete_jv_date(self) -> None:
+        with TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            (folder / "a.pdf").write_bytes(b"%PDF")
+            config = Pp30FormConfig(
+                pdf_folder=folder,
+                jv_description="",
+                pv_description="",
+                jv_date="31/08",
+                pdf_files=Pp30FolderService.list_pdfs(folder),
+            )
+            self.assertEqual(config.validate(), [UI_TEXT["pp30_jv_date_invalid"]])
+            config.jv_date = "31/08/69"
+            self.assertEqual(config.validate(), [])
 
     def test_lists_pdf_files(self) -> None:
         with TemporaryDirectory() as tmp:
