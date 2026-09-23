@@ -6,8 +6,8 @@ from typing import Callable
 from constants.routes import UI_TEXT
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_matched_job import Pp30MatchedJob
-from services.express_data_folder_service import ExpressDataFolderService
 from services.express_journal_service import ExpressJournalService
+from services.express_shop_index_service import ExpressShopIndexService
 from services.name_match_service import tidy_name
 from services.pp30_classify_service import Pp30ClassifyService
 from services.pp30_insert_service import Pp30InsertService
@@ -26,10 +26,11 @@ class Pp30MatchRunService:
         on_progress: Callable[[int, int], None],
         should_stop: Callable[[], bool] | None = None,
     ) -> list[Pp30MatchedJob]:
-        companies = ExpressDataFolderService.list_companies(express_data_dir)
+        companies = ExpressShopIndexService().load(express_data_dir)
         on_status(UI_TEXT["pp30_shops_total"].format(count=len(companies)))
         if not companies:
             raise ValueError(UI_TEXT["pp30_shops_none"])
+        lookup = Pp30MatchService.lookup(companies)
         total = len(pdf_files)
         jobs: list[Pp30MatchedJob] = []
         matched = 0
@@ -48,7 +49,7 @@ class Pp30MatchRunService:
                 on_status(UI_TEXT["pp30_pdf_name_missing"].format(path=pdf_path.name))
                 on_progress(index, total)
                 continue
-            company = Pp30MatchService.match_name(record.company_name, companies)
+            company = Pp30MatchService.match_lookup(record.company_name, lookup)
             if company is None:
                 on_status(
                     UI_TEXT["pp30_unmatched"].format(

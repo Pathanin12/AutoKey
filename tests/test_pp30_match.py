@@ -8,6 +8,7 @@ import unittest
 from constants.routes import ISINFO_SHOP_NAME_FIELD, UI_TEXT
 from models.express_company import ExpressCompany
 from services.express_data_folder_service import ExpressDataFolderService
+from services.express_shop_index_service import ExpressShopIndexService
 from services.name_match_service import names_match, tidy_name
 from services.pp30_match_service import Pp30MatchService
 from services.pp30_pdf_service import Pp30PdfService, company_hint_from_filename
@@ -59,6 +60,16 @@ class Pp30MatchTests(unittest.TestCase):
             self.assertEqual(len(companies), 1)
             self.assertEqual(companies[0].shop_name, "ห้างหุ้นส่วนจำกัด\xa0กชพรรุ่งเรือง")
             self.assertEqual(companies[0].folder, shop)
+            index = ExpressShopIndexService(root / "shops.yaml")
+            written = index.write_from_dir(root)
+            self.assertEqual(written[0].folder, shop)
+            loaded = index.load(root)
+            found = Pp30MatchService.match_lookup(
+                "หจก.กชพรรุ่งเรือง",
+                Pp30MatchService.lookup(loaded),
+            )
+            self.assertIsNotNone(found)
+            self.assertEqual(found.folder, shop)
 
     def test_extracts_company_name_after_label(self) -> None:
         text = "ชื่อผู้ประกอบการ\nห้างหุ้นส่วนจำกัด กชพรรุ่งเรือง\n5. ภาษีขายเดือนนี้"

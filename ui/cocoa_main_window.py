@@ -53,7 +53,7 @@ from models.pp30_form_config import Pp30FormConfig
 from models.pp30_run_mode import Pp30RunMode
 from models.topic_menu_item import TopicMenuItem
 from services.app_config_service import AppConfigService
-from services.express_data_folder_service import ExpressDataFolderService
+from services.express_shop_index_service import ExpressShopIndexService
 from services.pp30_folder_service import Pp30FolderService
 from services.pp30_match_run_service import Pp30MatchRunService
 from ui.app_icon import icon_dir
@@ -435,8 +435,8 @@ class MainWindow:
             return
         self.app_config_service.save(config)
         self.app_config = config
+        count = len(ExpressShopIndexService().write_from_dir(config.express_data_dir))
         self._refresh_config_fields()
-        count = len(ExpressDataFolderService.list_company_dirs(config.express_data_dir))
         if count:
             _alert(UI_TEXT["app_title"], UI_TEXT["express_data_dir_saved"].format(count=count))
         else:
@@ -448,7 +448,7 @@ class MainWindow:
         if not path:
             self.express_data_summary_field.setStringValue_(UI_TEXT["express_data_dir_empty"])
             return
-        count = len(ExpressDataFolderService.list_company_dirs(self.app_config.express_data_dir))
+        count = ExpressShopIndexService().count()
         self.express_data_summary_field.setStringValue_(
             UI_TEXT["express_data_dir_saved"].format(count=count)
             if count

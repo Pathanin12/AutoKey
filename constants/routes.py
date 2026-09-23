@@ -19,6 +19,10 @@ def _resolve_config_path() -> Path:
 
 
 CONFIG_PATH = _resolve_config_path()
+SHOPS_FILE_NAME = "shops.yaml"
+SHOPS_PATH = CONFIG_PATH.with_name(SHOPS_FILE_NAME)
+SHOP_INDEX_FILE_KEY = "file"
+SHOP_INDEX_SHOP_KEY = "shop"
 
 PAGE_MENU = "menu"
 PAGE_CONFIG = "config"
@@ -112,10 +116,10 @@ UI_TEXT = {
     "pp30_mode_normal": "แบบปกติ",
     "pp30_mode_special": "แบบพิเศษ",
     "pp30_mode_invalid": "กรุณาเลือกรูปแบบ แบบปกติ หรือ แบบพิเศษ",
-    "pp30_welcome_log": "เลือกโฟลเดอร์ PDF แล้วกดเริ่ม — จะเทียบห้างจากโฟลเดอร์ข้อมูลใน Config",
+    "pp30_welcome_log": "เลือกโฟลเดอร์ PDF แล้วกดเริ่ม — จะเทียบห้างจากไฟล์รายชื่อใน Config",
     "pp30_progress": "{done} / {total}  ({percent}%)",
-    "pp30_shops_total": "พบห้างใน Config {count} รายการ",
-    "pp30_shops_none": "ไม่พบโฟลเดอร์ห้างใน path Config",
+    "pp30_shops_total": "พบห้างในไฟล์รายชื่อ {count} รายการ",
+    "pp30_shops_none": "ไม่พบรายชื่อห้าง — บันทึก Config เพื่อสร้างไฟล์เทียบชื่อ",
     "pp30_pdf_name_missing": "อ่านชื่อห้างจาก PDF ไม่ได้ — {path}",
     "pp30_match_log": "ตรง — PDF: {pdf_name} → {shop_name}",
     "pp30_unmatched": "ไม่ตรง — PDF: {pdf_name} ({path})",
