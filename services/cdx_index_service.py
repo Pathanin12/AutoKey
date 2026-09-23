@@ -105,31 +105,83 @@ def _field_width(name: str) -> int:
 
 
 def _insert_into_tag(data: bytearray, tag: CdxTag, key: bytes, recno: int) -> None:
-    page_off = _find_leaf(data, tag, key, recno)
+    page_off, ancestors = _find_leaf_path(data, tag, key, recno)
     _insert_leaf_key(data, tag, page_off, key, recno)
+    last_key, last_rec = _leaf_last(data, tag, page_off)
+    _update_ancestors(data, tag, ancestors, last_key, last_rec)
 
 
 def _find_leaf(data: bytearray, tag: CdxTag, key: bytes, recno: int) -> int:
+    page_off, _ancestors = _find_leaf_path(data, tag, key, recno)
+    return page_off
+
+
+def _find_leaf_path(data: bytearray, tag: CdxTag, key: bytes, recno: int) -> tuple[int, list[tuple[int, int]]]:
     page_off = tag.root
+    ancestors: list[tuple[int, int]] = []
     while True:
         page = data[page_off : page_off + CDX_PAGE]
         attr = unpack("<H", page[0:2])[0]
         if attr & CDX_NODE_LEAF:
-            return page_off
+            return page_off, ancestors
         nkeys = unpack("<H", page[2:4])[0]
         slot = tag.key_size + 8
         child = 0
+        chosen = 0
         for index in range(nkeys):
             base = CDX_INT_HEAD + index * slot
             item_key = bytes(page[base : base + tag.key_size])
             item_rec = unpack(">I", page[base + tag.key_size : base + tag.key_size + 4])[0]
             item_page = unpack(">I", page[base + tag.key_size + 4 : base + tag.key_size + 8])[0]
             child = item_page
+            chosen = index
             if (item_key, item_rec) >= (key, recno):
                 break
         if child == 0:
             raise ValueError("CDX interior ไม่มีหน้าลูก")
+        ancestors.append((page_off, chosen))
         page_off = child
+
+
+def _leaf_last(data: bytearray, tag: CdxTag, page_off: int) -> tuple[bytes, int]:
+    page = data[page_off : page_off + CDX_PAGE]
+    nkeys = unpack("<H", page[2:4])[0]
+    rec_mask = unpack("<I", page[14:18])[0]
+    decoded = _decode_leaf(
+        page, tag.key_size, nkeys, page[23], rec_mask, page[21], page[22], page[18], page[19]
+    )
+    if not decoded:
+        raise ValueError("CDX leaf ว่าง")
+    last_key, last_rec, _dup, _trl = decoded[-1]
+    return last_key, last_rec
+
+
+def _update_ancestors(
+    data: bytearray,
+    tag: CdxTag,
+    ancestors: list[tuple[int, int]],
+    last_key: bytes,
+    last_rec: int,
+) -> None:
+    for page_off, slot_index in reversed(ancestors):
+        _write_interior_slot(data, tag, page_off, slot_index, last_key, last_rec)
+        nkeys = unpack("<H", data[page_off + 2 : page_off + 4])[0]
+        if slot_index != nkeys - 1:
+            break
+
+
+def _write_interior_slot(
+    data: bytearray,
+    tag: CdxTag,
+    page_off: int,
+    slot_index: int,
+    key: bytes,
+    recno: int,
+) -> None:
+    slot = tag.key_size + 8
+    base = page_off + CDX_INT_HEAD + slot_index * slot
+    data[base : base + tag.key_size] = key
+    data[base + tag.key_size : base + tag.key_size + 4] = pack(">I", recno)
 
 
 def _insert_leaf_key(data: bytearray, tag: CdxTag, page_off: int, key: bytes, recno: int) -> None:
