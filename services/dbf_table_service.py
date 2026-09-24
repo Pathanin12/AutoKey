@@ -100,6 +100,9 @@ class DbfTableService:
 
 
 def _pack_field(field: DbfField, value: object) -> bytes:
+    if field.type == "B":
+        number = 0.0 if value in ("", None) else float(value)
+        return pack("<d", number)
     if field.type == "N":
         if value in ("", None):
             return b" " * field.length

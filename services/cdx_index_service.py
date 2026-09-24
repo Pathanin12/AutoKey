@@ -69,6 +69,9 @@ def _tags(data: bytes) -> list[CdxTag]:
 
 def _for_matches(for_expr: str, record: dict[str, str]) -> bool:
     expr = (for_expr or "").replace(" ", "").upper()
+    if "DOCSTAT='Y'" in expr or 'DOCSTAT="Y"' in expr:
+        if (record.get("DOCSTAT") or "") != "Y":
+            return False
     if "TRNSTAT#'U'" in expr or 'TRNSTAT#"U"' in expr:
         return (record.get("TRNSTAT") or "") != "U"
     if "TRNSTAT='U'" in expr:
@@ -103,6 +106,14 @@ def _field_width(name: str) -> int:
         "DEPCOD": 4,
         "VOUDAT": 8,
         "CHGDAT": 8,
+        "VATREC": 1,
+        "RECTYP": 1,
+        "DOCNUM": 12,
+        "REFNUM": 15,
+        "TAXID": 15,
+        "VATPRD": 8,
+        "VATDAT": 8,
+        "DOCDAT": 8,
     }
     return widths.get(name, 12)
 

@@ -40,6 +40,7 @@ from constants.date_utils import PV_DATE_EXAMPLE, format_express_pv_date, is_com
 from constants.routes import (
     MENU_BUTTON_HEIGHT,
     PAGE_CONFIG,
+    PAGE_KA_TAM,
     PAGE_MENU,
     PAGE_PP30,
     PP30_MODE_NORMAL,
@@ -49,11 +50,14 @@ from constants.routes import (
 from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
 from models.app_config import AppConfig
+from models.ka_tam_form_config import KaTamFormConfig
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_run_mode import Pp30RunMode
 from models.topic_menu_item import TopicMenuItem
 from services.app_config_service import AppConfigService
 from services.express_shop_index_service import ExpressShopIndexService
+from services.ka_tam_excel_service import KaTamExcelService
+from services.ka_tam_match_run_service import KaTamMatchRunService
 from services.pp30_folder_service import Pp30FolderService
 from services.pp30_match_run_service import Pp30MatchRunService
 from ui.app_icon import icon_dir
@@ -62,6 +66,7 @@ WIN_W = 560
 MENU_WIN_H = 560
 CONFIG_WIN_H = 360
 PP30_WIN_H = 680
+KA_TAM_WIN_H = 680
 
 
 class FlippedView(NSView):
@@ -101,6 +106,8 @@ class MainWindow:
         self.pp30_pdf_files: list[Path] = []
         self._pp30_mode = Pp30RunMode.normal()
         self._pp30_running = False
+        self.ka_tam_rows_count = 0
+        self._ka_tam_running = False
 
         self._app = NSApplication.sharedApplication()
         self._app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
@@ -142,12 +149,15 @@ class MainWindow:
         self._menu_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, MENU_WIN_H))
         self._config_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, CONFIG_WIN_H))
         self._pp30_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PP30_WIN_H))
+        self._ka_tam_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, KA_TAM_WIN_H))
         root.addSubview_(self._menu_view)
         root.addSubview_(self._config_view)
         root.addSubview_(self._pp30_view)
+        root.addSubview_(self._ka_tam_view)
         self._build_menu_page(self._menu_view)
         self._build_config_page(self._config_view)
         self._build_pp30_page(self._pp30_view)
+        self._build_ka_tam_page(self._ka_tam_view)
         self.window.makeKeyAndOrderFront_(None)
 
     def _build_menu_page(self, page) -> None:
@@ -314,6 +324,79 @@ class MainWindow:
         self.pp30_log_view.setString_(UI_TEXT["pp30_welcome_log"] + "\n")
         del _settings_box, _status_box
 
+    def _build_ka_tam_page(self, page) -> None:
+        _button(
+            page,
+            f"← {UI_TEXT['back_to_menu']}",
+            16,
+            24,
+            160,
+            36,
+            self._keep(lambda: self._show_page(PAGE_MENU)),
+            bezel=NSBezelStyleRounded,
+        )
+        _static_label(page, UI_TEXT["menu_ka_tam"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
+
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 198)
+        sy = 8
+        _static_label(settings, UI_TEXT["ka_tam_excel"], 8, sy, 110, 22)
+        self.ka_tam_excel_field = _edit_field(settings, 120, sy, 248)
+        _button(
+            settings,
+            UI_TEXT["choose_file"],
+            376,
+            sy - 2,
+            108,
+            28,
+            self._keep(self._choose_ka_tam_excel),
+            bezel=NSBezelStyleRounded,
+        )
+        sy += 26
+        self.ka_tam_excel_summary_field = _static_label(
+            settings, UI_TEXT["ka_tam_excel_empty"], 8, sy, 500, 20, size=11, gray=True
+        )
+        sy += 28
+        _static_label(settings, UI_TEXT["ka_tam_pv_date"], 8, sy, 110, 22)
+        self.ka_tam_pv_date_field = _edit_field(settings, 120, sy, 120)
+        self.ka_tam_pv_date_field.setPlaceholderString_(PV_DATE_EXAMPLE)
+        date_delegate = _DateFieldDelegate.alloc().init()
+        self.ka_tam_pv_date_field.setDelegate_(date_delegate)
+        self._ka_tam_date_delegate = date_delegate
+        sy += 30
+        _static_label(settings, UI_TEXT["ka_tam_description"], 8, sy, 110, 22)
+        self.ka_tam_description_field = _edit_field(settings, 120, sy, 356)
+        sy += 30
+        _static_label(settings, UI_TEXT["ka_tam_invoice"], 8, sy, 110, 22)
+        self.ka_tam_invoice_field = _edit_field(settings, 120, sy, 356)
+
+        _button(
+            page,
+            f"▶ {UI_TEXT['start']}",
+            16,
+            286,
+            160,
+            36,
+            self._keep(self._start_ka_tam),
+            bezel=NSBezelStyleRounded,
+        )
+
+        y = 336
+        _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, KA_TAM_WIN_H - y - 12)
+        self.ka_tam_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
+        self.ka_tam_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
+        self.ka_tam_progress_bar.setIndeterminate_(False)
+        self.ka_tam_progress_bar.setMinValue_(0)
+        self.ka_tam_progress_bar.setMaxValue_(100)
+        self.ka_tam_progress_bar.setDoubleValue_(0)
+        status.addSubview_(self.ka_tam_progress_bar)
+        self.ka_tam_progress_field = _static_label(
+            status, UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0), 376, 4, 140, 22
+        )
+        _button(status, UI_TEXT["copy_log"], 376, 28, 120, 28, self._keep(self._copy_ka_tam_log), bezel=NSBezelStyleRounded)
+        self.ka_tam_log_view = _log_view(status, 8, 60, WIN_W - 56, KA_TAM_WIN_H - y - 100)
+        self.ka_tam_log_view.setString_(UI_TEXT["ka_tam_welcome_log"] + "\n")
+        del _settings_box, _status_box
+
     def _set_pp30_mode(self, key: str) -> None:
         self._pp30_mode = Pp30RunMode.parse(key)
         self.pp30_mode_normal.setState_(1 if self._pp30_mode.key == PP30_MODE_NORMAL else 0)
@@ -322,6 +405,9 @@ class MainWindow:
     def _open_topic(self, item: TopicMenuItem) -> None:
         if item.page_route == PAGE_PP30:
             self._show_page(PAGE_PP30)
+            return
+        if item.page_route == PAGE_KA_TAM:
+            self._show_page(PAGE_KA_TAM)
             return
         _alert(UI_TEXT["app_title"], UI_TEXT["menu_unavailable"])
 
@@ -425,6 +511,97 @@ class MainWindow:
         board.clearContents()
         board.setString_forType_(text, NSPasteboardTypeString)
 
+    def _choose_ka_tam_excel(self) -> None:
+        selected = _pick_file(("xlsx", "xls"))
+        if not selected:
+            return
+        self.ka_tam_excel_field.setStringValue_(selected)
+        self._load_ka_tam_excel()
+
+    def _load_ka_tam_excel(self) -> None:
+        path = Path(str(self.ka_tam_excel_field.stringValue() or "")).expanduser()
+        if not path.exists():
+            self.ka_tam_rows_count = 0
+            self.ka_tam_excel_summary_field.setStringValue_(UI_TEXT["ka_tam_excel_empty"])
+            return
+        try:
+            rows = KaTamExcelService.load_rows(path)
+        except Exception as exc:
+            self.ka_tam_rows_count = 0
+            self.ka_tam_excel_summary_field.setStringValue_(str(exc))
+            return
+        self.ka_tam_rows_count = len(rows)
+        self.ka_tam_excel_summary_field.setStringValue_(UI_TEXT["ka_tam_excel_total"].format(count=len(rows)))
+
+    def _ka_tam_form_config(self) -> KaTamFormConfig:
+        return KaTamFormConfig(
+            excel_path=Path(str(self.ka_tam_excel_field.stringValue() or "")).expanduser(),
+            pv_date=format_express_pv_date(str(self.ka_tam_pv_date_field.stringValue() or "")),
+            description=str(self.ka_tam_description_field.stringValue() or "").strip(),
+            invoice_number=str(self.ka_tam_invoice_field.stringValue() or "").strip(),
+        )
+
+    def _start_ka_tam(self) -> None:
+        if self._ka_tam_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_ka_tam_excel()
+        errors = self.app_config.validate()
+        errors.extend(self._ka_tam_form_config().validate())
+        if self.ka_tam_rows_count == 0 and not errors:
+            errors.append(UI_TEXT["ka_tam_excel_none"])
+        if errors:
+            _alert(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = self.ka_tam_rows_count
+        self._set_ka_tam_progress(0, total)
+        self._append_ka_tam_log(UI_TEXT["ka_tam_excel_total"].format(count=total))
+        form_config = self._ka_tam_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._ka_tam_running = True
+        threading.Thread(target=self._run_ka_tam, args=(form_config, express_data_dir), daemon=True).start()
+
+    def _run_ka_tam(self, form_config: KaTamFormConfig, express_data_dir: Path) -> None:
+        try:
+            KaTamMatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: AppHelper.callAfter(lambda m=message: self._append_ka_tam_log(m)),
+                on_progress=lambda done, total: AppHelper.callAfter(
+                    lambda d=done, t=total: self._set_ka_tam_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        finally:
+            AppHelper.callAfter(self._ka_tam_finished)
+
+    def _ka_tam_finished(self) -> None:
+        self._ka_tam_running = False
+
+    def _set_ka_tam_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.ka_tam_progress_bar.setDoubleValue_(percent)
+        self.ka_tam_progress_field.setStringValue_(
+            UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent)
+        )
+
+    def _append_ka_tam_log(self, message: str) -> None:
+        current = str(self.ka_tam_log_view.string() or "")
+        current += message + "\n"
+        self.ka_tam_log_view.setString_(current)
+        self.ka_tam_log_view.scrollRangeToVisible_((len(current), 0))
+
+    def _copy_ka_tam_log(self) -> None:
+        text = str(self.ka_tam_log_view.string() or "")
+        if not text.strip():
+            return
+        board = NSPasteboard.generalPasteboard()
+        board.clearContents()
+        board.setString_forType_(text, NSPasteboardTypeString)
+
     def _save_config(self) -> None:
         config = AppConfig(
             express_data_dir=Path(str(self.express_data_dir_field.stringValue() or "")).expanduser()
@@ -460,7 +637,13 @@ class MainWindow:
         self._menu_view.setHidden_(page_route != PAGE_MENU)
         self._config_view.setHidden_(page_route != PAGE_CONFIG)
         self._pp30_view.setHidden_(page_route != PAGE_PP30)
-        heights = {PAGE_MENU: MENU_WIN_H, PAGE_CONFIG: CONFIG_WIN_H, PAGE_PP30: PP30_WIN_H}
+        self._ka_tam_view.setHidden_(page_route != PAGE_KA_TAM)
+        heights = {
+            PAGE_MENU: MENU_WIN_H,
+            PAGE_CONFIG: CONFIG_WIN_H,
+            PAGE_PP30: PP30_WIN_H,
+            PAGE_KA_TAM: KA_TAM_WIN_H,
+        }
         height = heights.get(page_route, MENU_WIN_H)
         self.window.setContentSize_((WIN_W, height))
         self._root.setFrame_(NSMakeRect(0, 0, WIN_W, height))
@@ -469,6 +652,8 @@ class MainWindow:
             self._refresh_config_fields()
         elif page_route == PAGE_PP30:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pp30']} v{__version__}")
+        elif page_route == PAGE_KA_TAM:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_ka_tam']} v{__version__}")
         else:
             self.window.setTitle_(f"{UI_TEXT['app_title']} v{__version__}")
 
@@ -485,6 +670,20 @@ def _pick_folder() -> str:
     panel.setCanChooseFiles_(False)
     panel.setCanChooseDirectories_(True)
     panel.setAllowsMultipleSelection_(False)
+    if panel.runModal() != 1:
+        return ""
+    urls = panel.URLs()
+    if not urls:
+        return ""
+    return str(urls[0].path())
+
+
+def _pick_file(extensions: tuple[str, ...]) -> str:
+    panel = NSOpenPanel.openPanel()
+    panel.setCanChooseFiles_(True)
+    panel.setCanChooseDirectories_(False)
+    panel.setAllowsMultipleSelection_(False)
+    panel.setAllowedFileTypes_(list(extensions))
     if panel.runModal() != 1:
         return ""
     urls = panel.URLs()

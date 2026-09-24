@@ -9,6 +9,7 @@ from constants.date_utils import format_express_pv_date, is_complete_express_dat
 from constants.routes import (
     MENU_BUTTON_IPADY,
     PAGE_CONFIG,
+    PAGE_KA_TAM,
     PAGE_MENU,
     PAGE_PP30,
     PP30_MODE_NORMAL,
@@ -18,11 +19,14 @@ from constants.routes import (
 from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
 from models.app_config import AppConfig
+from models.ka_tam_form_config import KaTamFormConfig
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_run_mode import Pp30RunMode
 from models.topic_menu_item import TopicMenuItem
 from services.app_config_service import AppConfigService
 from services.express_shop_index_service import ExpressShopIndexService
+from services.ka_tam_excel_service import KaTamExcelService
+from services.ka_tam_match_run_service import KaTamMatchRunService
 from services.pp30_folder_service import Pp30FolderService
 from services.pp30_match_run_service import Pp30MatchRunService
 from ui.app_icon import apply_window_icon, load_title_photo
@@ -31,6 +35,7 @@ WIN_W = 560
 MENU_WIN_H = 540
 CONFIG_WIN_H = 320
 PP30_WIN_H = 660
+KA_TAM_WIN_H = 660
 
 
 class MainWindow:
@@ -53,6 +58,14 @@ class MainWindow:
         self.pp30_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.pp30_pdf_files: list[Path] = []
         self._pp30_running = False
+        self.ka_tam_excel_path = tk.StringVar(value="")
+        self.ka_tam_excel_summary = tk.StringVar(value=UI_TEXT["ka_tam_excel_empty"])
+        self.ka_tam_pv_date = tk.StringVar(value="")
+        self.ka_tam_description = tk.StringVar(value="")
+        self.ka_tam_invoice = tk.StringVar(value="")
+        self.ka_tam_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
+        self.ka_tam_rows_count = 0
+        self._ka_tam_running = False
         self._current_page = PAGE_MENU
         self._build_ui()
         self._show_page(PAGE_MENU)
@@ -61,9 +74,11 @@ class MainWindow:
         self.menu_frame = ttk.Frame(self.root)
         self.config_frame = ttk.Frame(self.root)
         self.pp30_frame = ttk.Frame(self.root)
+        self.ka_tam_frame = ttk.Frame(self.root)
         self._build_menu_page(self.menu_frame)
         self._build_config_page(self.config_frame)
         self._build_pp30_page(self.pp30_frame)
+        self._build_ka_tam_page(self.ka_tam_frame)
 
     def _build_menu_page(self, page: ttk.Frame) -> None:
         header = ttk.Frame(page)
@@ -180,9 +195,63 @@ class MainWindow:
         scroll.grid(row=0, column=1, sticky="ns")
         self.pp30_log_box.insert("end", UI_TEXT["pp30_welcome_log"] + "\n")
 
+    def _build_ka_tam_page(self, page: ttk.Frame) -> None:
+        header = ttk.Frame(page)
+        header.pack(fill="x", padx=12, pady=(10, 0))
+        ttk.Button(header, text=f"← {UI_TEXT['back_to_menu']}", command=lambda: self._show_page(PAGE_MENU)).pack(
+            side="left"
+        )
+        ttk.Label(header, text=UI_TEXT["menu_ka_tam"], font=("Tahoma", 12, "bold")).pack(side="left", padx=12)
+
+        form = ttk.Frame(page)
+        form.pack(fill="x", padx=20, pady=(16, 0))
+        ttk.Label(form, text=UI_TEXT["ka_tam_excel"]).grid(row=0, column=0, sticky="w")
+        ttk.Entry(form, textvariable=self.ka_tam_excel_path, width=42).grid(row=0, column=1, sticky="ew", padx=(8, 8))
+        ttk.Button(form, text=UI_TEXT["choose_file"], command=self._choose_ka_tam_excel).grid(row=0, column=2)
+        ttk.Label(form, textvariable=self.ka_tam_excel_summary, wraplength=500).grid(
+            row=1, column=0, columnspan=3, sticky="w", pady=(4, 0)
+        )
+        ttk.Label(form, text=UI_TEXT["ka_tam_pv_date"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        date_entry = ttk.Entry(form, textvariable=self.ka_tam_pv_date, width=14)
+        date_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        date_entry.bind("<FocusOut>", self._format_ka_tam_pv_date)
+        ttk.Label(form, text=UI_TEXT["ka_tam_description"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(form, textvariable=self.ka_tam_description, width=42).grid(
+            row=3, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
+        )
+        ttk.Label(form, text=UI_TEXT["ka_tam_invoice"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(form, textvariable=self.ka_tam_invoice, width=42).grid(
+            row=4, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
+        )
+        form.columnconfigure(1, weight=1)
+
+        ttk.Button(page, text=f"▶ {UI_TEXT['start']}", command=self._start_ka_tam).pack(anchor="w", padx=20, pady=12)
+
+        status = ttk.LabelFrame(page, text=UI_TEXT["status_frame"])
+        status.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        progress_row = ttk.Frame(status)
+        progress_row.pack(fill="x", padx=8, pady=(8, 4))
+        self.ka_tam_progress = ttk.Progressbar(progress_row, maximum=100)
+        self.ka_tam_progress.pack(side="left", fill="x", expand=True)
+        ttk.Label(progress_row, textvariable=self.ka_tam_progress_text, width=16).pack(side="left", padx=(8, 0))
+        ttk.Button(status, text=UI_TEXT["copy_log"], command=self._copy_ka_tam_log).pack(anchor="e", padx=8)
+        log_row = ttk.Frame(status)
+        log_row.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        log_row.rowconfigure(0, weight=1)
+        log_row.columnconfigure(0, weight=1)
+        self.ka_tam_log_box = tk.Text(log_row, height=10, wrap="word")
+        scroll = ttk.Scrollbar(log_row, orient="vertical", command=self.ka_tam_log_box.yview)
+        self.ka_tam_log_box.configure(yscrollcommand=scroll.set)
+        self.ka_tam_log_box.grid(row=0, column=0, sticky="nsew")
+        scroll.grid(row=0, column=1, sticky="ns")
+        self.ka_tam_log_box.insert("end", UI_TEXT["ka_tam_welcome_log"] + "\n")
+
     def _open_topic(self, item: TopicMenuItem) -> None:
         if item.page_route == PAGE_PP30:
             self._show_page(PAGE_PP30)
+            return
+        if item.page_route == PAGE_KA_TAM:
+            self._show_page(PAGE_KA_TAM)
             return
         messagebox.showinfo(UI_TEXT["app_title"], UI_TEXT["menu_unavailable"])
 
@@ -222,6 +291,104 @@ class MainWindow:
         current = self.pp30_jv_date.get()
         if is_complete_express_date(current):
             self.pp30_jv_date.set(format_express_pv_date(current))
+
+    def _choose_ka_tam_excel(self) -> None:
+        selected = filedialog.askopenfilename(
+            title=UI_TEXT["ka_tam_excel"],
+            filetypes=[("Excel", "*.xlsx *.xls"), ("All", "*.*")],
+        )
+        if not selected:
+            return
+        self.ka_tam_excel_path.set(selected)
+        self._load_ka_tam_excel()
+
+    def _load_ka_tam_excel(self) -> None:
+        path = Path(self.ka_tam_excel_path.get().strip()).expanduser()
+        if not path.exists():
+            self.ka_tam_rows_count = 0
+            self.ka_tam_excel_summary.set(UI_TEXT["ka_tam_excel_empty"])
+            return
+        try:
+            rows = KaTamExcelService.load_rows(path)
+        except Exception as exc:
+            self.ka_tam_rows_count = 0
+            self.ka_tam_excel_summary.set(str(exc))
+            return
+        self.ka_tam_rows_count = len(rows)
+        self.ka_tam_excel_summary.set(UI_TEXT["ka_tam_excel_total"].format(count=len(rows)))
+
+    def _ka_tam_form_config(self) -> KaTamFormConfig:
+        return KaTamFormConfig(
+            excel_path=Path(self.ka_tam_excel_path.get().strip()).expanduser(),
+            pv_date=format_express_pv_date(self.ka_tam_pv_date.get()),
+            description=self.ka_tam_description.get().strip(),
+            invoice_number=self.ka_tam_invoice.get().strip(),
+        )
+
+    def _format_ka_tam_pv_date(self, _event=None) -> None:
+        current = self.ka_tam_pv_date.get()
+        if is_complete_express_date(current):
+            self.ka_tam_pv_date.set(format_express_pv_date(current))
+
+    def _start_ka_tam(self) -> None:
+        if self._ka_tam_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_ka_tam_excel()
+        errors = self.app_config.validate()
+        errors.extend(self._ka_tam_form_config().validate())
+        if self.ka_tam_rows_count == 0 and not errors:
+            errors.append(UI_TEXT["ka_tam_excel_none"])
+        if errors:
+            messagebox.showwarning(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = self.ka_tam_rows_count
+        self._set_ka_tam_progress(0, total)
+        self._append_ka_tam_log(UI_TEXT["ka_tam_excel_total"].format(count=total))
+        form_config = self._ka_tam_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._ka_tam_running = True
+        threading.Thread(
+            target=self._run_ka_tam,
+            args=(form_config, express_data_dir),
+            daemon=True,
+        ).start()
+
+    def _run_ka_tam(self, form_config: KaTamFormConfig, express_data_dir: Path) -> None:
+        try:
+            KaTamMatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: self.root.after(0, lambda m=message: self._append_ka_tam_log(m)),
+                on_progress=lambda done, total: self.root.after(
+                    0, lambda d=done, t=total: self._set_ka_tam_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showwarning(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showerror(UI_TEXT["app_title"], text))
+        finally:
+            self.root.after(0, self._ka_tam_finished)
+
+    def _ka_tam_finished(self) -> None:
+        self._ka_tam_running = False
+
+    def _set_ka_tam_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.ka_tam_progress["value"] = percent
+        self.ka_tam_progress_text.set(UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent))
+
+    def _append_ka_tam_log(self, message: str) -> None:
+        self.ka_tam_log_box.insert("end", message + "\n")
+        self.ka_tam_log_box.see("end")
+
+    def _copy_ka_tam_log(self) -> None:
+        text = self.ka_tam_log_box.get("1.0", "end-1c")
+        if not text.strip():
+            return
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
 
     def _start_pp30(self) -> None:
         if self._pp30_running:
@@ -317,6 +484,7 @@ class MainWindow:
         self.menu_frame.pack_forget()
         self.config_frame.pack_forget()
         self.pp30_frame.pack_forget()
+        self.ka_tam_frame.pack_forget()
         if page_route == PAGE_CONFIG:
             self.root.geometry(f"{WIN_W}x{CONFIG_WIN_H}")
             self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['config_title']} v{__version__}")
@@ -328,6 +496,11 @@ class MainWindow:
             self.root.geometry(f"{WIN_W}x{PP30_WIN_H}")
             self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pp30']} v{__version__}")
             self.pp30_frame.pack(fill="both", expand=True)
+            return
+        if page_route == PAGE_KA_TAM:
+            self.root.geometry(f"{WIN_W}x{KA_TAM_WIN_H}")
+            self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_ka_tam']} v{__version__}")
+            self.ka_tam_frame.pack(fill="both", expand=True)
             return
         self.root.geometry(f"{WIN_W}x{MENU_WIN_H}")
         self.root.title(f"{UI_TEXT['app_title']} v{__version__}")

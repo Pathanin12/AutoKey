@@ -41,7 +41,9 @@ PP30_MODE_SPECIAL = "special"
 PP30_RUN_MODES = (PP30_MODE_NORMAL, PP30_MODE_SPECIAL)
 
 ACCOUNT_CASH = "1111-00"
+ACCOUNT_SERVICE = "5330-05"
 ACCOUNT_VAT = "1154-00"
+ACCOUNT_WT = "2132-02"
 ACCOUNT_PP30_VAT_SALE = "2135-00"
 ACCOUNT_PP30_VAT_PURCHASE = ACCOUNT_VAT
 ACCOUNT_PP30_VAT_PAYABLE = "2137-00"
@@ -51,6 +53,8 @@ ACCOUNT_PP30_DECIMAL = "4200-03"
 
 GLJNL_FILE_NAMES = ("GLJNL.DBF", "gljnl.dbf")
 GLJNLIT_FILE_NAMES = ("GLJNLIT.DBF", "gljnlit.dbf")
+ISVAT_FILE_NAMES = ("ISVAT.DBF", "isvat.dbf")
+VATREC_PURCHASE = "P"
 JNLTYP_JV = "00"
 JNLTYP_PV = "01"
 VOUCHER_JV_PREFIX = "JV"
@@ -86,7 +90,23 @@ UI_TEXT = {
     "menu_hint": "เลือกงานที่ต้องการทำ",
     "menu_config": "Config",
     "menu_ka_tam": "ค่าทำ",
-    "menu_ka_tam_hint": "สมุดรายวันจ่าย — ค้นหาบริษัทแล้วกรอก PV",
+    "menu_ka_tam_hint": "สมุดรายวันจ่าย — อ่าน Excel แล้ว insert PV และใบกำกับ",
+    "choose_file": "เลือกไฟล์...",
+    "ka_tam_excel": "ไฟล์ Excel",
+    "ka_tam_excel_empty": "ยังไม่ได้เลือกไฟล์ Excel",
+    "ka_tam_excel_total": "พบ {count} แถว",
+    "ka_tam_excel_invalid": "กรุณาเลือกไฟล์ Excel",
+    "ka_tam_excel_none": "ไม่พบรายการในไฟล์ Excel",
+    "ka_tam_pv_date": "วันที่ PV",
+    "ka_tam_pv_date_invalid": "กรุณากรอกวันที่ PV ให้ครบ เช่น 25/07/69",
+    "ka_tam_description": "รายละเอียด",
+    "ka_tam_invoice": "เลขใบกำกับภาษี",
+    "ka_tam_welcome_log": "เลือกไฟล์ Excel กรอกวันที่ รายละเอียด และเลขใบกำกับ แล้วกดเริ่ม",
+    "ka_tam_unmatched": "ไม่ตรง — Excel: {name}",
+    "ka_tam_match_log": "ตรง — Excel: {excel_name} → {shop_name}",
+    "ka_tam_skip_zero_log": "ข้าม — {name} ไม่มียอดค่าบริการ",
+    "ka_tam_insert_log": "สรุป — {shop}: {detail}",
+    "ka_tam_insert_done": "insert เสร็จ {inserted}/{total}",
     "menu_pp30": "ภ.พ.30",
     "menu_pp30_hint": "ภาษีมูลค่าเพิ่ม — อ่าน PDF แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
     "menu_pnd30": "ภ.ง.ด.53",
