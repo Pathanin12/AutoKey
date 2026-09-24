@@ -7,8 +7,11 @@ from struct import pack, unpack
 CDX_PAGE = 512
 CDX_EXT_HEAD = 24
 CDX_INT_HEAD = 12
+CDX_NODE_ROOT = 0x01
 CDX_NODE_LEAF = 0x02
 CDX_HEADER = 1024
+CDX_NO_PAGE = 0xFFFFFFFF
+CDX_LEAF_POOL = CDX_PAGE - CDX_EXT_HEAD
 
 
 @dataclass
@@ -106,9 +109,15 @@ def _field_width(name: str) -> int:
 
 def _insert_into_tag(data: bytearray, tag: CdxTag, key: bytes, recno: int) -> None:
     page_off, ancestors = _find_leaf_path(data, tag, key, recno)
-    _insert_leaf_key(data, tag, page_off, key, recno)
-    last_key, last_rec = _leaf_last(data, tag, page_off)
-    _update_ancestors(data, tag, ancestors, last_key, last_rec)
+    split = _insert_leaf_key(data, tag, page_off, key, recno)
+    if split is None:
+        last_key, last_rec = _leaf_last(data, tag, page_off)
+        _update_ancestors(data, tag, ancestors, last_key, last_rec)
+        return
+    left_off, right_off = split
+    left_key, left_rec = _leaf_last(data, tag, left_off)
+    right_key, right_rec = _leaf_last(data, tag, right_off)
+    _promote_split(data, tag, ancestors, left_off, left_key, left_rec, right_off, right_key, right_rec)
 
 
 def _find_leaf(data: bytearray, tag: CdxTag, key: bytes, recno: int) -> int:
@@ -184,49 +193,254 @@ def _write_interior_slot(
     data[base + tag.key_size : base + tag.key_size + 4] = pack(">I", recno)
 
 
-def _insert_leaf_key(data: bytearray, tag: CdxTag, page_off: int, key: bytes, recno: int) -> None:
+def _insert_leaf_key(data: bytearray, tag: CdxTag, page_off: int, key: bytes, recno: int) -> tuple[int, int] | None:
     page = bytearray(data[page_off : page_off + CDX_PAGE])
     nkeys = unpack("<H", page[2:4])[0]
-    free = unpack("<H", page[12:14])[0]
     rec_mask = unpack("<I", page[14:18])[0]
-    dup_mask = page[18]
-    trl_mask = page[19]
-    rec_bits = page[20]
-    dup_bits = page[21]
-    trl_bits = page[22]
     req = page[23]
-    decoded = _decode_leaf(page, tag.key_size, nkeys, req, rec_mask, dup_bits, trl_bits, dup_mask, trl_mask)
+    decoded = _decode_leaf(page, tag.key_size, nkeys, req, rec_mask, page[21], page[22], page[18], page[19])
     index = 0
     while index < len(decoded):
         item_key, item_rec, _dup, _trl = decoded[index]
         if (item_key, item_rec) > (key, recno):
             break
         index += 1
-    trail = 0
-    while trail < tag.key_size and key[tag.key_size - 1 - trail] == tag.trail:
-        trail += 1
-    dup = 0
-    if index > 0:
-        prev = decoded[index - 1][0]
-        limit = tag.key_size - trail
-        while dup < limit and key[dup] == prev[dup]:
-            dup += 1
-    needed = req + tag.key_size - trail - dup
-    if needed > free:
+    decoded.insert(index, (key, recno, 0, 0))
+    decoded = _recompute_leaf_keys(decoded, tag.key_size, tag.trail)
+    if _leaf_used(decoded, tag.key_size, req) <= CDX_LEAF_POOL:
+        _write_leaf_keys(data, page_off, page, tag, decoded)
+        return None
+    return _split_leaf(data, tag, page_off, page, decoded)
+
+
+def _recompute_leaf_keys(
+    keys: list[tuple[bytes, int, int, int]], key_size: int, trail_byte: int
+) -> list[tuple[bytes, int, int, int]]:
+    out: list[tuple[bytes, int, int, int]] = []
+    for index, (key, recno, _dup, _trl) in enumerate(keys):
+        trail = 0
+        while trail < key_size and key[key_size - 1 - trail] == trail_byte:
+            trail += 1
+        dup = 0
+        if index > 0:
+            prev = keys[index - 1][0]
+            limit = key_size - trail
+            while dup < limit and key[dup] == prev[dup]:
+                dup += 1
+        out.append((key, recno, dup, trail))
+    return out
+
+
+def _leaf_used(keys: list[tuple[bytes, int, int, int]], key_size: int, req: int) -> int:
+    return sum(req + key_size - dup - trl for _key, _recno, dup, trl in keys)
+
+
+def _write_leaf_keys(
+    data: bytearray,
+    page_off: int,
+    template: bytes,
+    tag: CdxTag,
+    keys: list[tuple[bytes, int, int, int]],
+    *,
+    left: int | None = None,
+    right: int | None = None,
+    is_root: bool | None = None,
+) -> None:
+    page = bytearray(template[:CDX_PAGE])
+    if len(page) < CDX_PAGE:
+        page.extend(b"\x00" * (CDX_PAGE - len(page)))
+    attr = unpack("<H", page[0:2])[0]
+    if is_root is True:
+        attr = CDX_NODE_ROOT | CDX_NODE_LEAF
+    elif is_root is False:
+        attr = CDX_NODE_LEAF
+    page[0:2] = pack("<H", attr)
+    if left is not None:
+        page[4:8] = pack("<I", left)
+    if right is not None:
+        page[8:12] = pack("<I", right)
+    req = page[23]
+    encoded, new_free = _encode_leaf(keys, tag.key_size, req, page[20], page[21], page[22], tag.trail)
+    if new_free < 0:
         raise ValueError("หน้า CDX เต็ม — ใส่ index ไม่ได้")
-    decoded.insert(index, (key, recno, dup, trail))
-    if index + 1 < len(decoded):
-        nxt_key, nxt_rec, _old_dup, nxt_trl = decoded[index + 1]
-        nxt_dup = 0
-        nxt_limit = tag.key_size - nxt_trl
-        while nxt_dup < nxt_limit and nxt_key[nxt_dup] == key[nxt_dup]:
-            nxt_dup += 1
-        decoded[index + 1] = (nxt_key, nxt_rec, nxt_dup, nxt_trl)
-    encoded, new_free = _encode_leaf(decoded, tag.key_size, req, rec_bits, dup_bits, trl_bits, tag.trail)
-    page[2:4] = pack("<H", len(decoded))
+    page[2:4] = pack("<H", len(keys))
     page[12:14] = pack("<H", new_free)
     page[CDX_EXT_HEAD:] = encoded
     data[page_off : page_off + CDX_PAGE] = page
+
+
+def _split_leaf(
+    data: bytearray,
+    tag: CdxTag,
+    page_off: int,
+    template: bytes,
+    keys: list[tuple[bytes, int, int, int]],
+) -> tuple[int, int]:
+    req = template[23]
+    left_keys, right_keys = _choose_leaf_split(keys, tag.key_size, req, tag.trail)
+    new_off = _alloc_page(data)
+    old_left = unpack("<I", template[4:8])[0]
+    old_right = unpack("<I", template[8:12])[0]
+    _write_leaf_keys(
+        data, page_off, template, tag, left_keys, left=old_left, right=new_off, is_root=False
+    )
+    _write_leaf_keys(
+        data, new_off, template, tag, right_keys, left=page_off, right=old_right, is_root=False
+    )
+    if old_right != CDX_NO_PAGE:
+        data[old_right + 4 : old_right + 8] = pack("<I", new_off)
+    return page_off, new_off
+
+
+def _choose_leaf_split(
+    keys: list[tuple[bytes, int, int, int]],
+    key_size: int,
+    req: int,
+    trail_byte: int,
+) -> tuple[list[tuple[bytes, int, int, int]], list[tuple[bytes, int, int, int]]]:
+    target = len(keys) // 2
+    best: tuple[int, list[tuple[bytes, int, int, int]], list[tuple[bytes, int, int, int]]] | None = None
+    for mid in range(1, len(keys)):
+        left = _recompute_leaf_keys(keys[:mid], key_size, trail_byte)
+        right = _recompute_leaf_keys(keys[mid:], key_size, trail_byte)
+        if _leaf_used(left, key_size, req) <= CDX_LEAF_POOL and _leaf_used(right, key_size, req) <= CDX_LEAF_POOL:
+            if best is None or abs(mid - target) < abs(best[0] - target):
+                best = (mid, left, right)
+    if best is None:
+        raise ValueError("แยกหน้า CDX ไม่ได้")
+    return best[1], best[2]
+
+
+def _alloc_page(data: bytearray) -> int:
+    free = unpack("<I", data[4:8])[0]
+    if free:
+        nxt = unpack("<I", data[free : free + 4])[0]
+        data[4:8] = pack("<I", nxt)
+        data[free : free + CDX_PAGE] = b"\x00" * CDX_PAGE
+        return free
+    offset = len(data)
+    data.extend(b"\x00" * CDX_PAGE)
+    return offset
+
+
+def _set_tag_root(data: bytearray, tag: CdxTag, root: int) -> None:
+    tag.root = root
+    data[tag.offset : tag.offset + 4] = pack("<I", root)
+
+
+def _promote_split(
+    data: bytearray,
+    tag: CdxTag,
+    ancestors: list[tuple[int, int]],
+    left_off: int,
+    left_key: bytes,
+    left_rec: int,
+    right_off: int,
+    right_key: bytes,
+    right_rec: int,
+) -> None:
+    if not ancestors:
+        _new_root(data, tag, left_off, left_key, left_rec, right_off, right_key, right_rec)
+        return
+    parent_off, slot_index = ancestors[-1]
+    _write_interior_slot(data, tag, parent_off, slot_index, left_key, left_rec)
+    _insert_interior_slot(
+        data, tag, ancestors[:-1], parent_off, slot_index + 1, right_key, right_rec, right_off
+    )
+
+
+def _new_root(
+    data: bytearray,
+    tag: CdxTag,
+    left_off: int,
+    left_key: bytes,
+    left_rec: int,
+    right_off: int,
+    right_key: bytes,
+    right_rec: int,
+) -> None:
+    root = _alloc_page(data)
+    _write_interior_page(
+        data,
+        root,
+        tag,
+        [(left_key, left_rec, left_off), (right_key, right_rec, right_off)],
+        CDX_NO_PAGE,
+        CDX_NO_PAGE,
+        is_root=True,
+    )
+    _set_tag_root(data, tag, root)
+
+
+def _read_interior_slots(data: bytearray, tag: CdxTag, page_off: int) -> list[tuple[bytes, int, int]]:
+    page = data[page_off : page_off + CDX_PAGE]
+    nkeys = unpack("<H", page[2:4])[0]
+    slot = tag.key_size + 8
+    slots: list[tuple[bytes, int, int]] = []
+    for index in range(nkeys):
+        base = CDX_INT_HEAD + index * slot
+        key = bytes(page[base : base + tag.key_size])
+        recno = unpack(">I", page[base + tag.key_size : base + tag.key_size + 4])[0]
+        child = unpack(">I", page[base + tag.key_size + 4 : base + tag.key_size + 8])[0]
+        slots.append((key, recno, child))
+    return slots
+
+
+def _write_interior_page(
+    data: bytearray,
+    page_off: int,
+    tag: CdxTag,
+    slots: list[tuple[bytes, int, int]],
+    left: int,
+    right: int,
+    *,
+    is_root: bool,
+) -> None:
+    page = bytearray(CDX_PAGE)
+    page[0:2] = pack("<H", CDX_NODE_ROOT if is_root else 0)
+    page[2:4] = pack("<H", len(slots))
+    page[4:8] = pack("<I", left)
+    page[8:12] = pack("<I", right)
+    slot = tag.key_size + 8
+    for index, (key, recno, child) in enumerate(slots):
+        base = CDX_INT_HEAD + index * slot
+        page[base : base + tag.key_size] = key
+        page[base + tag.key_size : base + tag.key_size + 4] = pack(">I", recno)
+        page[base + tag.key_size + 4 : base + tag.key_size + 8] = pack(">I", child)
+    data[page_off : page_off + CDX_PAGE] = page
+
+
+def _insert_interior_slot(
+    data: bytearray,
+    tag: CdxTag,
+    ancestors: list[tuple[int, int]],
+    page_off: int,
+    index: int,
+    key: bytes,
+    recno: int,
+    child: int,
+) -> None:
+    slots = _read_interior_slots(data, tag, page_off)
+    slots.insert(index, (key, recno, child))
+    page = data[page_off : page_off + CDX_PAGE]
+    left = unpack("<I", page[4:8])[0]
+    right = unpack("<I", page[8:12])[0]
+    max_keys = (CDX_PAGE - CDX_INT_HEAD) // (tag.key_size + 8)
+    if len(slots) <= max_keys:
+        _write_interior_page(data, page_off, tag, slots, left, right, is_root=page_off == tag.root)
+        if ancestors and index == len(slots) - 1:
+            last_key, last_rec, _child = slots[-1]
+            _update_ancestors(data, tag, ancestors, last_key, last_rec)
+        return
+    mid = len(slots) // 2
+    new_off = _alloc_page(data)
+    _write_interior_page(data, page_off, tag, slots[:mid], left, new_off, is_root=False)
+    _write_interior_page(data, new_off, tag, slots[mid:], page_off, right, is_root=False)
+    if right != CDX_NO_PAGE:
+        data[right + 4 : right + 8] = pack("<I", new_off)
+    left_key, left_rec, _left_child = slots[mid - 1]
+    right_key, right_rec, _right_child = slots[-1]
+    _promote_split(data, tag, ancestors, page_off, left_key, left_rec, new_off, right_key, right_rec)
 
 
 def _decode_leaf(

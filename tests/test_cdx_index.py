@@ -15,6 +15,7 @@ from services.cdx_index_service import (
 )
 
 SAMPLE_GLJNL_CDX = Path("/Users/pathanin/Downloads/kachapor/GLJNL.CDX")
+SAMPLE_GLJNLIT_CDX = Path("/Users/pathanin/Downloads/onestop 2/GLJNLIT.CDX")
 
 
 def _bag_names(data: bytes) -> list[str]:
@@ -108,6 +109,59 @@ class CdxIndexTests(unittest.TestCase):
             after_key, after_rec = _interior_last(dest.read_bytes(), 5)
             self.assertEqual(after_key.rstrip(), b"20260922PV69090002")
             self.assertEqual(after_rec, 115)
+
+    @unittest.skipUnless(SAMPLE_GLJNLIT_CDX.exists(), "sample GLJNLIT.CDX")
+    def test_insert_splits_full_accnum_leaf(self) -> None:
+        with TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "GLJNLIT.CDX"
+            shutil.copy2(SAMPLE_GLJNLIT_CDX, dest)
+            before = dest.read_bytes()
+            tag = _tags(before)[3]
+            self.assertTrue(before[tag.root] & CDX_NODE_LEAF)
+            before_keys = _walk_tag_keys(before, tag)
+            CdxIndexService.insert_key(
+                dest,
+                {
+                    "VOUCHER": "JV69080002",
+                    "SEQIT": " 1",
+                    "VOUDAT": "20260831",
+                    "ACCNUM": "2135-00",
+                    "TRNTYP": "0",
+                    "DEPCOD": "",
+                    "CHGDAT": "20260924",
+                },
+                200,
+            )
+            after = dest.read_bytes()
+            tag = _tags(after)[3]
+            self.assertFalse(after[tag.root] & CDX_NODE_LEAF)
+            keys = _walk_tag_keys(after, tag)
+            self.assertEqual(len(keys), len(before_keys) + 1)
+            self.assertIn((b"2135-00        ", 200), keys)
+
+
+def _walk_tag_keys(data: bytes, tag) -> list[tuple[bytes, int]]:
+    keys: list[tuple[bytes, int]] = []
+
+    def walk(page_off: int) -> None:
+        page = data[page_off : page_off + CDX_PAGE]
+        attr = unpack("<H", page[0:2])[0]
+        nkeys = unpack("<H", page[2:4])[0]
+        if attr & CDX_NODE_LEAF:
+            rec_mask = unpack("<I", page[14:18])[0]
+            decoded = _decode_leaf(
+                page, tag.key_size, nkeys, page[23], rec_mask, page[21], page[22], page[18], page[19]
+            )
+            keys.extend((item[0], item[1]) for item in decoded)
+            return
+        slot = tag.key_size + 8
+        for index in range(nkeys):
+            base = CDX_INT_HEAD + index * slot
+            child = unpack(">I", page[base + tag.key_size + 4 : base + tag.key_size + 8])[0]
+            walk(child)
+
+    walk(tag.root)
+    return keys
 
 
 if __name__ == "__main__":
