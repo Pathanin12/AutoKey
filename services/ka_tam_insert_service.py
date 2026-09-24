@@ -19,8 +19,12 @@ class KaTamInsertService:
         return pv_ka_tam(row, date, form.description)
 
     @staticmethod
-    def invoice_number(row: KaTamRow, form: KaTamFormConfig) -> str:
-        return (form.invoice_number or row.invoice_number or "").strip().replace("\r", "").replace("\n", "")
+    def invoice_number(row: KaTamRow) -> str:
+        return (row.invoice_number or "").strip().replace("\r", "").replace("\n", "")
+
+    @staticmethod
+    def tax_payer_id(form: KaTamFormConfig) -> str:
+        return (form.tax_payer_id or "").strip().replace("\r", "").replace("\n", "")
 
     @staticmethod
     def insert(folder: Path, row: KaTamRow, form: KaTamFormConfig) -> str:
@@ -38,11 +42,11 @@ class KaTamInsertService:
                 vatdat=voudat,
                 docdat=voudat,
                 docnum=name,
-                refnum=KaTamInsertService.invoice_number(row, form),
+                refnum=KaTamInsertService.invoice_number(row),
                 descrp=form.description,
                 amt01=round(row.service_amount, 2),
                 vat01=round(row.vat_amount, 2),
-                taxid=row.tax_id.strip(),
+                taxid=KaTamInsertService.tax_payer_id(form),
                 docstat=JOURNAL_DOCSTAT,
             ),
         )

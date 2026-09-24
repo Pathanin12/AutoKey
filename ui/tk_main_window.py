@@ -62,7 +62,7 @@ class MainWindow:
         self.ka_tam_excel_summary = tk.StringVar(value=UI_TEXT["ka_tam_excel_empty"])
         self.ka_tam_pv_date = tk.StringVar(value="")
         self.ka_tam_description = tk.StringVar(value="")
-        self.ka_tam_invoice = tk.StringVar(value="")
+        self.ka_tam_tax_payer = tk.StringVar(value="")
         self.ka_tam_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.ka_tam_rows_count = 0
         self._ka_tam_running = False
@@ -219,8 +219,8 @@ class MainWindow:
         ttk.Entry(form, textvariable=self.ka_tam_description, width=42).grid(
             row=3, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
         )
-        ttk.Label(form, text=UI_TEXT["ka_tam_invoice"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(form, textvariable=self.ka_tam_invoice, width=42).grid(
+        ttk.Label(form, text=UI_TEXT["ka_tam_tax_payer"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(form, textvariable=self.ka_tam_tax_payer, width=42).grid(
             row=4, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
         )
         form.columnconfigure(1, weight=1)
@@ -322,7 +322,7 @@ class MainWindow:
             excel_path=Path(self.ka_tam_excel_path.get().strip()).expanduser(),
             pv_date=format_express_pv_date(self.ka_tam_pv_date.get()),
             description=self.ka_tam_description.get().strip(),
-            invoice_number=self.ka_tam_invoice.get().strip(),
+            tax_payer_id=self.ka_tam_tax_payer.get().strip(),
         )
 
     def _format_ka_tam_pv_date(self, _event=None) -> None:

@@ -107,11 +107,7 @@ def _parse_row(
     legal_name = _to_text(_cell_at(raw_values, column_map.legal_name))
     if not legal_name:
         return None
-    invoice_number = _to_text(_cell_at(raw_values, column_map.invoice_number))
-    if not invoice_number:
-        invoice_number = _nrg_reference(period_text, sequence)
-    elif invoice_number.upper().startswith("NRG"):
-        invoice_number = invoice_number
+    invoice_number = _nrg_reference(period_text, sequence)
     return KaTamRow(
         row_number=excel_row_number,
         sequence=sequence,

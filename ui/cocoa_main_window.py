@@ -366,8 +366,8 @@ class MainWindow:
         _static_label(settings, UI_TEXT["ka_tam_description"], 8, sy, 110, 22)
         self.ka_tam_description_field = _edit_field(settings, 120, sy, 356)
         sy += 30
-        _static_label(settings, UI_TEXT["ka_tam_invoice"], 8, sy, 110, 22)
-        self.ka_tam_invoice_field = _edit_field(settings, 120, sy, 356)
+        _static_label(settings, UI_TEXT["ka_tam_tax_payer"], 8, sy, 110, 22)
+        self.ka_tam_tax_payer_field = _edit_field(settings, 120, sy, 356)
 
         _button(
             page,
@@ -538,7 +538,7 @@ class MainWindow:
             excel_path=Path(str(self.ka_tam_excel_field.stringValue() or "")).expanduser(),
             pv_date=format_express_pv_date(str(self.ka_tam_pv_date_field.stringValue() or "")),
             description=str(self.ka_tam_description_field.stringValue() or "").strip(),
-            invoice_number=str(self.ka_tam_invoice_field.stringValue() or "").strip(),
+            tax_payer_id=str(self.ka_tam_tax_payer_field.stringValue() or "").strip(),
         )
 
     def _start_ka_tam(self) -> None:

@@ -9,10 +9,12 @@ from constants.routes import ACCOUNT_CASH, ACCOUNT_SERVICE, ACCOUNT_VAT, ACCOUNT
 from models.ka_tam_form_config import KaTamFormConfig
 from models.ka_tam_row import KaTamRow
 from services.dbf_table_service import DbfTableService
+from services.ka_tam_excel_service import KaTamExcelService
 from services.ka_tam_insert_lines_service import pv_ka_tam
 from services.ka_tam_insert_service import KaTamInsertService
 
 SAMPLE_SHOP = Path("/Users/pathanin/Downloads/kachapor 3")
+SAMPLE_EXCEL = Path("/Users/pathanin/Downloads/srv 2026 08 acct.8 - Copyค่าทำจ้า.xlsx")
 
 
 def _row(**kwargs) -> KaTamRow:
@@ -58,21 +60,32 @@ class KaTamInsertLinesTests(unittest.TestCase):
         voucher = pv_ka_tam(_row(service_amount=0, vat_amount=0, wt_amount=0), "25/07/69", "jv")
         self.assertEqual(voucher.lines, [])
 
-    def test_ui_invoice_overrides_excel(self) -> None:
+    def test_invoice_follows_row_sequence(self) -> None:
         form = KaTamFormConfig(
             excel_path=Path("."),
             pv_date="25/07/69",
             description="ค่าทำ",
-            invoice_number="INV-1",
+            tax_payer_id="0115569014941",
         )
-        self.assertEqual(KaTamInsertService.invoice_number(_row(), form), "INV-1")
-        form.invoice_number = ""
-        self.assertEqual(KaTamInsertService.invoice_number(_row(), form), "NRG2026080001")
+        self.assertEqual(KaTamInsertService.invoice_number(_row()), "NRG2026080001")
+        self.assertEqual(KaTamInsertService.invoice_number(_row(invoice_number="NRG2026080002")), "NRG2026080002")
+        self.assertEqual(KaTamInsertService.tax_payer_id(form), "0115569014941")
+        form.tax_payer_id = ""
+        self.assertEqual(KaTamInsertService.tax_payer_id(form), "")
+        self.assertNotEqual(KaTamInsertService.tax_payer_id(form), _row().tax_id)
 
     def test_form_date_must_be_complete(self) -> None:
         self.assertFalse(is_complete_express_date(""))
         errors = KaTamFormConfig(excel_path=Path("/no.xlsx"), pv_date="25/07", description="x").validate()
         self.assertTrue(any("วันที่" in item for item in errors))
+
+
+class KaTamExcelInvoiceTests(unittest.TestCase):
+    @unittest.skipUnless(SAMPLE_EXCEL.exists(), "sample excel")
+    def test_invoice_is_nrg_year_month_sequence(self) -> None:
+        rows = KaTamExcelService.load_rows(SAMPLE_EXCEL)
+        self.assertEqual([row.sequence for row in rows], [1, 2])
+        self.assertEqual([row.invoice_number for row in rows], ["NRG2026080001", "NRG2026080002"])
 
 
 class KaTamLiveInsertTests(unittest.TestCase):
@@ -85,9 +98,9 @@ class KaTamLiveInsertTests(unittest.TestCase):
                 excel_path=Path("."),
                 pv_date="25/07/69",
                 description="บจก.เอ็นอาร์จี แอคเคาท์-ค่าทำบัญชี 7/69",
-                invoice_number="NRG2026080001",
+                tax_payer_id="0115569014941",
             )
-            name = KaTamInsertService.insert(dest, _row(), form)
+            name = KaTamInsertService.insert(dest, _row(tax_id="0123562000773"), form)
             self.assertTrue(name.startswith("PV6907"))
             headers = DbfTableService.read_records(dest / "GLJNL.DBF")
             self.assertEqual(headers[-1]["VOUCHER"], name)

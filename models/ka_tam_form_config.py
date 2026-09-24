@@ -12,7 +12,7 @@ class KaTamFormConfig:
     excel_path: Path
     pv_date: str
     description: str
-    invoice_number: str = ""
+    tax_payer_id: str = ""
 
     def validate(self) -> list[str]:
         errors: list[str] = []
