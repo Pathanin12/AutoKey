@@ -70,6 +70,10 @@ class Pp30MatchRunService:
                 on_status(UI_TEXT["pp30_values_missing"].format(path=pdf_path.name))
                 on_progress(index, total)
                 continue
+            if not record.form_values.has_vat_lines:
+                on_status(UI_TEXT["pp30_skip_no_vat_lines_log"].format(name=record.company_name))
+                on_progress(index, total)
+                continue
             kind = Pp30ClassifyService.classify(record.form_values)
             on_status(UI_TEXT["pp30_kind_log"].format(kind=kind.label))
             job = Pp30MatchedJob(
@@ -82,14 +86,6 @@ class Pp30MatchRunService:
             jobs.append(job)
             if kind.is_skip:
                 on_status(UI_TEXT["pp30_skip_zero_log"].format(name=record.company_name))
-                on_progress(index, total)
-                continue
-            if (
-                kind.is_no_pay_normal
-                and not record.form_values.has_line_5
-                and not record.form_values.has_line_7
-            ):
-                on_status(UI_TEXT["pp30_skip_no_pay_empty_log"].format(name=record.company_name))
                 on_progress(index, total)
                 continue
             if form_config.run_mode.is_special and not kind.runs_on_special:

@@ -18,13 +18,13 @@ from services.pp30_insert_lines_service import (
 class Pp30InsertService:
     @staticmethod
     def vouchers(kind: Pp30PaymentKind, values: Pp30FormValues, form: Pp30FormConfig) -> list[JournalVoucher]:
+        if not values.has_vat_lines:
+            return []
         pv_date = format_express_pv_date(values.pv_date)
         jv_date = format_express_pv_date(form.jv_date)
         if kind.is_new_shop:
             return [jv_new_shop(values, jv_date, form.jv_description)]
         if kind.is_no_pay_normal:
-            if not values.has_line_5 and not values.has_line_7:
-                return []
             return [jv_no_pay_normal(values, jv_date, form.jv_description)]
         if kind.is_pay:
             return [
