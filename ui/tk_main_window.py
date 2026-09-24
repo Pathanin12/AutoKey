@@ -5,7 +5,7 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from constants.date_utils import PV_DATE_EXAMPLE, format_express_pv_date, is_complete_express_date
+from constants.date_utils import format_express_pv_date, is_complete_express_date
 from constants.routes import (
     MENU_BUTTON_IPADY,
     PAGE_CONFIG,
@@ -149,9 +149,6 @@ class MainWindow:
         jv_date_entry = ttk.Entry(form, textvariable=self.pp30_jv_date, width=14)
         jv_date_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
         jv_date_entry.bind("<FocusOut>", self._format_pp30_jv_date)
-        ttk.Label(form, text=PV_DATE_EXAMPLE, foreground="#555555").grid(
-            row=3, column=2, sticky="w", pady=(8, 0)
-        )
         ttk.Label(form, text=UI_TEXT["pp30_jv_description"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
         ttk.Entry(form, textvariable=self.pp30_jv_description, width=42).grid(
             row=4, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)

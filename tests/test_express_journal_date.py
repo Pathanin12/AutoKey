@@ -46,6 +46,26 @@ class ExpressJournalDateTests(unittest.TestCase):
             )
             self.assertEqual(ExpressJournalDateService.first_existing_voucher_date(folder, [jv]), "01/01/69")
 
+    @unittest.skipUnless(SAMPLE_GLJNL.exists(), "sample GLJNL.DBF")
+    def test_fa_same_date_is_not_duplicate(self) -> None:
+        with TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            dest = folder / "GLJNL.DBF"
+            shutil.copy2(SAMPLE_GLJNL, dest)
+            DbfTableService.append(dest, {"VOUDAT": "20070202", "VOUCHER": "FA50020001"})
+            self.assertFalse(ExpressJournalDateService.has_express_date(folder, "02/02/50"))
+            jv = JournalVoucher(
+                jnltyp="00",
+                prefix="JV",
+                voudat_express="02/02/50",
+                description="jv",
+                lines=[JournalLine(account="2135-00", amount=1.0, is_credit=False)],
+            )
+            self.assertIsNone(ExpressJournalDateService.first_existing_voucher_date(folder, [jv]))
+            DbfTableService.append(dest, {"VOUDAT": "20070202", "VOUCHER": "JV50020099"})
+            self.assertTrue(ExpressJournalDateService.has_express_date(folder, "02/02/50", "JV"))
+            self.assertEqual(ExpressJournalDateService.first_existing_voucher_date(folder, [jv]), "02/02/50")
+
 
 if __name__ == "__main__":
     unittest.main()
