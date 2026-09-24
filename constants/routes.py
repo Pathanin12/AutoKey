@@ -135,6 +135,7 @@ UI_TEXT = {
     "pp30_skip_mode_log": "ข้าม — เงื่อนไข {kind} ไม่ใช่โหมดที่เลือก",
     "pp30_skip_zero_log": "ข้าม — {name} ยอดเป็น 0",
     "pp30_skip_no_vat_lines_log": "ข้าม — {name} ไม่มีข้อ 5 และข้อ 7",
+    "pp30_skip_date_exists_log": "ข้าม — {name} มีวันที่ {date} อยู่แล้ว",
     "pp30_values_missing": "อ่านยอดจาก PDF ไม่ได้ — {path}",
     "pp30_insert_log": "สรุป — {shop}: {kind} {detail}",
     "pp30_insert_done": "insert เสร็จ {inserted}/{total}",

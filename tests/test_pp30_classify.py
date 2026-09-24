@@ -237,6 +237,26 @@ class Pp30ExtractKindTests(unittest.TestCase):
         self.assertEqual(values.line_12, 308364.0)
         self.assertEqual(Pp30ClassifyService.classify(values).key, PP30_KIND_NO_PAY_NEW_SHOP)
 
+    def test_extracts_no_pay_without_line_5_and_7_as_zero(self) -> None:
+        text = """
+ห้างหุ้นส่วนจำกัด ณัฐวรา มาร์เก็ตติ้ง
+5. ภาษีขายเดือนนี้ 0.00
+7. ภาษีซื้อเดือนนี้ 0.00
+8. ภาษีที่ต้องชำระเดือนนี้ 0.00
+10. ภาษีที่ชำระเกินยกมา 137.20
+12. ชำระเกิน 137.20
+ยื่นวันที่่ 14 เดือน กันยายน พ.ศ. 2569
+วันที่: 14/09/2569
+"""
+        values = Pp30PdfService.extract_form_values(text)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.line_5, 0.0)
+        self.assertEqual(values.line_7, 0.0)
+        self.assertFalse(values.has_vat_lines)
+        self.assertEqual(values.line_10, 137.2)
+        self.assertEqual(Pp30ClassifyService.classify(values).key, PP30_KIND_NO_PAY_NORMAL)
+
     def test_extracts_no_pay_normal_when_line_10_greater(self) -> None:
         text = """
 5. ภาษีขายเดือนนี้ 20,000.00

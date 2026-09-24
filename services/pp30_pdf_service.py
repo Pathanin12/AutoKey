@@ -158,14 +158,20 @@ def _extract_tax_lines(text: str) -> dict[str, float] | None:
     if new_shop is not None:
         return new_shop
 
-    pair = _extract_line_5_7(text)
-    if line5 is None and pair is not None:
-        line5 = pair[0]
-    if line7 is None and pair is not None:
-        if line5 is not None and eq_amount(pair[1], line5):
-            line7 = 0.0
-        else:
-            line7 = pair[1]
+    line8 = labeled.get(8, 0.0)
+    line10 = labeled.get(10, 0.0)
+    if line10 - line8 > 0.005 and line8 <= 0.005:
+        line5 = labeled.get(5, 0.0)
+        line7 = labeled.get(7, 0.0)
+    else:
+        pair = _extract_line_5_7(text)
+        if line5 is None and pair is not None:
+            line5 = pair[0]
+        if line7 is None and pair is not None:
+            if line5 is not None and eq_amount(pair[1], line5):
+                line7 = 0.0
+            else:
+                line7 = pair[1]
     if line5 is None or line7 is None:
         return None
 

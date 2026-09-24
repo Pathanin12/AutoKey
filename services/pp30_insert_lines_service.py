@@ -69,6 +69,8 @@ def jv_pay(values: Pp30FormValues, date: str, description: str) -> JournalVouche
 
 
 def jv_no_pay_normal(values: Pp30FormValues, date: str, description: str) -> JournalVoucher:
+    if not values.has_vat_lines:
+        return _voucher(JNLTYP_JV, VOUCHER_JV_PREFIX, date, description, [])
     debits: list[JournalLine] = []
     credits: list[JournalLine] = []
     if values.has_line_5:

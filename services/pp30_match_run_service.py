@@ -6,6 +6,7 @@ from typing import Callable
 from constants.routes import UI_TEXT
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_matched_job import Pp30MatchedJob
+from services.express_journal_date_service import ExpressJournalDateService
 from services.express_journal_service import ExpressJournalService
 from services.express_shop_index_service import ExpressShopIndexService
 from services.name_match_service import tidy_name
@@ -88,6 +89,10 @@ class Pp30MatchRunService:
                 on_status(UI_TEXT["pp30_skip_zero_log"].format(name=record.company_name))
                 on_progress(index, total)
                 continue
+            if kind.is_no_pay_normal and not record.form_values.has_vat_lines:
+                on_status(UI_TEXT["pp30_skip_no_vat_lines_log"].format(name=record.company_name))
+                on_progress(index, total)
+                continue
             if form_config.run_mode.is_special and not kind.runs_on_special:
                 on_status(UI_TEXT["pp30_skip_mode_log"].format(kind=kind.label))
                 on_progress(index, total)
@@ -98,6 +103,18 @@ class Pp30MatchRunService:
                 continue
             try:
                 vouchers = Pp30InsertService.vouchers(kind, record.form_values, form_config)
+                existing_date = ExpressJournalDateService.first_existing_voucher_date(
+                    company.folder, vouchers
+                )
+                if existing_date:
+                    on_status(
+                        UI_TEXT["pp30_skip_date_exists_log"].format(
+                            name=record.company_name,
+                            date=existing_date,
+                        )
+                    )
+                    on_progress(index, total)
+                    continue
                 names: list[str] = []
                 for voucher in vouchers:
                     if not voucher.lines:
