@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from constants.date_utils import express_date_to_dbf, format_express_pv_date, is_complete_express_date
+from constants.date_utils import format_express_pv_date, is_complete_express_date, same_calendar_date
 from constants.routes import GLJNL_FILE_NAMES
 from models.express_journal_date import ExpressJournalDate
 from models.journal_voucher import JournalVoucher
@@ -26,8 +26,10 @@ class ExpressJournalDateService:
     def has_express_date(folder: Path, voudat_express: str) -> bool:
         if not is_complete_express_date(voudat_express):
             return False
-        target = express_date_to_dbf(voudat_express)
-        return any(item.voudat == target for item in ExpressJournalDateService.list_dates(folder))
+        return any(
+            same_calendar_date(item.voudat, voudat_express)
+            for item in ExpressJournalDateService.list_dates(folder)
+        )
 
     @staticmethod
     def first_existing_voucher_date(folder: Path, vouchers: list[JournalVoucher]) -> str | None:

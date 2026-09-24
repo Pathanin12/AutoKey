@@ -166,6 +166,29 @@ def express_date_to_dbf(pv_date: str) -> str:
     return f"{_ce_year(year):04d}{month:02d}{day:02d}"
 
 
+def calendar_date(value: str) -> tuple[int, int, int] | None:
+    """วัน, เดือน, ปี ค.ศ. จากวันที่ Express หรือ DBF"""
+    text = (value or "").strip()
+    if len(text) == 8 and text.isdigit():
+        year, month, day = int(text[0:4]), int(text[4:6]), int(text[6:8])
+        if 1 <= month <= 12 and 1 <= day <= 31:
+            return day, month, year
+        return None
+    if not is_complete_express_date(text):
+        return None
+    try:
+        dbf = express_date_to_dbf(text)
+    except ValueError:
+        return None
+    return calendar_date(dbf)
+
+
+def same_calendar_date(left: str, right: str) -> bool:
+    left_date = calendar_date(left)
+    right_date = calendar_date(right)
+    return left_date is not None and left_date == right_date
+
+
 def dbf_date_today() -> str:
     today = date.today()
     return today.strftime("%Y%m%d")
