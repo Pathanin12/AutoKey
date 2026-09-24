@@ -33,15 +33,17 @@ class ExpressJournalDateTests(unittest.TestCase):
             folder = Path(tmp)
             dest = folder / "GLJNL.DBF"
             shutil.copy2(SAMPLE_GLJNL, dest)
-            DbfTableService.append(dest, {"VOUDAT": "20260101", "VOUCHER": "JV69010099"})
-            self.assertTrue(ExpressJournalDateService.has_express_date(folder, "01/01/69"))
-            self.assertFalse(ExpressJournalDateService.has_express_date(folder, "01/01/68"))
-            self.assertFalse(ExpressJournalDateService.has_express_date(folder, "01/02/69"))
+            DbfTableService.append(
+                dest, {"VOUDAT": "20260101", "VOUCHER": "JV69010099", "DESCRP": "ปิดภาษี"}
+            )
+            self.assertTrue(ExpressJournalDateService.has_express_date(folder, "01/01/69", "ปิดภาษี"))
+            self.assertFalse(ExpressJournalDateService.has_express_date(folder, "01/01/68", "ปิดภาษี"))
+            self.assertFalse(ExpressJournalDateService.has_express_date(folder, "01/02/69", "ปิดภาษี"))
             jv = JournalVoucher(
                 jnltyp="00",
                 prefix="JV",
                 voudat_express="01/01/69",
-                description="jv",
+                description="ปิดภาษี",
                 lines=[JournalLine(account="2135-00", amount=1.0, is_credit=False)],
             )
             self.assertEqual(ExpressJournalDateService.first_existing_voucher_date(folder, [jv]), "01/01/69")
@@ -52,18 +54,25 @@ class ExpressJournalDateTests(unittest.TestCase):
             folder = Path(tmp)
             dest = folder / "GLJNL.DBF"
             shutil.copy2(SAMPLE_GLJNL, dest)
-            DbfTableService.append(dest, {"VOUDAT": "20070202", "VOUCHER": "FA50020001"})
-            self.assertFalse(ExpressJournalDateService.has_express_date(folder, "02/02/50"))
+            DbfTableService.append(
+                dest, {"VOUDAT": "20070202", "VOUCHER": "FA50020001", "DESCRP": "คิดค่าเสื่อม"}
+            )
+            DbfTableService.append(
+                dest, {"VOUDAT": "20070202", "VOUCHER": "PV50020099", "DESCRP": "ค่าทำ"}
+            )
+            self.assertFalse(ExpressJournalDateService.has_express_date(folder, "02/02/50", "ปิดภาษี"))
             jv = JournalVoucher(
                 jnltyp="00",
                 prefix="JV",
                 voudat_express="02/02/50",
-                description="jv",
+                description="ปิดภาษี",
                 lines=[JournalLine(account="2135-00", amount=1.0, is_credit=False)],
             )
             self.assertIsNone(ExpressJournalDateService.first_existing_voucher_date(folder, [jv]))
-            DbfTableService.append(dest, {"VOUDAT": "20070202", "VOUCHER": "JV50020099"})
-            self.assertTrue(ExpressJournalDateService.has_express_date(folder, "02/02/50", "JV"))
+            DbfTableService.append(
+                dest, {"VOUDAT": "20070202", "VOUCHER": "JV50020099", "DESCRP": "ปิดภาษี"}
+            )
+            self.assertTrue(ExpressJournalDateService.has_express_date(folder, "02/02/50", "ปิดภาษี"))
             self.assertEqual(ExpressJournalDateService.first_existing_voucher_date(folder, [jv]), "02/02/50")
 
 

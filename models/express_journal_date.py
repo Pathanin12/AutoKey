@@ -7,3 +7,4 @@ from dataclasses import dataclass
 class ExpressJournalDate:
     voudat: str
     voucher: str
+    descrp: str
