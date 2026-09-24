@@ -89,6 +89,11 @@ class Pp30InsertLinesTests(unittest.TestCase):
         self.assertEqual(jv.lines[-1].account, ACCOUNT_PP30_NEW_SHOP)
         self.assertEqual(jv.lines[-1].amount, 15000.0)
 
+    def test_no_pay_normal_skips_when_line_5_and_7_empty(self) -> None:
+        values = _values(line_10=137.2, line_12=137.2)
+        form = Pp30FormConfig(pdf_folder=Path("."), jv_description="jv", pv_description="pv", jv_date="31/08/69")
+        self.assertEqual(Pp30InsertService.vouchers(Pp30PaymentKind.no_pay_normal(), values, form), [])
+
     def test_new_shop_jv(self) -> None:
         values = _values(vat_purchase=1200, line_9=1200, line_12=1200)
         jv = jv_new_shop(values, "31/08/69", "jv")

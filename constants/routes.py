@@ -134,6 +134,7 @@ UI_TEXT = {
     "pp30_kind_log": "เงื่อนไข: {kind}",
     "pp30_skip_mode_log": "ข้าม — เงื่อนไข {kind} ไม่ใช่โหมดที่เลือก",
     "pp30_skip_zero_log": "ข้าม — {name} ยอดเป็น 0",
+    "pp30_skip_no_pay_empty_log": "ข้าม — {name} ไม่จ่ายตังแบบปกติ ไม่มีข้อ 5 และข้อ 7",
     "pp30_values_missing": "อ่านยอดจาก PDF ไม่ได้ — {path}",
     "pp30_insert_log": "สรุป — {shop}: {kind} {detail}",
     "pp30_insert_done": "insert เสร็จ {inserted}/{total}",

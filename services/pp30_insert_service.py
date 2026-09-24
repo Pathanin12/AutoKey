@@ -23,6 +23,8 @@ class Pp30InsertService:
         if kind.is_new_shop:
             return [jv_new_shop(values, jv_date, form.jv_description)]
         if kind.is_no_pay_normal:
+            if not values.has_line_5 and not values.has_line_7:
+                return []
             return [jv_no_pay_normal(values, jv_date, form.jv_description)]
         if kind.is_pay:
             return [

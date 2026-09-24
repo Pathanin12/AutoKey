@@ -84,6 +84,14 @@ class Pp30MatchRunService:
                 on_status(UI_TEXT["pp30_skip_zero_log"].format(name=record.company_name))
                 on_progress(index, total)
                 continue
+            if (
+                kind.is_no_pay_normal
+                and not record.form_values.has_line_5
+                and not record.form_values.has_line_7
+            ):
+                on_status(UI_TEXT["pp30_skip_no_pay_empty_log"].format(name=record.company_name))
+                on_progress(index, total)
+                continue
             if form_config.run_mode.is_special and not kind.runs_on_special:
                 on_status(UI_TEXT["pp30_skip_mode_log"].format(kind=kind.label))
                 on_progress(index, total)
