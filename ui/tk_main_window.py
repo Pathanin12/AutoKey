@@ -11,6 +11,7 @@ from constants.routes import (
     PAGE_CONFIG,
     PAGE_KA_TAM,
     PAGE_MENU,
+    PAGE_PND30,
     PAGE_PP30,
     PP30_MODE_NORMAL,
     PP30_MODE_SPECIAL,
@@ -20,6 +21,7 @@ from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
 from models.app_config import AppConfig
 from models.ka_tam_form_config import KaTamFormConfig
+from models.pnd30_form_config import Pnd30FormConfig
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_run_mode import Pp30RunMode
 from models.topic_menu_item import TopicMenuItem
@@ -27,6 +29,7 @@ from services.app_config_service import AppConfigService
 from services.express_shop_index_service import ExpressShopIndexService
 from services.ka_tam_excel_service import KaTamExcelService
 from services.ka_tam_match_run_service import KaTamMatchRunService
+from services.pnd30_match_run_service import Pnd30MatchRunService
 from services.pp30_folder_service import Pp30FolderService
 from services.pp30_match_run_service import Pp30MatchRunService
 from ui.app_icon import apply_window_icon, load_title_photo
@@ -36,6 +39,7 @@ MENU_WIN_H = 540
 CONFIG_WIN_H = 320
 PP30_WIN_H = 660
 KA_TAM_WIN_H = 660
+PND30_WIN_H = 600
 
 
 class MainWindow:
@@ -66,6 +70,12 @@ class MainWindow:
         self.ka_tam_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.ka_tam_rows_count = 0
         self._ka_tam_running = False
+        self.pnd30_pdf_folder = tk.StringVar(value="")
+        self.pnd30_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
+        self.pnd30_description = tk.StringVar(value="")
+        self.pnd30_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
+        self.pnd30_pdf_files: list[Path] = []
+        self._pnd30_running = False
         self._current_page = PAGE_MENU
         self._build_ui()
         self._show_page(PAGE_MENU)
@@ -75,10 +85,12 @@ class MainWindow:
         self.config_frame = ttk.Frame(self.root)
         self.pp30_frame = ttk.Frame(self.root)
         self.ka_tam_frame = ttk.Frame(self.root)
+        self.pnd30_frame = ttk.Frame(self.root)
         self._build_menu_page(self.menu_frame)
         self._build_config_page(self.config_frame)
         self._build_pp30_page(self.pp30_frame)
         self._build_ka_tam_page(self.ka_tam_frame)
+        self._build_pnd30_page(self.pnd30_frame)
 
     def _build_menu_page(self, page: ttk.Frame) -> None:
         header = ttk.Frame(page)
@@ -246,12 +258,58 @@ class MainWindow:
         scroll.grid(row=0, column=1, sticky="ns")
         self.ka_tam_log_box.insert("end", UI_TEXT["ka_tam_welcome_log"] + "\n")
 
+    def _build_pnd30_page(self, page: ttk.Frame) -> None:
+        header = ttk.Frame(page)
+        header.pack(fill="x", padx=12, pady=(10, 0))
+        ttk.Button(header, text=f"← {UI_TEXT['back_to_menu']}", command=lambda: self._show_page(PAGE_MENU)).pack(
+            side="left"
+        )
+        ttk.Label(header, text=UI_TEXT["menu_pnd30"], font=("Tahoma", 12, "bold")).pack(side="left", padx=12)
+
+        form = ttk.Frame(page)
+        form.pack(fill="x", padx=20, pady=(16, 0))
+        ttk.Label(form, text=UI_TEXT["pp30_pdf_folder"]).grid(row=0, column=0, sticky="w")
+        ttk.Entry(form, textvariable=self.pnd30_pdf_folder, width=42).grid(row=0, column=1, sticky="ew", padx=(8, 8))
+        ttk.Button(form, text=UI_TEXT["choose_folder"], command=self._choose_pnd30_folder).grid(row=0, column=2)
+        ttk.Label(form, textvariable=self.pnd30_pdf_summary, wraplength=500).grid(
+            row=1, column=0, columnspan=3, sticky="w", pady=(4, 0)
+        )
+        ttk.Label(form, text=UI_TEXT["pnd30_description"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(form, textvariable=self.pnd30_description, width=42).grid(
+            row=2, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
+        )
+        form.columnconfigure(1, weight=1)
+
+        ttk.Button(page, text=f"▶ {UI_TEXT['start']}", command=self._start_pnd30).pack(anchor="w", padx=20, pady=12)
+
+        status = ttk.LabelFrame(page, text=UI_TEXT["status_frame"])
+        status.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        progress_row = ttk.Frame(status)
+        progress_row.pack(fill="x", padx=8, pady=(8, 4))
+        self.pnd30_progress = ttk.Progressbar(progress_row, maximum=100)
+        self.pnd30_progress.pack(side="left", fill="x", expand=True)
+        ttk.Label(progress_row, textvariable=self.pnd30_progress_text, width=16).pack(side="left", padx=(8, 0))
+        ttk.Button(status, text=UI_TEXT["copy_log"], command=self._copy_pnd30_log).pack(anchor="e", padx=8)
+        log_row = ttk.Frame(status)
+        log_row.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        log_row.rowconfigure(0, weight=1)
+        log_row.columnconfigure(0, weight=1)
+        self.pnd30_log_box = tk.Text(log_row, height=10, wrap="word")
+        scroll = ttk.Scrollbar(log_row, orient="vertical", command=self.pnd30_log_box.yview)
+        self.pnd30_log_box.configure(yscrollcommand=scroll.set)
+        self.pnd30_log_box.grid(row=0, column=0, sticky="nsew")
+        scroll.grid(row=0, column=1, sticky="ns")
+        self.pnd30_log_box.insert("end", UI_TEXT["pnd30_welcome_log"] + "\n")
+
     def _open_topic(self, item: TopicMenuItem) -> None:
         if item.page_route == PAGE_PP30:
             self._show_page(PAGE_PP30)
             return
         if item.page_route == PAGE_KA_TAM:
             self._show_page(PAGE_KA_TAM)
+            return
+        if item.page_route == PAGE_PND30:
+            self._show_page(PAGE_PND30)
             return
         messagebox.showinfo(UI_TEXT["app_title"], UI_TEXT["menu_unavailable"])
 
@@ -390,6 +448,86 @@ class MainWindow:
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
 
+    def _choose_pnd30_folder(self) -> None:
+        selected = filedialog.askdirectory(title=UI_TEXT["pp30_pdf_folder"])
+        if not selected:
+            return
+        self.pnd30_pdf_folder.set(selected)
+        self._load_pnd30_folder()
+
+    def _load_pnd30_folder(self) -> None:
+        folder = Path(self.pnd30_pdf_folder.get().strip()).expanduser()
+        self.pnd30_pdf_files = Pp30FolderService.list_pdfs(folder)
+        if self.pnd30_pdf_files:
+            self.pnd30_pdf_summary.set(UI_TEXT["pp30_pdf_total"].format(count=len(self.pnd30_pdf_files)))
+        else:
+            self.pnd30_pdf_summary.set(UI_TEXT["pp30_pdf_summary_empty"])
+
+    def _pnd30_form_config(self) -> Pnd30FormConfig:
+        return Pnd30FormConfig(
+            pdf_folder=Path(self.pnd30_pdf_folder.get().strip()).expanduser(),
+            description=self.pnd30_description.get().strip(),
+            pdf_files=list(self.pnd30_pdf_files),
+        )
+
+    def _start_pnd30(self) -> None:
+        if self._pnd30_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_pnd30_folder()
+        errors = self.app_config.validate()
+        errors.extend(self._pnd30_form_config().validate())
+        if errors:
+            messagebox.showwarning(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = len(self.pnd30_pdf_files)
+        self._set_pnd30_progress(0, total)
+        self._append_pnd30_log(UI_TEXT["pp30_pdf_total"].format(count=total))
+        form_config = self._pnd30_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._pnd30_running = True
+        threading.Thread(
+            target=self._run_pnd30,
+            args=(form_config, express_data_dir),
+            daemon=True,
+        ).start()
+
+    def _run_pnd30(self, form_config: Pnd30FormConfig, express_data_dir: Path) -> None:
+        try:
+            Pnd30MatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: self.root.after(0, lambda m=message: self._append_pnd30_log(m)),
+                on_progress=lambda done, total: self.root.after(
+                    0, lambda d=done, t=total: self._set_pnd30_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showwarning(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showerror(UI_TEXT["app_title"], text))
+        finally:
+            self.root.after(0, self._pnd30_finished)
+
+    def _pnd30_finished(self) -> None:
+        self._pnd30_running = False
+
+    def _set_pnd30_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.pnd30_progress["value"] = percent
+        self.pnd30_progress_text.set(UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent))
+
+    def _append_pnd30_log(self, message: str) -> None:
+        self.pnd30_log_box.insert("end", message + "\n")
+        self.pnd30_log_box.see("end")
+
+    def _copy_pnd30_log(self) -> None:
+        text = self.pnd30_log_box.get("1.0", "end-1c")
+        if not text.strip():
+            return
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+
     def _start_pp30(self) -> None:
         if self._pp30_running:
             return
@@ -485,6 +623,7 @@ class MainWindow:
         self.config_frame.pack_forget()
         self.pp30_frame.pack_forget()
         self.ka_tam_frame.pack_forget()
+        self.pnd30_frame.pack_forget()
         if page_route == PAGE_CONFIG:
             self.root.geometry(f"{WIN_W}x{CONFIG_WIN_H}")
             self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['config_title']} v{__version__}")
@@ -501,6 +640,11 @@ class MainWindow:
             self.root.geometry(f"{WIN_W}x{KA_TAM_WIN_H}")
             self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_ka_tam']} v{__version__}")
             self.ka_tam_frame.pack(fill="both", expand=True)
+            return
+        if page_route == PAGE_PND30:
+            self.root.geometry(f"{WIN_W}x{PND30_WIN_H}")
+            self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd30']} v{__version__}")
+            self.pnd30_frame.pack(fill="both", expand=True)
             return
         self.root.geometry(f"{WIN_W}x{MENU_WIN_H}")
         self.root.title(f"{UI_TEXT['app_title']} v{__version__}")
