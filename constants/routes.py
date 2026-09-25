@@ -29,6 +29,7 @@ PAGE_CONFIG = "config"
 PAGE_KA_TAM = "ka_tam"
 PAGE_PP30 = "pp30"
 PAGE_PND30 = "pnd30"
+PAGE_PND3 = "pnd3"
 MENU_BUTTON_HEIGHT = 75
 MENU_BUTTON_IPADY = 26
 PDF_OPEN_EXTENSIONS = ("pdf",)
@@ -44,6 +45,7 @@ ACCOUNT_CASH = "1111-00"
 ACCOUNT_SERVICE = "5330-05"
 ACCOUNT_VAT = "1154-00"
 ACCOUNT_WT = "2132-02"
+ACCOUNT_WT_PND3 = "2132-00"
 ACCOUNT_PP30_VAT_SALE = "2135-00"
 ACCOUNT_PP30_VAT_PURCHASE = ACCOUNT_VAT
 ACCOUNT_PP30_VAT_PAYABLE = "2137-00"
@@ -117,6 +119,14 @@ UI_TEXT = {
     "pnd30_welcome_log": "เลือกโฟลเดอร์ PDF กรอกรายละเอียด แล้วกดเริ่ม",
     "pnd30_skip_zero_log": "ข้าม — {name} ไม่มียอดภาษี",
     "pnd30_insert_log": "สรุป — {shop}: {detail}",
+    "menu_pnd3": "ภ.ง.ด.3",
+    "menu_pnd3_hint": "ภาษีเงินได้หัก ณ ที่จ่าย — อ่าน PDF แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
+    "pnd3_description": "รายละเอียด",
+    "pnd3_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",
+    "pnd3_pdf_none": "ไม่พบไฟล์ PDF ในโฟลเดอร์นี้",
+    "pnd3_welcome_log": "เลือกโฟลเดอร์ PDF กรอกรายละเอียด แล้วกดเริ่ม",
+    "pnd3_skip_zero_log": "ข้าม — {name} ไม่มียอดภาษี",
+    "pnd3_insert_log": "สรุป — {shop}: {detail}",
     "menu_unavailable": "เมนูนี้ยังไม่พร้อมใช้",
     "back_to_menu": "กลับเมนู",
     "config_title": "ตั้งค่า",

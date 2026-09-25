@@ -42,6 +42,7 @@ from constants.routes import (
     PAGE_CONFIG,
     PAGE_KA_TAM,
     PAGE_MENU,
+    PAGE_PND3,
     PAGE_PND30,
     PAGE_PP30,
     PP30_MODE_NORMAL,
@@ -52,6 +53,7 @@ from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
 from models.app_config import AppConfig
 from models.ka_tam_form_config import KaTamFormConfig
+from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd30_form_config import Pnd30FormConfig
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_run_mode import Pp30RunMode
@@ -60,17 +62,19 @@ from services.app_config_service import AppConfigService
 from services.express_shop_index_service import ExpressShopIndexService
 from services.ka_tam_excel_service import KaTamExcelService
 from services.ka_tam_match_run_service import KaTamMatchRunService
+from services.pnd3_match_run_service import Pnd3MatchRunService
 from services.pnd30_match_run_service import Pnd30MatchRunService
 from services.pp30_folder_service import Pp30FolderService
 from services.pp30_match_run_service import Pp30MatchRunService
 from ui.app_icon import icon_dir
 
 WIN_W = 560
-MENU_WIN_H = 560
+MENU_WIN_H = 650
 CONFIG_WIN_H = 360
 PP30_WIN_H = 680
 KA_TAM_WIN_H = 680
 PND30_WIN_H = 620
+PND3_WIN_H = 620
 
 
 class FlippedView(NSView):
@@ -114,6 +118,8 @@ class MainWindow:
         self._ka_tam_running = False
         self.pnd30_pdf_files: list[Path] = []
         self._pnd30_running = False
+        self.pnd3_pdf_files: list[Path] = []
+        self._pnd3_running = False
 
         self._app = NSApplication.sharedApplication()
         self._app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
@@ -157,16 +163,19 @@ class MainWindow:
         self._pp30_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PP30_WIN_H))
         self._ka_tam_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, KA_TAM_WIN_H))
         self._pnd30_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PND30_WIN_H))
+        self._pnd3_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PND3_WIN_H))
         root.addSubview_(self._menu_view)
         root.addSubview_(self._config_view)
         root.addSubview_(self._pp30_view)
         root.addSubview_(self._ka_tam_view)
         root.addSubview_(self._pnd30_view)
+        root.addSubview_(self._pnd3_view)
         self._build_menu_page(self._menu_view)
         self._build_config_page(self._config_view)
         self._build_pp30_page(self._pp30_view)
         self._build_ka_tam_page(self._ka_tam_view)
         self._build_pnd30_page(self._pnd30_view)
+        self._build_pnd3_page(self._pnd3_view)
         self.window.makeKeyAndOrderFront_(None)
 
     def _build_menu_page(self, page) -> None:
@@ -469,6 +478,69 @@ class MainWindow:
         self.pnd30_log_view.setString_(UI_TEXT["pnd30_welcome_log"] + "\n")
         del _settings_box, _status_box
 
+    def _build_pnd3_page(self, page) -> None:
+        _button(
+            page,
+            f"← {UI_TEXT['back_to_menu']}",
+            16,
+            24,
+            160,
+            36,
+            self._keep(lambda: self._show_page(PAGE_MENU)),
+            bezel=NSBezelStyleRounded,
+        )
+        _static_label(page, UI_TEXT["menu_pnd3"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
+
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 138)
+        sy = 8
+        _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
+        self.pnd3_folder_field = _edit_field(settings, 120, sy, 248)
+        _button(
+            settings,
+            UI_TEXT["choose_folder"],
+            376,
+            sy - 2,
+            108,
+            28,
+            self._keep(self._choose_pnd3_folder),
+            bezel=NSBezelStyleRounded,
+        )
+        sy += 26
+        self.pnd3_folder_summary_field = _static_label(
+            settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
+        )
+        sy += 28
+        _static_label(settings, UI_TEXT["pnd3_description"], 8, sy, 110, 22)
+        self.pnd3_description_field = _edit_field(settings, 120, sy, 356)
+
+        _button(
+            page,
+            f"▶ {UI_TEXT['start']}",
+            16,
+            226,
+            160,
+            36,
+            self._keep(self._start_pnd3),
+            bezel=NSBezelStyleRounded,
+        )
+
+        y = 276
+        _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, PND3_WIN_H - y - 12)
+        self.pnd3_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
+        self.pnd3_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
+        self.pnd3_progress_bar.setIndeterminate_(False)
+        self.pnd3_progress_bar.setMinValue_(0)
+        self.pnd3_progress_bar.setMaxValue_(100)
+        self.pnd3_progress_bar.setDoubleValue_(0)
+        status.addSubview_(self.pnd3_progress_bar)
+        self.pnd3_progress_field = _static_label(
+            status, UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0), 376, 4, 140, 22
+        )
+        _button(status, UI_TEXT["copy_log"], 376, 28, 120, 28, self._keep(self._copy_pnd3_log), bezel=NSBezelStyleRounded)
+        self.pnd3_log_view = _log_view(status, 8, 60, WIN_W - 56, PND3_WIN_H - y - 100)
+        self.pnd3_log_view.setString_(UI_TEXT["pnd3_welcome_log"] + "\n")
+        del _settings_box, _status_box
+
     def _set_pp30_mode(self, key: str) -> None:
         self._pp30_mode = Pp30RunMode.parse(key)
         self.pp30_mode_normal.setState_(1 if self._pp30_mode.key == PP30_MODE_NORMAL else 0)
@@ -483,6 +555,9 @@ class MainWindow:
             return
         if item.page_route == PAGE_PND30:
             self._show_page(PAGE_PND30)
+            return
+        if item.page_route == PAGE_PND3:
+            self._show_page(PAGE_PND3)
             return
         _alert(UI_TEXT["app_title"], UI_TEXT["menu_unavailable"])
 
@@ -760,6 +835,89 @@ class MainWindow:
         board.clearContents()
         board.setString_forType_(text, NSPasteboardTypeString)
 
+    def _choose_pnd3_folder(self) -> None:
+        selected = _pick_folder()
+        if not selected:
+            return
+        self.pnd3_folder_field.setStringValue_(selected)
+        self._load_pnd3_folder()
+
+    def _load_pnd3_folder(self) -> None:
+        folder = Path(str(self.pnd3_folder_field.stringValue() or "")).expanduser()
+        self.pnd3_pdf_files = Pp30FolderService.list_pdfs(folder)
+        if self.pnd3_pdf_files:
+            self.pnd3_folder_summary_field.setStringValue_(
+                UI_TEXT["pp30_pdf_total"].format(count=len(self.pnd3_pdf_files))
+            )
+        else:
+            self.pnd3_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
+
+    def _pnd3_form_config(self) -> Pnd3FormConfig:
+        return Pnd3FormConfig(
+            pdf_folder=Path(str(self.pnd3_folder_field.stringValue() or "")).expanduser(),
+            description=str(self.pnd3_description_field.stringValue() or "").strip(),
+            pdf_files=list(self.pnd3_pdf_files),
+        )
+
+    def _start_pnd3(self) -> None:
+        if self._pnd3_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_pnd3_folder()
+        errors = self.app_config.validate()
+        errors.extend(self._pnd3_form_config().validate())
+        if errors:
+            _alert(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = len(self.pnd3_pdf_files)
+        self._set_pnd3_progress(0, total)
+        self._append_pnd3_log(UI_TEXT["pp30_pdf_total"].format(count=total))
+        form_config = self._pnd3_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._pnd3_running = True
+        threading.Thread(target=self._run_pnd3, args=(form_config, express_data_dir), daemon=True).start()
+
+    def _run_pnd3(self, form_config: Pnd3FormConfig, express_data_dir: Path) -> None:
+        try:
+            Pnd3MatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: AppHelper.callAfter(lambda m=message: self._append_pnd3_log(m)),
+                on_progress=lambda done, total: AppHelper.callAfter(
+                    lambda d=done, t=total: self._set_pnd3_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        finally:
+            AppHelper.callAfter(self._pnd3_finished)
+
+    def _pnd3_finished(self) -> None:
+        self._pnd3_running = False
+
+    def _set_pnd3_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.pnd3_progress_bar.setDoubleValue_(percent)
+        self.pnd3_progress_field.setStringValue_(
+            UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent)
+        )
+
+    def _append_pnd3_log(self, message: str) -> None:
+        current = str(self.pnd3_log_view.string() or "")
+        current += message + "\n"
+        self.pnd3_log_view.setString_(current)
+        self.pnd3_log_view.scrollRangeToVisible_((len(current), 0))
+
+    def _copy_pnd3_log(self) -> None:
+        text = str(self.pnd3_log_view.string() or "")
+        if not text.strip():
+            return
+        board = NSPasteboard.generalPasteboard()
+        board.clearContents()
+        board.setString_forType_(text, NSPasteboardTypeString)
+
     def _save_config(self) -> None:
         config = AppConfig(
             express_data_dir=Path(str(self.express_data_dir_field.stringValue() or "")).expanduser()
@@ -797,12 +955,14 @@ class MainWindow:
         self._pp30_view.setHidden_(page_route != PAGE_PP30)
         self._ka_tam_view.setHidden_(page_route != PAGE_KA_TAM)
         self._pnd30_view.setHidden_(page_route != PAGE_PND30)
+        self._pnd3_view.setHidden_(page_route != PAGE_PND3)
         heights = {
             PAGE_MENU: MENU_WIN_H,
             PAGE_CONFIG: CONFIG_WIN_H,
             PAGE_PP30: PP30_WIN_H,
             PAGE_KA_TAM: KA_TAM_WIN_H,
             PAGE_PND30: PND30_WIN_H,
+            PAGE_PND3: PND3_WIN_H,
         }
         height = heights.get(page_route, MENU_WIN_H)
         self.window.setContentSize_((WIN_W, height))
@@ -816,6 +976,8 @@ class MainWindow:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_ka_tam']} v{__version__}")
         elif page_route == PAGE_PND30:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd30']} v{__version__}")
+        elif page_route == PAGE_PND3:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd3']} v{__version__}")
         else:
             self.window.setTitle_(f"{UI_TEXT['app_title']} v{__version__}")
 
