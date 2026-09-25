@@ -5,7 +5,7 @@ from pathlib import Path
 from models.pnd3_form_values import Pnd3FormValues
 from models.pnd3_pdf_record import Pnd3PdfRecord
 from services.name_match_service import tidy_name
-from services.pnd3_extract_service import extract_line_1_and_3
+from services.pnd3_extract_service import extract_line_2_and_3
 from services.pnd30_extract_service import extract_pv_date
 
 _COMPANY_PREFIXES = (
@@ -70,7 +70,7 @@ class Pnd3PdfService:
     @staticmethod
     def extract_form_values(text: str) -> Pnd3FormValues | None:
         pv_date = extract_pv_date(text)
-        lines = extract_line_1_and_3(text)
+        lines = extract_line_2_and_3(text)
         if lines is None or not pv_date:
             return None
         tax_withheld, surcharge = lines

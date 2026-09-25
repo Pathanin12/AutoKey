@@ -4,7 +4,7 @@ from pathlib import Path
 from constants.routes import ACCOUNT_CASH, ACCOUNT_PP30_PENALTY, ACCOUNT_WT_PND3
 from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd3_form_values import Pnd3FormValues
-from services.pnd3_extract_service import extract_line_1_and_3
+from services.pnd3_extract_service import extract_line_2_and_3
 from services.pnd3_insert_lines_service import pv_pnd3
 from services.pnd3_pdf_service import Pnd3PdfService
 from services.pnd30_extract_service import extract_pv_date
@@ -36,12 +36,12 @@ SAMPLE_PDF = Path(
 
 
 class Pnd3ExtractTests(unittest.TestCase):
-    def test_reads_line_1_and_empty_line_3(self) -> None:
-        self.assertEqual(extract_line_1_and_3(_SAMPLE), (15223.00, 0.0))
+    def test_reads_line_2_and_empty_line_3(self) -> None:
+        self.assertEqual(extract_line_2_and_3(_SAMPLE), (456.69, 0.0))
         self.assertEqual(extract_pv_date(_SAMPLE), "14/09/69")
 
     def test_reads_surcharge_on_line_3(self) -> None:
-        self.assertEqual(extract_line_1_and_3(_SAMPLE_SURCHARGE), (15223.00, 15.00))
+        self.assertEqual(extract_line_2_and_3(_SAMPLE_SURCHARGE), (456.00, 15.00))
 
     def test_reads_company_and_values(self) -> None:
         name = Pnd3PdfService.extract_company_name(_SAMPLE)
@@ -49,7 +49,7 @@ class Pnd3ExtractTests(unittest.TestCase):
         self.assertEqual(name, "ห้างหุ้นส่วนจำกัด พิชยมงคล")
         self.assertIsNotNone(values)
         assert values is not None
-        self.assertEqual(values.tax_withheld, 15223.00)
+        self.assertEqual(values.tax_withheld, 456.69)
         self.assertFalse(values.has_surcharge)
         self.assertEqual(values.pv_date, "14/09/69")
 
@@ -59,30 +59,30 @@ class Pnd3ExtractTests(unittest.TestCase):
         self.assertEqual(record.company_name, "ห้างหุ้นส่วนจำกัด พิชยมงคล")
         self.assertIsNotNone(record.form_values)
         assert record.form_values is not None
-        self.assertEqual(record.form_values.tax_withheld, 15223.00)
+        self.assertEqual(record.form_values.tax_withheld, 456.69)
         self.assertFalse(record.form_values.has_surcharge)
         self.assertEqual(record.form_values.pv_date, "14/09/69")
 
 
 class Pnd3InsertLinesTests(unittest.TestCase):
-    def test_line_1_then_cash(self) -> None:
-        voucher = pv_pnd3(Pnd3FormValues(15223.0, 0.0, "14/09/69"), "14/09/69", "ภ.ง.ด.3")
+    def test_line_2_then_cash(self) -> None:
+        voucher = pv_pnd3(Pnd3FormValues(456.69, 0.0, "14/09/69"), "14/09/69", "ภ.ง.ด.3")
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in voucher.lines],
             [
-                (ACCOUNT_WT_PND3, 15223.0, False),
-                (ACCOUNT_CASH, 15223.0, True),
+                (ACCOUNT_WT_PND3, 456.69, False),
+                (ACCOUNT_CASH, 456.69, True),
             ],
         )
 
     def test_surcharge_before_cash(self) -> None:
-        voucher = pv_pnd3(Pnd3FormValues(15223.0, 15.0, "14/09/69"), "14/09/69", "ภ.ง.ด.3")
+        voucher = pv_pnd3(Pnd3FormValues(456.69, 15.0, "14/09/69"), "14/09/69", "ภ.ง.ด.3")
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in voucher.lines],
             [
-                (ACCOUNT_WT_PND3, 15223.0, False),
+                (ACCOUNT_WT_PND3, 456.69, False),
                 (ACCOUNT_PP30_PENALTY, 15.0, False),
-                (ACCOUNT_CASH, 15238.0, True),
+                (ACCOUNT_CASH, 471.69, True),
             ],
         )
 
