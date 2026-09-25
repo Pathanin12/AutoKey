@@ -69,7 +69,7 @@ from services.pp30_match_run_service import Pp30MatchRunService
 from ui.app_icon import icon_dir
 
 WIN_W = 560
-MENU_WIN_H = 650
+MENU_WIN_H = 740
 CONFIG_WIN_H = 360
 PP30_WIN_H = 680
 KA_TAM_WIN_H = 680

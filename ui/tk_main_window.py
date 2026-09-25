@@ -38,7 +38,7 @@ from services.pp30_match_run_service import Pp30MatchRunService
 from ui.app_icon import apply_window_icon, load_title_photo
 
 WIN_W = 560
-MENU_WIN_H = 630
+MENU_WIN_H = 720
 CONFIG_WIN_H = 320
 PP30_WIN_H = 660
 KA_TAM_WIN_H = 660
