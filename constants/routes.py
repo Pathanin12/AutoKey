@@ -89,7 +89,19 @@ ACCOUNT_PP30_PENALTY = "5390-01"
 ACCOUNT_PP30_DECIMAL = "4200-03"
 ACCOUNT_INCOME_RECEIVABLE = "1113-01"
 ACCOUNT_INCOME_WHT = "1151-02"
+ACCOUNT_INCOME_GOODS = "1151-01"
+ACCOUNT_INCOME_ADVANCE = "2120-01"
 ACCOUNT_INCOME = "4100-02"
+INCOME_RV_TAX = "tax"
+INCOME_RV_GOODS = "goods"
+INCOME_RV_ADVANCE = "advance"
+INCOME_PAY_GOODS = "สินค้าและบริการ"
+INCOME_PAY_ADVANCE = "เบิกเงินสำรอง"
+INCOME_PAY_ADVANCE_ALT = "เบิกงานสำรอง"
+INCOME_RV_DESC = "บมจ.ซีพีออลล์-{topic} ด.{month}/{year}*{branch}"
+INCOME_RV_TOPIC_TAX = "ค่าตอบแทนการบริหาร"
+INCOME_RV_TOPIC_GOODS = "สินค้าและบริการ"
+INCOME_RV_TOPIC_ADVANCE = "เบิกเงินสำรอง"
 
 GLJNL_FILE_NAMES = ("GLJNL.DBF", "gljnl.dbf")
 GLJNLIT_FILE_NAMES = ("GLJNLIT.DBF", "gljnlit.dbf")
@@ -178,7 +190,6 @@ UI_TEXT = {
     "income_start_date": "วันที่เริ่มต้น",
     "income_end_date": "วันที่สิ้นสุด",
     "income_date_invalid": "กรุณากรอกวันที่เริ่มต้นและวันสิ้นสุดให้ครบ เช่น 01/08/69",
-    "income_description": "รายละเอียด RV",
     "income_save_folder": "โฟลเดอร์บันทึก PDF",
     "income_save_folder_empty": "ยังไม่ได้เลือกโฟลเดอร์บันทึก PDF",
     "income_pdf_invalid": "กรุณาเลือกโฟลเดอร์บันทึก PDF",
@@ -186,9 +197,9 @@ UI_TEXT = {
     "income_login_failed": "เข้าสู่ระบบไม่ได้ — {name}",
     "income_download_log": "โหลดแล้ว — {name} สาขา {store}",
     "income_download_none": "ไม่พบรายงาน — {name} สาขา {store}",
-    "income_welcome_log": "เลือกไฟล์ Excel กรอกวันที่ โฟลเดอร์ และรายละเอียด RV แล้วกดเริ่ม",
+    "income_welcome_log": "เลือกไฟล์ Excel กรอกวันที่ และโฟลเดอร์ แล้วกดเริ่ม",
     "income_skip_zero_log": "ข้าม — {name} ไม่มียอด",
-    "income_skip_no_invoice_log": "ข้าม — {path} ไม่เจอใบกำกับภาษี",
+    "income_skip_no_invoice_log": "ข้าม — {path} ไม่เจอใบกำกับภาษีหรือใบเสร็จ",
     "income_insert_log": "สรุป — {shop}: {detail}",
     "income_multi_bill_log": "สรุป — {name} สาขา {branch} มีมากกว่า 1",
     "menu_unavailable": "เมนูนี้ยังไม่พร้อมใช้",

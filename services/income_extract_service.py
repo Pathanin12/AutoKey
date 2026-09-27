@@ -3,12 +3,21 @@ from __future__ import annotations
 import re
 
 from constants.date_utils import format_express_pv_date, is_complete_express_date
+from constants.routes import (
+    INCOME_PAY_ADVANCE,
+    INCOME_PAY_ADVANCE_ALT,
+    INCOME_PAY_GOODS,
+    INCOME_RV_ADVANCE,
+    INCOME_RV_GOODS,
+    INCOME_RV_TAX,
+)
 from models.income_form_values import IncomeFormValues
 from services.name_match_service import tidy_name
 from services.pp30_amount_service import money_amounts
 
 _TAX_INVOICE_MARK = "ใบกำกับภาษี"
 _RECEIPT_MARK = "ใบเสร็จรับเงิน"
+_PAY_FOR_RE = re.compile(r"ชำระค่า\s*[:：]?\s*(.+)")
 _TAX_ID_RE = re.compile(r"เลขประจำตัวผู้เสียภาษี\s*(\d{13})")
 _TAX_ID_LOOSE_RE = re.compile(r"(?<!\d)(\d{13})(?!\d)")
 _INVOICE_RE = re.compile(r"(29\d{8})(?=\d{2}[./-]\d{2}[./-]\d{2,4}|\D|$)")
@@ -59,6 +68,12 @@ def _glue_digits(text: str) -> str:
     return re.sub(r"(?<=\d)[ \t\u00a0]+(?=\d)", "", text or "")
 
 
+def extract_income_values(text: str) -> IncomeFormValues | None:
+    if _receipt_kind(text):
+        return extract_income_receipt(text)
+    return extract_income_invoice(text)
+
+
 def extract_income_invoice(text: str) -> IncomeFormValues | None:
     text = _norm_thai(text)
     if not is_rv_tax_invoice(text):
@@ -83,7 +98,69 @@ def extract_income_invoice(text: str) -> IncomeFormValues | None:
         wht_amount=wht_amount,
         vat_amount=vat_amount,
         bill_count=_bill_count(glued or text),
+        kind=INCOME_RV_TAX,
     )
+
+
+def extract_income_receipt(text: str) -> IncomeFormValues | None:
+    text = _norm_thai(text)
+    kind = _receipt_kind(text)
+    if kind is None:
+        return None
+    totals = _receipt_totals(text)
+    glued = _glue_digits(text)
+    invoice_date = _invoice_date(glued) or _invoice_date(text)
+    invoice_number = _invoice_number(glued) or _invoice_number(text)
+    tax_id = _tax_id(glued) or _tax_id(text)
+    branch = _branch_last5(glued) or _branch_last5(text)
+    company = _company_name(text)
+    if totals is None or not branch or not company:
+        return None
+    if kind == INCOME_RV_GOODS and (not invoice_number or not tax_id):
+        return None
+    total_amount, wht_amount, vat_amount = totals
+    return IncomeFormValues(
+        company_name=company,
+        branch_last5=branch,
+        invoice_date=invoice_date,
+        invoice_number=invoice_number,
+        tax_id=tax_id,
+        total_amount=total_amount,
+        wht_amount=wht_amount,
+        vat_amount=vat_amount,
+        bill_count=_bill_count(glued or text),
+        kind=kind,
+    )
+
+
+def is_rv_receipt_copy(text: str) -> bool:
+    return _receipt_kind(text) is not None
+
+
+def _receipt_kind(text: str) -> str | None:
+    compact = re.sub(r"\s+", "", _norm_thai(text))
+    if _RECEIPT_MARK not in compact and "เสร็จรับเงิน" not in compact:
+        return None
+    pay = _pay_for(text)
+    if INCOME_PAY_GOODS in pay:
+        return INCOME_RV_GOODS
+    if INCOME_PAY_ADVANCE in pay or INCOME_PAY_ADVANCE_ALT in pay:
+        return INCOME_RV_ADVANCE
+    return None
+
+
+def _pay_for(text: str) -> str:
+    match = _PAY_FOR_RE.search(text or "")
+    return tidy_name(match.group(1)) if match else ""
+
+
+def _receipt_totals(text: str) -> tuple[float, float, float] | None:
+    total = _amount_near(text, "รวมเงินทั้งสิ้น")
+    wht = _amount_near(text, "หัก ณ ที่จ่าย") or _amount_near(text, "หัก ภาษีหัก ณ ที่จ่าย")
+    vat = _amount_near(text, "ภาษีมูลค่าเพิ่ม")
+    if total > 0:
+        return total, wht, vat
+    return _totals(text)
 
 
 def _totals(text: str) -> tuple[float, float, float] | None:
@@ -160,6 +237,14 @@ def _company_name(text: str) -> str:
         if found:
             return found
     return _company_from_line(tidy_name(text))
+
+
+def _amount_near(text: str, label: str) -> float:
+    index = (text or "").find(label)
+    if index < 0:
+        return 0.0
+    amounts = money_amounts(text[index : index + 80])
+    return amounts[0] if amounts else 0.0
 
 
 def _company_from_line(line: str) -> str:

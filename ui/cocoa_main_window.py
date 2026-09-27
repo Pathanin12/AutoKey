@@ -564,7 +564,7 @@ class MainWindow:
         )
         _static_label(page, UI_TEXT["menu_income"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
 
-        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 250)
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 218)
         sy = 8
         _static_label(settings, UI_TEXT["income_excel"], 8, sy, 110, 22)
         self.income_excel_field = _edit_field(settings, 120, sy, 248)
@@ -610,22 +610,19 @@ class MainWindow:
         self.income_folder_summary_field = _static_label(
             settings, UI_TEXT["income_save_folder_empty"], 8, sy, 500, 20, size=11, gray=True
         )
-        sy += 28
-        _static_label(settings, UI_TEXT["income_description"], 8, sy, 110, 22)
-        self.income_description_field = _edit_field(settings, 120, sy, 356)
 
         _button(
             page,
             f"▶ {UI_TEXT['start']}",
             16,
-            338,
+            306,
             160,
             36,
             self._keep(self._start_income),
             bezel=NSBezelStyleRounded,
         )
 
-        y = 388
+        y = 356
         _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, INCOME_WIN_H - y - 12)
         self.income_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
         self.income_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
@@ -1060,7 +1057,6 @@ class MainWindow:
     def _income_form_config(self) -> IncomeFormConfig:
         return IncomeFormConfig(
             pdf_folder=Path(str(self.income_folder_field.stringValue() or "")).expanduser(),
-            rv_description=str(self.income_description_field.stringValue() or "").strip(),
             excel_path=Path(str(self.income_excel_field.stringValue() or "")).expanduser(),
             start_date=format_express_pv_date(str(self.income_start_field.stringValue() or "")),
             end_date=format_express_pv_date(str(self.income_end_field.stringValue() or "")),

@@ -97,7 +97,6 @@ class MainWindow:
         self.income_end_date = tk.StringVar(value="")
         self.income_pdf_folder = tk.StringVar(value="")
         self.income_pdf_summary = tk.StringVar(value=UI_TEXT["income_save_folder_empty"])
-        self.income_description = tk.StringVar(value="")
         self.income_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.income_pdf_files: list[Path] = []
         self._income_running = False
@@ -406,10 +405,6 @@ class MainWindow:
         )
         ttk.Label(form, textvariable=self.income_pdf_summary, wraplength=500).grid(
             row=5, column=0, columnspan=3, sticky="w", pady=(4, 0)
-        )
-        ttk.Label(form, text=UI_TEXT["income_description"]).grid(row=6, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(form, textvariable=self.income_description, width=42).grid(
-            row=6, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
         )
         form.columnconfigure(1, weight=1)
 
@@ -794,7 +789,6 @@ class MainWindow:
     def _income_form_config(self) -> IncomeFormConfig:
         return IncomeFormConfig(
             pdf_folder=Path(self.income_pdf_folder.get().strip()).expanduser(),
-            rv_description=self.income_description.get().strip(),
             excel_path=Path(self.income_excel_path.get().strip()).expanduser(),
             start_date=format_express_pv_date(self.income_start_date.get()),
             end_date=format_express_pv_date(self.income_end_date.get()),

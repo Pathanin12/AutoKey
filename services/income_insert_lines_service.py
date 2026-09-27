@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from constants.routes import (
     ACCOUNT_INCOME,
+    ACCOUNT_INCOME_ADVANCE,
+    ACCOUNT_INCOME_GOODS,
     ACCOUNT_INCOME_RECEIVABLE,
     ACCOUNT_INCOME_WHT,
     ACCOUNT_PP30_VAT_SALE,
+    INCOME_RV_ADVANCE,
+    INCOME_RV_GOODS,
     JNLTYP_RV,
     VOUCHER_RV_PREFIX,
 )
@@ -22,6 +26,22 @@ def _credit(account: str, amount: float) -> JournalLine:
 
 
 def rv_income(values: IncomeFormValues, date: str, description: str) -> JournalVoucher:
+    if values.kind == INCOME_RV_GOODS:
+        lines = _goods_lines(values)
+    elif values.kind == INCOME_RV_ADVANCE:
+        lines = _advance_lines(values)
+    else:
+        lines = _tax_lines(values)
+    return JournalVoucher(
+        jnltyp=JNLTYP_RV,
+        prefix=VOUCHER_RV_PREFIX,
+        voudat_express=date,
+        description=description,
+        lines=lines,
+    )
+
+
+def _tax_lines(values: IncomeFormValues) -> list[JournalLine]:
     debits: list[JournalLine] = []
     credits: list[JournalLine] = []
     if has_amount(values.total_amount):
@@ -33,10 +53,24 @@ def rv_income(values: IncomeFormValues, date: str, description: str) -> JournalV
     rest = round(sum(line.amount for line in debits) - sum(line.amount for line in credits), 2)
     if has_amount(rest):
         credits.append(_credit(ACCOUNT_INCOME, rest))
-    return JournalVoucher(
-        jnltyp=JNLTYP_RV,
-        prefix=VOUCHER_RV_PREFIX,
-        voudat_express=date,
-        description=description,
-        lines=[line for line in debits + credits if has_amount(line.amount)],
-    )
+    return [line for line in debits + credits if has_amount(line.amount)]
+
+
+def _goods_lines(values: IncomeFormValues) -> list[JournalLine]:
+    lines: list[JournalLine] = []
+    if has_amount(values.total_amount):
+        lines.append(_debit(ACCOUNT_INCOME_RECEIVABLE, values.total_amount))
+    if has_amount(values.wht_amount):
+        lines.append(_debit(ACCOUNT_INCOME_WHT, values.wht_amount))
+    rest = round(sum(line.amount for line in lines), 2)
+    if has_amount(rest):
+        lines.append(_credit(ACCOUNT_INCOME_GOODS, rest))
+    return lines
+
+
+def _advance_lines(values: IncomeFormValues) -> list[JournalLine]:
+    lines: list[JournalLine] = []
+    if has_amount(values.total_amount):
+        lines.append(_debit(ACCOUNT_INCOME_RECEIVABLE, values.total_amount))
+        lines.append(_credit(ACCOUNT_INCOME_ADVANCE, values.total_amount))
+    return lines

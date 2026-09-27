@@ -6,7 +6,7 @@ import shutil
 import sys
 
 from constants.routes import ASSETS_DIR
-from services.income_extract_service import is_rv_tax_invoice
+from services.income_extract_service import extract_income_values
 
 
 class IncomeOcrService:
@@ -47,10 +47,10 @@ def _vision_text(path: Path) -> str:
 
 def _windows_text(path: Path) -> str:
     tess = _safe(_tesseract_text, path)
-    if is_rv_tax_invoice(tess):
+    if extract_income_values(tess):
         return tess
     win = _safe(_windows_ocr, path)
-    if is_rv_tax_invoice(win):
+    if extract_income_values(win):
         return win
     return tess or win
 

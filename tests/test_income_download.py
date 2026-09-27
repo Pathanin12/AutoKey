@@ -78,7 +78,7 @@ class IncomeReportTypeTests(unittest.TestCase):
 
 class IncomeFormDownloadTests(unittest.TestCase):
     def test_form_needs_excel_and_dates(self) -> None:
-        errors = IncomeFormConfig(pdf_folder=Path("/no-folder"), rv_description="x").validate()
+        errors = IncomeFormConfig(pdf_folder=Path("/no-folder")).validate()
         self.assertTrue(any("Excel" in item for item in errors))
         self.assertTrue(any("วันที่" in item for item in errors))
         self.assertTrue(any("โฟลเดอร์" in item for item in errors))

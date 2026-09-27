@@ -10,7 +10,6 @@ from constants.routes import UI_TEXT
 @dataclass
 class IncomeFormConfig:
     pdf_folder: Path
-    rv_description: str
     excel_path: Path = Path()
     start_date: str = ""
     end_date: str = ""

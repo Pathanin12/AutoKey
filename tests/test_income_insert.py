@@ -3,14 +3,18 @@ from pathlib import Path
 
 from constants.routes import (
     ACCOUNT_INCOME,
+    ACCOUNT_INCOME_ADVANCE,
+    ACCOUNT_INCOME_GOODS,
     ACCOUNT_INCOME_RECEIVABLE,
     ACCOUNT_INCOME_WHT,
     ACCOUNT_PP30_VAT_SALE,
+    INCOME_RV_ADVANCE,
+    INCOME_RV_GOODS,
     VATREC_SALE,
 )
 from models.income_form_config import IncomeFormConfig
 from models.income_form_values import IncomeFormValues
-from services.income_extract_service import extract_income_invoice, is_rv_tax_invoice
+from services.income_extract_service import extract_income_invoice, extract_income_receipt, is_rv_tax_invoice
 from services.income_insert_lines_service import rv_income
 from services.income_insert_service import IncomeInsertService
 
@@ -54,6 +58,27 @@ _RECEIPT_ONLY = """
 บริษัท ซีพี ออลล์ จำกัด (มหาชน)
 ใบเสร็จรับเงิน
 ต้นฉบับ
+"""
+
+_RECEIPT_GOODS = """
+หจก. จิราวรรณ คอนวีเนียนซ์สโตร์
+ใบเสร็จรับเงิน (สำเนา)
+2900054763
+18.09.2026
+เลขประจำตัวผู้เสียภาษี 0107542000011
+3807064
+ชำระค่า : สินค้าและบริการ
+รวมเงินทั้งสิ้น 10,000.00
+หัก ภาษีหัก ณ ที่จ่าย 300.00
+"""
+
+_RECEIPT_ADVANCE = """
+หจก. ปรีดีวิทย์
+ใบเสร็จรับเงิน (สำเนา)
+18.09.2026
+3807064
+ชำระค่า : เบิกเงินสำรอง
+รวมเงินทั้งสิ้น 5,000.00
 """
 
 
@@ -113,6 +138,27 @@ class IncomeExtractTests(unittest.TestCase):
         assert values is not None
         self.assertEqual(values.bill_count, 2)
 
+    def test_reads_receipt_goods(self) -> None:
+        values = extract_income_receipt(_RECEIPT_GOODS)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.kind, INCOME_RV_GOODS)
+        self.assertEqual(values.company_name, "หจก. จิราวรรณ คอนวีเนียนซ์สโตร์")
+        self.assertEqual(values.invoice_number, "2900054763")
+        self.assertEqual(values.tax_id, "0107542000011")
+        self.assertEqual(values.branch_last5, "07064")
+        self.assertEqual(values.total_amount, 10000.0)
+        self.assertEqual(values.wht_amount, 300.0)
+
+    def test_reads_receipt_advance(self) -> None:
+        values = extract_income_receipt(_RECEIPT_ADVANCE)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.kind, INCOME_RV_ADVANCE)
+        self.assertEqual(values.company_name, "หจก. ปรีดีวิทย์")
+        self.assertEqual(values.branch_last5, "07064")
+        self.assertEqual(values.total_amount, 5000.0)
+
 
 class IncomeInsertLinesTests(unittest.TestCase):
     def test_rv_lines_then_income_remainder(self) -> None:
@@ -140,7 +186,7 @@ class IncomeInsertLinesTests(unittest.TestCase):
             ],
         )
 
-    def test_description_appends_branch(self) -> None:
+    def test_description_from_start_date(self) -> None:
         values = IncomeFormValues(
             company_name="หจก. ทดสอบ",
             branch_last5="70064",
@@ -152,15 +198,88 @@ class IncomeInsertLinesTests(unittest.TestCase):
             vat_amount=0.0,
             bill_count=1,
         )
-        form = IncomeFormConfig(pdf_folder=Path("."), rv_description="บมจ.ซีพีออลล์-ค่าตอบแทนการบริหาร ด.8/69")
+        form = IncomeFormConfig(pdf_folder=Path("."), start_date="01/08/69")
         self.assertEqual(
             IncomeInsertService.description(values, form),
             "บมจ.ซีพีออลล์-ค่าตอบแทนการบริหาร ด.8/69*70064",
         )
+        goods = IncomeFormValues(
+            company_name="หจก. ทดสอบ",
+            branch_last5="04497",
+            invoice_date="18/09/69",
+            invoice_number="2900054763",
+            tax_id="0107542000011",
+            total_amount=100.0,
+            wht_amount=3.0,
+            vat_amount=0.0,
+            bill_count=1,
+            kind=INCOME_RV_GOODS,
+        )
+        self.assertEqual(
+            IncomeInsertService.description(goods, form),
+            "บมจ.ซีพีออลล์-สินค้าและบริการ ด.8/69*04497",
+        )
+        advance = IncomeFormValues(
+            company_name="หจก. ทดสอบ",
+            branch_last5="09310",
+            invoice_date="18/09/69",
+            invoice_number="",
+            tax_id="",
+            total_amount=100.0,
+            wht_amount=0.0,
+            vat_amount=0.0,
+            bill_count=1,
+            kind=INCOME_RV_ADVANCE,
+        )
+        self.assertEqual(
+            IncomeInsertService.description(advance, form),
+            "บมจ.ซีพีออลล์-เบิกเงินสำรอง ด.8/69*09310",
+        )
         self.assertEqual(VATREC_SALE, "S")
 
+    def test_goods_and_advance_lines(self) -> None:
+        goods = IncomeFormValues(
+            company_name="หจก. ทดสอบ",
+            branch_last5="04497",
+            invoice_date="18/09/69",
+            invoice_number="2900054763",
+            tax_id="0107542000011",
+            total_amount=10000.0,
+            wht_amount=300.0,
+            vat_amount=0.0,
+            bill_count=1,
+            kind=INCOME_RV_GOODS,
+        )
+        self.assertEqual(
+            [(line.account, line.amount, line.is_credit) for line in rv_income(goods, "18/09/69", "x").lines],
+            [
+                (ACCOUNT_INCOME_RECEIVABLE, 10000.0, False),
+                (ACCOUNT_INCOME_WHT, 300.0, False),
+                (ACCOUNT_INCOME_GOODS, 10300.0, True),
+            ],
+        )
+        advance = IncomeFormValues(
+            company_name="หจก. ทดสอบ",
+            branch_last5="09310",
+            invoice_date="18/09/69",
+            invoice_number="",
+            tax_id="",
+            total_amount=5000.0,
+            wht_amount=0.0,
+            vat_amount=0.0,
+            bill_count=1,
+            kind=INCOME_RV_ADVANCE,
+        )
+        self.assertEqual(
+            [(line.account, line.amount, line.is_credit) for line in rv_income(advance, "18/09/69", "x").lines],
+            [
+                (ACCOUNT_INCOME_RECEIVABLE, 5000.0, False),
+                (ACCOUNT_INCOME_ADVANCE, 5000.0, True),
+            ],
+        )
+
     def test_form_needs_pdf_folder(self) -> None:
-        errors = IncomeFormConfig(pdf_folder=Path("/no-folder"), rv_description="x").validate()
+        errors = IncomeFormConfig(pdf_folder=Path("/no-folder")).validate()
         self.assertTrue(any("โฟลเดอร์" in item for item in errors))
         self.assertTrue(any("Excel" in item for item in errors))
 

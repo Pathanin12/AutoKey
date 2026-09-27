@@ -207,3 +207,12 @@ def voucher_year_month(pv_date: str) -> tuple[str, str]:
         raise ValueError(f"วันที่ใบสำคัญไม่ถูกต้อง: {pv_date}")
     _day, month, year = parts
     return f"{_express_year(year):02d}", f"{month:02d}"
+
+
+def express_month_year_label(pv_date: str) -> tuple[int, str]:
+    formatted = format_express_pv_date(pv_date)
+    parts = _date_parts(formatted)
+    if parts is None:
+        raise ValueError(f"วันที่ใบสำคัญไม่ถูกต้อง: {pv_date}")
+    _day, month, year = parts
+    return month, f"{_express_year(year):02d}"
