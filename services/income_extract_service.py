@@ -21,6 +21,7 @@ _PAY_FOR_RE = re.compile(r"ชำระค่า\s*[:：]?\s*(.+)")
 _TAX_ID_RE = re.compile(r"เลขประจำตัวผู้เสียภาษี\s*(\d{13})")
 _TAX_ID_LOOSE_RE = re.compile(r"(?<!\d)(\d{13})(?!\d)")
 _INVOICE_RE = re.compile(r"(29\d{8})(?=\d{2}[./-]\d{2}[./-]\d{2,4}|\D|$)")
+_RECEIPT_NUM_RE = re.compile(r"(28\d{8})(?=\d{2}[./-]\d{2}[./-]\d{2,4}|\D|$)")
 _BILL_RE = re.compile(r"(?<!\d)(60\d{8,12})(?!\d)")
 _BRANCH_CODE_RE = re.compile(r"รหัสสาขา\s*(\d{5,8})")
 _BRANCH_NO_RE = re.compile(r"สาขาที่\s*(\d{5,8})")
@@ -110,13 +111,16 @@ def extract_income_receipt(text: str) -> IncomeFormValues | None:
     totals = _receipt_totals(text)
     glued = _glue_digits(text)
     invoice_date = _invoice_date(glued) or _invoice_date(text)
-    invoice_number = _invoice_number(glued) or _invoice_number(text)
+    invoice_number = (
+        _invoice_number(glued)
+        or _invoice_number(text)
+        or _receipt_number(glued)
+        or _receipt_number(text)
+    )
     tax_id = _tax_id(glued) or _tax_id(text)
     branch = _branch_last5(glued) or _branch_last5(text)
     company = _company_name(text)
-    if totals is None or not branch or not company:
-        return None
-    if kind == INCOME_RV_GOODS and (not invoice_number or not tax_id):
+    if totals is None or not invoice_number or not tax_id or not branch or not company:
         return None
     total_amount, wht_amount, vat_amount = totals
     return IncomeFormValues(
@@ -192,6 +196,11 @@ def _invoice_date(text: str) -> str:
 
 def _invoice_number(text: str) -> str:
     match = _INVOICE_RE.search(text or "")
+    return match.group(1) if match else ""
+
+
+def _receipt_number(text: str) -> str:
+    match = _RECEIPT_NUM_RE.search(text or "")
     return match.group(1) if match else ""
 
 

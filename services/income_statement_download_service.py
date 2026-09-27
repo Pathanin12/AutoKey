@@ -76,10 +76,15 @@ class IncomeStatementDownloadService:
                 )
                 continue
             dest = print_all_path(folder, store.store_id)
-            IncomeSbpApi.merge(session.cookies, files, dest)
-            shop = IncomePdfService.shop_name(dest)
-            if shop:
-                dest = IncomeStatementDownloadService._save_as_shop(dest, shop)
+            shop = ""
+            try:
+                IncomeSbpApi.merge(session.cookies, files, dest)
+                shop = IncomePdfService.shop_name(dest)
+                if shop:
+                    dest = IncomeStatementDownloadService._save_as_shop(dest, shop)
+            except OSError as exc:
+                on_status(str(exc))
+                continue
             saved.append(dest)
             on_status(
                 UI_TEXT["income_download_log"].format(
@@ -94,6 +99,9 @@ class IncomeStatementDownloadService:
         dest = print_all_path(src.parent, core_company_name(shop_name) or shop_name)
         if dest.resolve() == src.resolve():
             return src
-        if dest.exists():
-            dest.unlink()
-        return src.replace(dest)
+        dest.write_bytes(src.read_bytes())
+        try:
+            src.unlink()
+        except OSError:
+            pass
+        return dest

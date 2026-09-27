@@ -47,8 +47,14 @@ class IncomePdfService:
         from pypdf import PdfReader
 
         reader = PdfReader(str(pdf_path))
-        texts = [_best_page_text(page) for page in reader.pages]
-        if any(extract_income_values(text) for text in texts):
+        try:
+            texts = [_best_page_text(page) for page in reader.pages]
+            found = any(extract_income_values(text) for text in texts)
+        finally:
+            closer = getattr(reader, "close", None)
+            if closer:
+                closer()
+        if found:
             return texts
         return _ocr_pages(pdf_path)
 

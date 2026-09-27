@@ -80,8 +80,7 @@ def _vat_amounts(values: IncomeFormValues, voucher) -> tuple[float, float]:
     if values.kind == INCOME_RV_GOODS:
         line = next((item for item in voucher.lines if item.account == ACCOUNT_INCOME_GOODS), None)
         amount = line.amount if line else round(values.total_amount + values.wht_amount, 2)
-        vat = round(values.vat_amount, 2)
-        return round(amount - vat, 2) if vat else amount, vat
+        return amount, 0.0
     if values.kind == INCOME_RV_ADVANCE:
         line = next((item for item in voucher.lines if item.account == ACCOUNT_INCOME_ADVANCE), None)
         return line.amount if line else round(values.total_amount, 2), 0.0

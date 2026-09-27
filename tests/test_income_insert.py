@@ -75,7 +75,9 @@ _RECEIPT_GOODS = """
 _RECEIPT_ADVANCE = """
 หจก. ปรีดีวิทย์
 ใบเสร็จรับเงิน (สำเนา)
+2800009528
 18.09.2026
+เลขประจำตัวผู้เสียภาษี 0107542000011
 3807064
 ชำระค่า : เบิกเงินสำรอง
 รวมเงินทั้งสิ้น 5,000.00
@@ -156,6 +158,8 @@ class IncomeExtractTests(unittest.TestCase):
         assert values is not None
         self.assertEqual(values.kind, INCOME_RV_ADVANCE)
         self.assertEqual(values.company_name, "หจก. ปรีดีวิทย์")
+        self.assertEqual(values.invoice_number, "2800009528")
+        self.assertEqual(values.tax_id, "0107542000011")
         self.assertEqual(values.branch_last5, "07064")
         self.assertEqual(values.total_amount, 5000.0)
 
