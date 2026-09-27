@@ -7,6 +7,7 @@ from models.income_form_values import IncomeFormValues
 from models.income_pdf_record import IncomePdfRecord
 from services.income_extract_service import extract_income_invoice, is_rv_tax_invoice
 from services.income_ocr_service import IncomeOcrService
+from services.income_pdf_render_service import IncomePdfRenderService
 
 
 class IncomePdfService:
@@ -56,37 +57,6 @@ class IncomePdfService:
 
 
 def _ocr_pages(pdf_path: Path) -> list[str]:
-    try:
-        import Quartz
-        from AppKit import NSBitmapImageRep, NSColor, NSGraphicsContext, NSImage, NSPNGFileType
-    except ImportError:
-        return []
-    url = Quartz.NSURL.fileURLWithPath_(str(pdf_path))
-    document = Quartz.PDFDocument.alloc().initWithURL_(url)
-    if document is None:
-        return []
-    texts: list[str] = []
-    scale = 1.5
     with TemporaryDirectory(prefix="income-pdf-") as raw_dir:
-        folder = Path(raw_dir)
-        for index in range(document.pageCount()):
-            page = document.pageAtIndex_(index)
-            box = page.boundsForBox_(Quartz.kPDFDisplayBoxMediaBox)
-            width, height = int(box.size.width * scale), int(box.size.height * scale)
-            image = NSImage.alloc().initWithSize_((width, height))
-            image.lockFocus()
-            NSColor.whiteColor().set()
-            Quartz.NSRectFill(((0, 0), (width, height)))
-            ctx = NSGraphicsContext.currentContext().graphicsPort()
-            Quartz.CGContextSaveGState(ctx)
-            Quartz.CGContextScaleCTM(ctx, scale, scale)
-            page.drawWithBox_(Quartz.kPDFDisplayBoxMediaBox)
-            Quartz.CGContextRestoreGState(ctx)
-            image.unlockFocus()
-            tiff = image.TIFFRepresentation()
-            rep = NSBitmapImageRep.imageRepWithData_(tiff)
-            png = rep.representationUsingType_properties_(NSPNGFileType, None)
-            dest = folder / f"page-{index + 1:03d}.png"
-            dest.write_bytes(png)
-            texts.append(IncomeOcrService.read_image(dest))
-    return texts
+        images = IncomePdfRenderService.render_pages(pdf_path, Path(raw_dir))
+        return [IncomeOcrService.read_image(path) for path in images]

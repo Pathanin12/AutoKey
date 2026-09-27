@@ -1,12 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_dynamic_libs
+
 root = Path(SPECPATH)
 
 a = Analysis(
     [str(root / "main.py")],
     pathex=[str(root)],
-    binaries=[],
+    binaries=collect_dynamic_libs("pypdfium2"),
     datas=[
         (str(root / "config.yaml"), "."),
         (str(root / "assets"), "assets"),
@@ -16,6 +18,7 @@ a = Analysis(
         "PIL.ImageTk",
         "yaml",
         "pypdf",
+        "pypdfium2",
         "tkinter",
         "tkinter.filedialog",
         "tkinter.messagebox",
