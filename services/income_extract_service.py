@@ -91,11 +91,11 @@ def _invoice_number(text: str) -> str:
 
 
 def _tax_id(text: str) -> str:
-    labeled = _TAX_ID_RE.search(text or "")
+    labeled = _TAX_ID_RE.findall(text or "")
     if labeled:
-        return labeled.group(1)
-    loose = _TAX_ID_LOOSE_RE.search(text or "")
-    return loose.group(1) if loose else ""
+        return labeled[-1]
+    loose = _TAX_ID_LOOSE_RE.findall(text or "")
+    return loose[-1] if loose else ""
 
 
 def _branch_last5(text: str) -> str:

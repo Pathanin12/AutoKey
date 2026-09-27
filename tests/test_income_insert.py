@@ -66,7 +66,7 @@ class IncomeExtractTests(unittest.TestCase):
         assert values is not None
         self.assertEqual(values.company_name, "หจก. พี ที รีเทลลิ่ง")
         self.assertEqual(values.invoice_number, "2900054763")
-        self.assertEqual(values.tax_id, "0103552027652")
+        self.assertEqual(values.tax_id, "0107542000011")
         self.assertEqual(values.invoice_date, "18/09/69")
         self.assertEqual(values.branch_last5, "07064")
         self.assertEqual(values.total_amount, 331326.73)
@@ -88,7 +88,7 @@ class IncomeInsertLinesTests(unittest.TestCase):
             branch_last5="70064",
             invoice_date="18/09/69",
             invoice_number="2900054763",
-            tax_id="0103552027652",
+            tax_id="0107542000011",
             total_amount=331326.73,
             wht_amount=9557.50,
             vat_amount=22300.84,
@@ -113,14 +113,17 @@ class IncomeInsertLinesTests(unittest.TestCase):
             branch_last5="70064",
             invoice_date="18/09/69",
             invoice_number="2900054763",
-            tax_id="0103552027652",
+            tax_id="0107542000011",
             total_amount=100.0,
             wht_amount=0.0,
             vat_amount=0.0,
             bill_count=1,
         )
-        form = IncomeFormConfig(pdf_folder=Path("."), rv_description="บมจ.ซีพีออลล์-ค่าตอบแทน*")
-        self.assertEqual(IncomeInsertService.description(values, form), "บมจ.ซีพีออลล์-ค่าตอบแทน*70064")
+        form = IncomeFormConfig(pdf_folder=Path("."), rv_description="บมจ.ซีพีออลล์-ค่าตอบแทนการบริหาร ด.8/69")
+        self.assertEqual(
+            IncomeInsertService.description(values, form),
+            "บมจ.ซีพีออลล์-ค่าตอบแทนการบริหาร ด.8/69*70064",
+        )
         self.assertEqual(VATREC_SALE, "S")
 
     def test_form_needs_pdf_folder(self) -> None:

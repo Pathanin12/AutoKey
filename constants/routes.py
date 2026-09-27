@@ -141,6 +141,7 @@ UI_TEXT = {
     "income_pdf_none": "ไม่พบไฟล์ PDF ในโฟลเดอร์นี้",
     "income_welcome_log": "เลือกโฟลเดอร์ PDF กรอกรายละเอียด RV แล้วกดเริ่ม",
     "income_skip_zero_log": "ข้าม — {name} ไม่มียอด",
+    "income_skip_no_invoice_log": "ข้าม — {path} ไม่เจอใบกำกับภาษี",
     "income_insert_log": "สรุป — {shop}: {detail}",
     "income_multi_bill_log": "สรุป — {name} สาขา {branch} มีมากกว่า 1",
     "menu_unavailable": "เมนูนี้ยังไม่พร้อมใช้",

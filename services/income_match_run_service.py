@@ -43,6 +43,7 @@ class IncomeMatchRunService:
                 on_progress(index, total)
                 continue
             if not record.invoices:
+                on_status(UI_TEXT["income_skip_no_invoice_log"].format(path=pdf_path.name))
                 on_progress(index, total)
                 continue
             for values in record.invoices:

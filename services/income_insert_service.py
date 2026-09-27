@@ -15,7 +15,7 @@ from services.income_insert_lines_service import rv_income
 class IncomeInsertService:
     @staticmethod
     def description(values: IncomeFormValues, form: IncomeFormConfig) -> str:
-        return f"{form.rv_description.strip()}{values.branch_last5}"
+        return f"{form.rv_description.strip()}*{values.branch_last5}"
 
     @staticmethod
     def voucher(values: IncomeFormValues, form: IncomeFormConfig):
