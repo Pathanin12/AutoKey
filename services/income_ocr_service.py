@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
+import shutil
 import sys
+
+from constants.routes import ASSETS_DIR
+from services.income_extract_service import is_rv_tax_invoice
 
 
 class IncomeOcrService:
@@ -41,8 +46,18 @@ def _vision_text(path: Path) -> str:
 
 
 def _windows_text(path: Path) -> str:
+    win = _safe(_windows_ocr, path)
+    if is_rv_tax_invoice(win):
+        return win
+    tess = _safe(_tesseract_text, path)
+    if is_rv_tax_invoice(tess):
+        return tess
+    return tess or win
+
+
+def _safe(reader, path: Path) -> str:
     try:
-        return _windows_ocr(path)
+        return reader(path) or ""
     except Exception:
         return ""
 
@@ -53,7 +68,7 @@ def _windows_ocr(path: Path) -> str:
     from winrt.windows.globalization import Language
     from winrt.windows.graphics.imaging import BitmapDecoder
     from winrt.windows.media.ocr import OcrEngine
-    from winrt.windows.storage import FileAccessMode, StorageFile
+    from winrt.windows.storage.streams import DataWriter, InMemoryRandomAccessStream
 
     async def recognize() -> str:
         engine = None
@@ -67,8 +82,11 @@ def _windows_ocr(path: Path) -> str:
             engine = OcrEngine.try_create_from_user_profile_languages()
         if engine is None:
             return ""
-        file = await StorageFile.get_file_from_path_async(str(path))
-        stream = await file.open_async(FileAccessMode.READ)
+        stream = InMemoryRandomAccessStream()
+        writer = DataWriter(stream)
+        writer.write_bytes(list(path.read_bytes()))
+        await writer.store_async()
+        stream.seek(0)
         decoder = await BitmapDecoder.create_async(stream)
         bitmap = await decoder.get_software_bitmap_async()
         result = await engine.recognize_async(bitmap)
@@ -77,3 +95,33 @@ def _windows_ocr(path: Path) -> str:
         return "\n".join(line.text for line in result.lines or [])
 
     return asyncio.run(recognize())
+
+
+def _tesseract_text(path: Path) -> str:
+    import pytesseract
+    from PIL import Image
+
+    cmd = _tesseract_cmd()
+    if not cmd:
+        return ""
+    pytesseract.pytesseract.tesseract_cmd = cmd
+    tessdata = Path(cmd).with_name("tessdata")
+    if tessdata.is_dir():
+        os.environ["TESSDATA_PREFIX"] = str(tessdata)
+    return pytesseract.image_to_string(Image.open(path), lang="tha+eng")
+
+
+def _tesseract_cmd() -> str:
+    bundled = ASSETS_DIR / "tesseract" / "tesseract.exe"
+    if bundled.exists():
+        return str(bundled)
+    found = shutil.which("tesseract")
+    if found:
+        return found
+    for candidate in (
+        Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe"),
+        Path(r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"),
+    ):
+        if candidate.exists():
+            return str(candidate)
+    return ""

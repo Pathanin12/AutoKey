@@ -19,6 +19,7 @@ a = Analysis(
         "yaml",
         "pypdf",
         "pypdfium2",
+        "pytesseract",
         "tkinter",
         "tkinter.filedialog",
         "tkinter.messagebox",

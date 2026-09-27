@@ -30,11 +30,12 @@ _COMPANY_PREFIXES = (
 
 
 def is_rv_tax_invoice(text: str) -> bool:
-    compact = (text or "").replace(" ", "")
+    compact = re.sub(r"\s+", "", (text or "").replace("\u0e4d\u0e32", "\u0e33"))
     return _TAX_INVOICE_MARK in compact and _RECEIPT_MARK in compact
 
 
 def extract_income_invoice(text: str) -> IncomeFormValues | None:
+    text = (text or "").replace("\u0e4d\u0e32", "\u0e33")
     if not is_rv_tax_invoice(text):
         return None
     totals = _totals(text)
