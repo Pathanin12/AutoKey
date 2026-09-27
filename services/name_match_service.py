@@ -76,4 +76,8 @@ def names_match(left: str, right: str) -> bool:
         return True
     left_core = compact_name(core_company_name(left_tidy))
     right_core = compact_name(core_company_name(right_tidy))
-    return bool(left_core) and left_core == right_core
+    if left_core and left_core == right_core:
+        return True
+    left_fold = fold_thai_marks(core_company_name(left_tidy))
+    right_fold = fold_thai_marks(core_company_name(right_tidy))
+    return bool(left_fold) and left_fold == right_fold

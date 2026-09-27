@@ -12,7 +12,7 @@ from services.income_excel_service import IncomeExcelService
 from services.income_insert_service import IncomeInsertService
 from services.income_pdf_service import IncomePdfService
 from services.income_statement_download_service import IncomeStatementDownloadService
-from services.name_match_service import fold_thai_marks, tidy_name
+from services.name_match_service import tidy_name
 from services.pp30_match_service import Pp30MatchService
 
 
@@ -61,16 +61,6 @@ class IncomeMatchRunService:
                 continue
             for values in record.invoices:
                 company = Pp30MatchService.match_lookup(values.company_name, lookup)
-                if company is None:
-                    folded = fold_thai_marks(values.company_name)
-                    company = next(
-                        (
-                            item
-                            for key, item in lookup.items()
-                            if fold_thai_marks(key) == folded
-                        ),
-                        None,
-                    )
                 if company is None:
                     on_status(
                         UI_TEXT["pp30_unmatched"].format(

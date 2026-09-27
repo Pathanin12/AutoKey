@@ -41,6 +41,16 @@ class Pp30MatchTests(unittest.TestCase):
         self.assertTrue(names_match(pdf_name, "ห้างหุ้นส่วนจำกัด  กชพรรุ่งเรือง"))
         self.assertTrue(names_match("หจก.กชพรรุ่งเรือง", shop_name))
 
+    def test_matches_when_pdf_font_drops_thai_marks(self) -> None:
+        shop = ExpressCompany(
+            folder=Path("/tmp/pt"),
+            shop_name="ห้างหุ้นส่วนจำกัด พี ที รีเทลลิ่ง",
+        )
+        self.assertTrue(names_match("หจก. พี ที รีเทลลิง", shop.shop_name))
+        found = Pp30MatchService.match_name("หจก. พี ที รีเทลลิง", [shop])
+        self.assertIsNotNone(found)
+        self.assertEqual(found.folder.name, "pt")
+
     def test_match_name_finds_shop_ignoring_spaces(self) -> None:
         companies = [
             ExpressCompany(folder=Path("/tmp/kachapor"), shop_name="ห้างหุ้นส่วนจำกัด\xa0กชพรรุ่งเรือง"),
