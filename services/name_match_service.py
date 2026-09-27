@@ -34,6 +34,10 @@ def tidy_name(value: str) -> str:
     return " ".join(text.split())
 
 
+def fold_thai_marks(value: str) -> str:
+    return "".join(ch for ch in compact_name(value) if unicodedata.category(ch) != "Mn")
+
+
 def compact_name(value: str) -> str:
     return (
         tidy_name(value)

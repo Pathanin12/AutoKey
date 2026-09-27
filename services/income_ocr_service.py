@@ -46,12 +46,12 @@ def _vision_text(path: Path) -> str:
 
 
 def _windows_text(path: Path) -> str:
-    win = _safe(_windows_ocr, path)
-    if is_rv_tax_invoice(win):
-        return win
     tess = _safe(_tesseract_text, path)
     if is_rv_tax_invoice(tess):
         return tess
+    win = _safe(_windows_ocr, path)
+    if is_rv_tax_invoice(win):
+        return win
     return tess or win
 
 

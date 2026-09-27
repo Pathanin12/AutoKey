@@ -74,6 +74,39 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertEqual(values.vat_amount, 22300.84)
         self.assertEqual(values.bill_count, 1)
 
+    def test_reads_invoice_from_numbers_when_thai_marks_missing(self) -> None:
+        text = (
+            "หจก พี ที รีเทลลิ่ง\n"
+            "2900054763 18.09.2026\n"
+            "0103552027652\n"
+            "เลขประจำตัวผู้เสียภาษี 0107542000011\n"
+            "3807064\n"
+            "318,583.39 22,300.84 340,884.23 9,557.50 331,326.73\n"
+        )
+        self.assertTrue(is_rv_tax_invoice(text))
+        values = extract_income_invoice(text)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.invoice_number, "2900054763")
+        self.assertEqual(values.tax_id, "0107542000011")
+        self.assertEqual(values.branch_last5, "07064")
+
+    def test_uses_date_after_invoice_number(self) -> None:
+        text = (
+            "หจก. พี ที รีเทลลิ่ง\n"
+            "31.08.2026\n"
+            "ใบเสร็จรับเงิน/ใบกำกับภาษี\n"
+            "2900054763\n"
+            "18.09.2026\n"
+            "เลขประจำตัวผู้เสียภาษี 0107542000011\n"
+            "3807064\n"
+            "318,583.39 22,300.84 340,884.23 9,557.50 331,326.73\n"
+        )
+        values = extract_income_invoice(text)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.invoice_date, "18/09/69")
+
     def test_counts_more_than_one_bill(self) -> None:
         values = extract_income_invoice(_SAMPLE_TWO_BILLS)
         self.assertIsNotNone(values)
