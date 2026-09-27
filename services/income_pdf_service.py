@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from constants.routes import INCOME_RV_TAX
 from models.income_form_values import IncomeFormValues
 from models.income_pdf_record import IncomePdfRecord
 from services.income_extract_service import extract_income_values
@@ -34,8 +33,7 @@ class IncomePdfService:
                 continue
             seen.add(key)
             invoices.append(values)
-        tax = [item for item in invoices if item.kind == INCOME_RV_TAX]
-        return tax or invoices
+        return invoices
 
     @staticmethod
     def shop_name(pdf_path: Path) -> str:

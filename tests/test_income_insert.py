@@ -10,11 +10,17 @@ from constants.routes import (
     ACCOUNT_PP30_VAT_SALE,
     INCOME_RV_ADVANCE,
     INCOME_RV_GOODS,
+    INCOME_RV_TAX,
     VATREC_SALE,
 )
 from models.income_form_config import IncomeFormConfig
 from models.income_form_values import IncomeFormValues
-from services.income_extract_service import extract_income_invoice, extract_income_receipt, is_rv_tax_invoice
+from services.income_extract_service import (
+    extract_income_invoice,
+    extract_income_receipt,
+    extract_income_values,
+    is_rv_tax_invoice,
+)
 from services.income_insert_lines_service import rv_income
 from services.income_insert_service import IncomeInsertService
 
@@ -151,6 +157,37 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertEqual(values.branch_last5, "07064")
         self.assertEqual(values.total_amount, 10000.0)
         self.assertEqual(values.wht_amount, 300.0)
+
+    def test_reads_goods_when_pay_is_on_next_line(self) -> None:
+        text = (
+            "ใบเสร็จรับเงิน (สำเนา)\n"
+            "หจก. กชพรตรรกพล 2489\n"
+            "2800007038\n"
+            "20.02.2026\n"
+            "เลขประจำตัวผู้เสียภาษี 0107542000011\n"
+            "3816329\n"
+            "ชำระค่า :\n"
+            "สินค้าและบริการ\n"
+            "รวมเงินทั้งสิ้น 6,306.37\n"
+            "หัก ภาษีหัก ณ ที่จ่าย 63.71\n"
+        )
+        values = extract_income_receipt(text)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.kind, INCOME_RV_GOODS)
+        self.assertEqual(values.invoice_number, "2800007038")
+        self.assertEqual(values.tax_id, "0107542000011")
+        self.assertEqual(values.invoice_date, "20/02/69")
+        self.assertEqual(values.total_amount, 6306.37)
+        self.assertEqual(values.wht_amount, 63.71)
+
+    def test_one_file_keeps_every_kind(self) -> None:
+        kinds = [
+            values.kind
+            for text in (_SAMPLE, _RECEIPT_GOODS, _RECEIPT_ADVANCE)
+            if (values := extract_income_values(text)) is not None
+        ]
+        self.assertEqual(kinds, [INCOME_RV_TAX, INCOME_RV_GOODS, INCOME_RV_ADVANCE])
 
     def test_reads_receipt_advance(self) -> None:
         values = extract_income_receipt(_RECEIPT_ADVANCE)

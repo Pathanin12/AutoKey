@@ -32,6 +32,9 @@ _DATE_RE = re.compile(r"(?<!\d)(\d{1,2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{2,4})
 _INVOICE_THEN_DATE_RE = re.compile(
     r"29\d{8}\s*(\d{1,2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{2,4})"
 )
+_RECEIPT_THEN_DATE_RE = re.compile(
+    r"28\d{8}\s*(\d{1,2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{2,4})"
+)
 _INVOICE_DATE_RE = re.compile(r"29\d{8}(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})")
 _COMPANY_PREFIXES = (
     "ห้างหุ้นส่วนจำกัด",
@@ -142,13 +145,15 @@ def is_rv_receipt_copy(text: str) -> bool:
 
 
 def _receipt_kind(text: str) -> str | None:
-    compact = re.sub(r"\s+", "", _norm_thai(text))
+    text = _norm_thai(text)
+    compact = re.sub(r"\s+", "", text)
     if _RECEIPT_MARK not in compact and "เสร็จรับเงิน" not in compact:
         return None
     pay = _pay_for(text)
-    if INCOME_PAY_GOODS in pay:
+    blob = f"{pay} {text} {compact}"
+    if INCOME_PAY_GOODS in blob:
         return INCOME_RV_GOODS
-    if INCOME_PAY_ADVANCE in pay or INCOME_PAY_ADVANCE_ALT in pay:
+    if INCOME_PAY_ADVANCE in blob or INCOME_PAY_ADVANCE_ALT in blob:
         return INCOME_RV_ADVANCE
     return None
 
@@ -184,7 +189,7 @@ def _totals(text: str) -> tuple[float, float, float] | None:
 
 
 def _invoice_date(text: str) -> str:
-    for pattern in (_INVOICE_THEN_DATE_RE, _INVOICE_DATE_RE, _DATE_RE):
+    for pattern in (_RECEIPT_THEN_DATE_RE, _INVOICE_THEN_DATE_RE, _INVOICE_DATE_RE, _DATE_RE):
         for match in pattern.finditer(text or ""):
             day, month, year = match.groups()
             raw = f"{int(day):02d}/{int(month):02d}/{year}"
