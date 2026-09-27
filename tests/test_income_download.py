@@ -99,7 +99,9 @@ class IncomeFormDownloadTests(unittest.TestCase):
             src = Path(tmp) / "07064.pdf"
             src.write_bytes(b"%PDF")
             dest = IncomeStatementDownloadService._save_as_shop(src, "หจก. จิราวรรณ คอนวีเนียนซ์สโตร์")
-            self.assertEqual(dest.name, "หจก. จิราวรรณ คอนวีเนียนซ์สโตร์.pdf")
+            self.assertEqual(dest.name, "จิราวรรณ คอนวีเนียนซ์สโตร์.pdf")
+            dest = IncomeStatementDownloadService._save_as_shop(dest, "บจก. ทดสอบ")
+            self.assertEqual(dest.name, "ทดสอบ.pdf")
             self.assertTrue(dest.exists())
             self.assertFalse(src.exists())
 

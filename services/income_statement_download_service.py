@@ -11,6 +11,7 @@ from models.income_portal_account import IncomePortalAccount
 from models.income_portal_session import IncomePortalSession
 from services.income_pdf_service import IncomePdfService
 from services.income_portal_login_service import IncomePortalLoginService
+from services.name_match_service import core_company_name
 
 
 class IncomeStatementDownloadService:
@@ -90,7 +91,7 @@ class IncomeStatementDownloadService:
 
     @staticmethod
     def _save_as_shop(src: Path, shop_name: str) -> Path:
-        dest = print_all_path(src.parent, shop_name)
+        dest = print_all_path(src.parent, core_company_name(shop_name) or shop_name)
         if dest.resolve() == src.resolve():
             return src
         if dest.exists():
