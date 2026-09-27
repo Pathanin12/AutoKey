@@ -166,6 +166,12 @@ def express_date_to_dbf(pv_date: str) -> str:
     return f"{_ce_year(year):04d}{month:02d}{day:02d}"
 
 
+def express_date_to_iso(pv_date: str) -> str:
+    """31/08/69 → 2026-08-31"""
+    dbf = express_date_to_dbf(pv_date)
+    return f"{dbf[:4]}-{dbf[4:6]}-{dbf[6:8]}"
+
+
 def calendar_date(value: str) -> tuple[int, int, int] | None:
     """วัน, เดือน, ปี ค.ศ. จากวันที่ Express หรือ DBF"""
     text = (value or "").strip()

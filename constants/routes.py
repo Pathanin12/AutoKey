@@ -31,6 +31,40 @@ PAGE_PP30 = "pp30"
 PAGE_PND30 = "pnd30"
 PAGE_PND3 = "pnd3"
 PAGE_INCOME = "income"
+EKO_HTTP_URL = "https://cpall-h1.ekoapp.com"
+EKO_LOGIN_PATH = "/api/v1/auth/login"
+EKO_ORIGIN_URL = "https://cpall.ekoapp.com"
+SBP_ORIGIN_URL = "https://sbp.cpall.co.th"
+SBP_STATEMENT_PATH = "/statement/"
+SBP_BFF_URL = "https://sbpmall-bff.cpall.co.th/api/v1"
+SBP_AUTH_LOGIN_PATH = "/auth/login"
+SBP_STORES_PATH = "/store-statement/dropdown/stores"
+SBP_REPORT_TYPES_PATH = "/store-statement/dropdown/report-types"
+SBP_SEARCH_REPORT_PATH = "/store-statement/search-report"
+SBP_MERGE_FILE_PATH = "/store-statement/merge-file"
+SBP_STATEMENT_TYPE = "sbp"
+SBP_FILE_TYPE_NORMAL = "NORMAL"
+INCOME_WANTED_REPORT_CODES = (
+    "STMTRPT1",
+    "STMTRPT2",
+    "SAP001ARREC",
+    "SAP002APREC",
+    "SAP002APRECTAX",
+    "SAP003WHTAP",
+    "RT040079",
+)
+INCOME_WANTED_REPORT_NAMES = (
+    "Statement Form 1",
+    "Statement Form 2",
+    "ใบเสร็จรับเงิน (ออกให้)",
+    "ใบเสร็จรับเงิน (ออกแทน)",
+    "ใบเสร็จรับเงิน/ใบกำกับภาษี (ออกให้)",
+    "ใบเสร็จรับเงิน/ใบกำกับภาษี (ออกแทน)",
+    "เอกสาร หัก ณ ที่จ่าย (ออกให้)",
+    "เอกสาร หัก ณ ที่จ่าย (ออกแทน)",
+    "รายงานอากรแสตมป์",
+)
+INCOME_PRINT_ALL_NAME = "statement-print-all-{store}.pdf"
 MENU_BUTTON_HEIGHT = 75
 MENU_BUTTON_IPADY = 26
 PDF_OPEN_EXTENSIONS = ("pdf",)
@@ -136,10 +170,23 @@ UI_TEXT = {
     "pnd3_insert_log": "สรุป — {shop}: {detail}",
     "menu_income": "รายได้",
     "menu_income_hint": "รายได้",
+    "income_excel": "ไฟล์ Excel",
+    "income_excel_empty": "ยังไม่ได้เลือกไฟล์ Excel",
+    "income_excel_total": "พบ {count} ร้าน",
+    "income_excel_invalid": "กรุณาเลือกไฟล์ Excel",
+    "income_excel_none": "ไม่พบร้านในไฟล์ Excel",
+    "income_start_date": "วันที่เริ่มต้น",
+    "income_end_date": "วันที่สิ้นสุด",
+    "income_date_invalid": "กรุณากรอกวันที่เริ่มต้นและวันสิ้นสุดให้ครบ เช่น 01/08/69",
     "income_description": "รายละเอียด RV",
-    "income_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",
-    "income_pdf_none": "ไม่พบไฟล์ PDF ในโฟลเดอร์นี้",
-    "income_welcome_log": "เลือกโฟลเดอร์ PDF กรอกรายละเอียด RV แล้วกดเริ่ม",
+    "income_save_folder": "โฟลเดอร์บันทึก PDF",
+    "income_save_folder_empty": "ยังไม่ได้เลือกโฟลเดอร์บันทึก PDF",
+    "income_pdf_invalid": "กรุณาเลือกโฟลเดอร์บันทึก PDF",
+    "income_pdf_none": "ไม่พบไฟล์ PDF ที่โหลดได้",
+    "income_login_failed": "เข้าสู่ระบบไม่ได้ — {name}",
+    "income_download_log": "โหลดแล้ว — {name} สาขา {store}",
+    "income_download_none": "ไม่พบรายงาน — {name} สาขา {store}",
+    "income_welcome_log": "เลือกไฟล์ Excel กรอกวันที่ โฟลเดอร์ และรายละเอียด RV แล้วกดเริ่ม",
     "income_skip_zero_log": "ข้าม — {name} ไม่มียอด",
     "income_skip_no_invoice_log": "ข้าม — {path} ไม่เจอใบกำกับภาษี",
     "income_insert_log": "สรุป — {shop}: {detail}",

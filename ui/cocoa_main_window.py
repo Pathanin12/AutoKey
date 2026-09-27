@@ -63,6 +63,7 @@ from models.topic_menu_item import TopicMenuItem
 from services.app_config_service import AppConfigService
 from services.express_shop_index_service import ExpressShopIndexService
 from services.ka_tam_excel_service import KaTamExcelService
+from services.income_excel_service import IncomeExcelService
 from services.income_match_run_service import IncomeMatchRunService
 from services.ka_tam_match_run_service import KaTamMatchRunService
 from services.pnd3_match_run_service import Pnd3MatchRunService
@@ -78,7 +79,7 @@ PP30_WIN_H = 680
 KA_TAM_WIN_H = 680
 PND30_WIN_H = 620
 PND3_WIN_H = 620
-INCOME_WIN_H = 620
+INCOME_WIN_H = 760
 
 
 class FlippedView(NSView):
@@ -563,9 +564,37 @@ class MainWindow:
         )
         _static_label(page, UI_TEXT["menu_income"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
 
-        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 138)
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 250)
         sy = 8
-        _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
+        _static_label(settings, UI_TEXT["income_excel"], 8, sy, 110, 22)
+        self.income_excel_field = _edit_field(settings, 120, sy, 248)
+        _button(
+            settings,
+            UI_TEXT["choose_file"],
+            376,
+            sy - 2,
+            108,
+            28,
+            self._keep(self._choose_income_excel),
+            bezel=NSBezelStyleRounded,
+        )
+        sy += 26
+        self.income_excel_summary_field = _static_label(
+            settings, UI_TEXT["income_excel_empty"], 8, sy, 500, 20, size=11, gray=True
+        )
+        sy += 28
+        _static_label(settings, UI_TEXT["income_start_date"], 8, sy, 110, 22)
+        self.income_start_field = _edit_field(settings, 120, sy, 120)
+        self.income_start_field.setPlaceholderString_(PV_DATE_EXAMPLE)
+        _static_label(settings, UI_TEXT["income_end_date"], 256, sy, 90, 22)
+        self.income_end_field = _edit_field(settings, 348, sy, 128)
+        self.income_end_field.setPlaceholderString_(PV_DATE_EXAMPLE)
+        date_delegate = _DateFieldDelegate.alloc().init()
+        self.income_start_field.setDelegate_(date_delegate)
+        self.income_end_field.setDelegate_(date_delegate)
+        self._income_date_delegate = date_delegate
+        sy += 30
+        _static_label(settings, UI_TEXT["income_save_folder"], 8, sy, 110, 22)
         self.income_folder_field = _edit_field(settings, 120, sy, 248)
         _button(
             settings,
@@ -579,7 +608,7 @@ class MainWindow:
         )
         sy += 26
         self.income_folder_summary_field = _static_label(
-            settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
+            settings, UI_TEXT["income_save_folder_empty"], 8, sy, 500, 20, size=11, gray=True
         )
         sy += 28
         _static_label(settings, UI_TEXT["income_description"], 8, sy, 110, 22)
@@ -589,14 +618,14 @@ class MainWindow:
             page,
             f"▶ {UI_TEXT['start']}",
             16,
-            226,
+            338,
             160,
             36,
             self._keep(self._start_income),
             bezel=NSBezelStyleRounded,
         )
 
-        y = 276
+        y = 388
         _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, INCOME_WIN_H - y - 12)
         self.income_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
         self.income_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
@@ -993,6 +1022,27 @@ class MainWindow:
         board.clearContents()
         board.setString_forType_(text, NSPasteboardTypeString)
 
+    def _choose_income_excel(self) -> None:
+        selected = _pick_file(("xlsx", "xls"))
+        if not selected:
+            return
+        self.income_excel_field.setStringValue_(selected)
+        self._load_income_excel()
+
+    def _load_income_excel(self) -> None:
+        path = Path(str(self.income_excel_field.stringValue() or "")).expanduser()
+        if not path.exists():
+            self.income_excel_summary_field.setStringValue_(UI_TEXT["income_excel_empty"])
+            return
+        try:
+            accounts = IncomeExcelService.load_accounts(path)
+        except Exception as exc:
+            self.income_excel_summary_field.setStringValue_(str(exc))
+            return
+        self.income_excel_summary_field.setStringValue_(
+            UI_TEXT["income_excel_total"].format(count=len(accounts))
+        )
+
     def _choose_income_folder(self) -> None:
         selected = _pick_folder()
         if not selected:
@@ -1002,18 +1052,18 @@ class MainWindow:
 
     def _load_income_folder(self) -> None:
         folder = Path(str(self.income_folder_field.stringValue() or "")).expanduser()
-        self.income_pdf_files = Pp30FolderService.list_pdfs(folder)
-        if self.income_pdf_files:
-            self.income_folder_summary_field.setStringValue_(
-                UI_TEXT["pp30_pdf_total"].format(count=len(self.income_pdf_files))
-            )
+        if folder.exists() and folder.is_dir():
+            self.income_folder_summary_field.setStringValue_(str(folder))
         else:
-            self.income_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
+            self.income_folder_summary_field.setStringValue_(UI_TEXT["income_save_folder_empty"])
 
     def _income_form_config(self) -> IncomeFormConfig:
         return IncomeFormConfig(
             pdf_folder=Path(str(self.income_folder_field.stringValue() or "")).expanduser(),
             rv_description=str(self.income_description_field.stringValue() or "").strip(),
+            excel_path=Path(str(self.income_excel_field.stringValue() or "")).expanduser(),
+            start_date=format_express_pv_date(str(self.income_start_field.stringValue() or "")),
+            end_date=format_express_pv_date(str(self.income_end_field.stringValue() or "")),
             pdf_files=list(self.income_pdf_files),
         )
 
@@ -1021,15 +1071,14 @@ class MainWindow:
         if self._income_running:
             return
         self.app_config = self.app_config_service.load()
+        self._load_income_excel()
         self._load_income_folder()
         errors = self.app_config.validate()
         errors.extend(self._income_form_config().validate())
         if errors:
             _alert(UI_TEXT["app_title"], "\n".join(errors))
             return
-        total = len(self.income_pdf_files)
-        self._set_income_progress(0, total)
-        self._append_income_log(UI_TEXT["pp30_pdf_total"].format(count=total))
+        self._set_income_progress(0, 0)
         form_config = self._income_form_config()
         express_data_dir = self.app_config.express_data_dir
         self._income_running = True

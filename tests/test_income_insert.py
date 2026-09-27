@@ -162,6 +162,7 @@ class IncomeInsertLinesTests(unittest.TestCase):
     def test_form_needs_pdf_folder(self) -> None:
         errors = IncomeFormConfig(pdf_folder=Path("/no-folder"), rv_description="x").validate()
         self.assertTrue(any("โฟลเดอร์" in item for item in errors))
+        self.assertTrue(any("Excel" in item for item in errors))
 
 
 if __name__ == "__main__":

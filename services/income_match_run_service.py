@@ -8,8 +8,10 @@ from models.income_form_config import IncomeFormConfig
 from models.income_matched_job import IncomeMatchedJob
 from services.express_journal_date_service import ExpressJournalDateService
 from services.express_shop_index_service import ExpressShopIndexService
+from services.income_excel_service import IncomeExcelService
 from services.income_insert_service import IncomeInsertService
 from services.income_pdf_service import IncomePdfService
+from services.income_statement_download_service import IncomeStatementDownloadService
 from services.name_match_service import fold_thai_marks, tidy_name
 from services.pp30_match_service import Pp30MatchService
 
@@ -28,6 +30,17 @@ class IncomeMatchRunService:
         on_status(UI_TEXT["pp30_shops_total"].format(count=len(companies)))
         if not companies:
             raise ValueError(UI_TEXT["pp30_shops_none"])
+        accounts = IncomeExcelService.load_accounts(form_config.excel_path)
+        on_status(UI_TEXT["income_excel_total"].format(count=len(accounts)))
+        if not accounts:
+            raise ValueError(UI_TEXT["income_excel_none"])
+        form_config.pdf_files = IncomeStatementDownloadService.download(
+            accounts,
+            form_config,
+            on_status=on_status,
+        )
+        if not form_config.pdf_files:
+            raise ValueError(UI_TEXT["income_pdf_none"])
         lookup = Pp30MatchService.lookup(companies)
         total = len(form_config.pdf_files)
         jobs: list[IncomeMatchedJob] = []
