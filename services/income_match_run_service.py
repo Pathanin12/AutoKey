@@ -85,13 +85,6 @@ class IncomeMatchRunService:
                         form_values=values,
                     )
                 )
-                if values.bill_count > 1:
-                    on_status(
-                        UI_TEXT["income_multi_bill_log"].format(
-                            name=values.company_name,
-                            branch=values.branch_last5,
-                        )
-                    )
                 if not values.has_total:
                     on_status(UI_TEXT["income_skip_zero_log"].format(name=values.company_name))
                     continue
@@ -121,4 +114,19 @@ class IncomeMatchRunService:
                     on_status(f"{values.company_name}: {exc}")
             on_progress(index, total)
         on_status(UI_TEXT["pp30_insert_done"].format(inserted=inserted, total=invoice_total))
+        seen: set[tuple[str, str]] = set()
+        for job in jobs:
+            if job.form_values.bill_count <= 1:
+                continue
+            key = (job.pdf_name, job.form_values.branch_last5)
+            if key in seen:
+                continue
+            seen.add(key)
+            on_status(
+                UI_TEXT["income_multi_bill_log"].format(
+                    name=job.pdf_name,
+                    branch=job.form_values.branch_last5,
+                    count=job.form_values.bill_count,
+                )
+            )
         return jobs

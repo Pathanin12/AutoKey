@@ -201,7 +201,7 @@ UI_TEXT = {
     "income_skip_zero_log": "ข้าม — {name} ไม่มียอด",
     "income_skip_no_invoice_log": "ข้าม — {path} ไม่เจอใบกำกับภาษีหรือใบเสร็จ",
     "income_insert_log": "สรุป — {shop}: {detail}",
-    "income_multi_bill_log": "สรุป — {name} สาขา {branch} มีมากกว่า 1",
+    "income_multi_bill_log": "สรุป — {name} สาขา {branch} มี {count} บิล",
     "menu_unavailable": "เมนูนี้ยังไม่พร้อมใช้",
     "back_to_menu": "กลับเมนู",
     "config_title": "ตั้งค่า",
