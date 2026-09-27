@@ -36,6 +36,11 @@ class IncomePdfService:
         return invoices
 
     @staticmethod
+    def shop_name(pdf_path: Path) -> str:
+        invoices = IncomePdfService.load_invoices(pdf_path)
+        return invoices[0].company_name if invoices else ""
+
+    @staticmethod
     def _page_texts(pdf_path: Path) -> list[str]:
         from pypdf import PdfReader
 

@@ -4,12 +4,13 @@ from tempfile import TemporaryDirectory
 
 from openpyxl import Workbook
 
-from api.income_sbp_api import pick_report_types
+from api.income_sbp_api import pick_report_types, print_all_path
 from constants.date_utils import express_date_to_iso
 from constants.routes import INCOME_WANTED_REPORT_CODES
 from models.income_form_config import IncomeFormConfig
 from models.income_report_type import IncomeReportType
 from services.income_excel_service import IncomeExcelService
+from services.income_statement_download_service import IncomeStatementDownloadService
 
 
 def _type(code: str, name: str = "") -> IncomeReportType:
@@ -85,6 +86,22 @@ class IncomeFormDownloadTests(unittest.TestCase):
     def test_iso_date_from_express(self) -> None:
         self.assertEqual(express_date_to_iso("01/08/69"), "2026-08-01")
         self.assertEqual(express_date_to_iso("31/08/69"), "2026-08-31")
+
+    def test_pdf_name_is_shop_only(self) -> None:
+        with TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            path = print_all_path(folder, "หจก. พี ที รีเทลลิ่ง")
+            self.assertEqual(path.name, "หจก. พี ที รีเทลลิ่ง.pdf")
+            self.assertEqual(print_all_path(folder, "ห้าง A/B").name, "ห้าง A B.pdf")
+
+    def test_renames_download_to_pdf_shop(self) -> None:
+        with TemporaryDirectory() as tmp:
+            src = Path(tmp) / "07064.pdf"
+            src.write_bytes(b"%PDF")
+            dest = IncomeStatementDownloadService._save_as_shop(src, "หจก. จิราวรรณ คอนวีเนียนซ์สโตร์")
+            self.assertEqual(dest.name, "หจก. จิราวรรณ คอนวีเนียนซ์สโตร์.pdf")
+            self.assertTrue(dest.exists())
+            self.assertFalse(src.exists())
 
 
 if __name__ == "__main__":

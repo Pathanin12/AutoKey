@@ -160,8 +160,10 @@ def pick_report_types(available: list[IncomeReportType]) -> list[str]:
     return picked
 
 
-def print_all_path(folder: Path, store_id: str) -> Path:
-    return folder / INCOME_PRINT_ALL_NAME.format(store=store_id)
+def print_all_path(folder: Path, shop_name: str) -> Path:
+    shop = "".join(" " if ch in '\\/:*?"<>|' else ch for ch in shop_name)
+    shop = " ".join(shop.split()).rstrip(" .")
+    return folder / INCOME_PRINT_ALL_NAME.format(shop=shop)
 
 
 def _object(body: bytes) -> dict:

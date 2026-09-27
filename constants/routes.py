@@ -64,7 +64,7 @@ INCOME_WANTED_REPORT_NAMES = (
     "เอกสาร หัก ณ ที่จ่าย (ออกแทน)",
     "รายงานอากรแสตมป์",
 )
-INCOME_PRINT_ALL_NAME = "statement-print-all-{store}.pdf"
+INCOME_PRINT_ALL_NAME = "{shop}.pdf"
 MENU_BUTTON_HEIGHT = 75
 MENU_BUTTON_IPADY = 26
 PDF_OPEN_EXTENSIONS = ("pdf",)

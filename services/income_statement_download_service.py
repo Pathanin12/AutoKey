@@ -9,6 +9,7 @@ from constants.routes import UI_TEXT
 from models.income_form_config import IncomeFormConfig
 from models.income_portal_account import IncomePortalAccount
 from models.income_portal_session import IncomePortalSession
+from services.income_pdf_service import IncomePdfService
 from services.income_portal_login_service import IncomePortalLoginService
 
 
@@ -75,11 +76,23 @@ class IncomeStatementDownloadService:
                 continue
             dest = print_all_path(folder, store.store_id)
             IncomeSbpApi.merge(session.cookies, files, dest)
+            shop = IncomePdfService.shop_name(dest)
+            if shop:
+                dest = IncomeStatementDownloadService._save_as_shop(dest, shop)
             saved.append(dest)
             on_status(
                 UI_TEXT["income_download_log"].format(
-                    name=account.legal_name,
+                    name=shop or account.legal_name,
                     store=store.store_id,
                 )
             )
         return saved
+
+    @staticmethod
+    def _save_as_shop(src: Path, shop_name: str) -> Path:
+        dest = print_all_path(src.parent, shop_name)
+        if dest.resolve() == src.resolve():
+            return src
+        if dest.exists():
+            dest.unlink()
+        return src.replace(dest)
