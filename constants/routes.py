@@ -53,15 +53,21 @@ ACCOUNT_PP30_VAT_PAYABLE = "2137-00"
 ACCOUNT_PP30_NEW_SHOP = "1156-00"
 ACCOUNT_PP30_PENALTY = "5390-01"
 ACCOUNT_PP30_DECIMAL = "4200-03"
+ACCOUNT_INCOME_RECEIVABLE = "1113-01"
+ACCOUNT_INCOME_WHT = "1151-02"
+ACCOUNT_INCOME = "4100-02"
 
 GLJNL_FILE_NAMES = ("GLJNL.DBF", "gljnl.dbf")
 GLJNLIT_FILE_NAMES = ("GLJNLIT.DBF", "gljnlit.dbf")
 ISVAT_FILE_NAMES = ("ISVAT.DBF", "isvat.dbf")
 VATREC_PURCHASE = "P"
+VATREC_SALE = "S"
 JNLTYP_JV = "00"
 JNLTYP_PV = "01"
+JNLTYP_RV = "02"
 VOUCHER_JV_PREFIX = "JV"
 VOUCHER_PV_PREFIX = "PV"
+VOUCHER_RV_PREFIX = "RV"
 JOURNAL_SRCJNL = "GL"
 JOURNAL_TRNSTAT = "P"
 JOURNAL_DOCSTAT = "N"
@@ -130,6 +136,13 @@ UI_TEXT = {
     "pnd3_insert_log": "สรุป — {shop}: {detail}",
     "menu_income": "รายได้",
     "menu_income_hint": "รายได้",
+    "income_description": "รายละเอียด RV",
+    "income_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",
+    "income_pdf_none": "ไม่พบไฟล์ PDF ในโฟลเดอร์นี้",
+    "income_welcome_log": "เลือกโฟลเดอร์ PDF กรอกรายละเอียด RV แล้วกดเริ่ม",
+    "income_skip_zero_log": "ข้าม — {name} ไม่มียอด",
+    "income_insert_log": "สรุป — {shop}: {detail}",
+    "income_multi_bill_log": "สรุป — {name} สาขา {branch} มีมากกว่า 1",
     "menu_unavailable": "เมนูนี้ยังไม่พร้อมใช้",
     "back_to_menu": "กลับเมนู",
     "config_title": "ตั้งค่า",

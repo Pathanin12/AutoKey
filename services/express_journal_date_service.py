@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from constants.date_utils import format_express_pv_date, is_complete_express_date, same_calendar_date
-from constants.routes import GLJNL_FILE_NAMES, VOUCHER_JV_PREFIX, VOUCHER_PV_PREFIX
+from constants.routes import GLJNL_FILE_NAMES, VOUCHER_JV_PREFIX, VOUCHER_PV_PREFIX, VOUCHER_RV_PREFIX
 from models.express_journal_date import ExpressJournalDate
 from models.journal_voucher import JournalVoucher
 from services.dbf_table_service import DbfTableService
@@ -57,7 +57,11 @@ class ExpressJournalDateService:
 
 
 def _is_jv_or_pv(voucher: str) -> bool:
-    return voucher.startswith(VOUCHER_JV_PREFIX) or voucher.startswith(VOUCHER_PV_PREFIX)
+    return (
+        voucher.startswith(VOUCHER_JV_PREFIX)
+        or voucher.startswith(VOUCHER_PV_PREFIX)
+        or voucher.startswith(VOUCHER_RV_PREFIX)
+    )
 
 
 def _same_description(stored: str, wanted: str) -> bool:
