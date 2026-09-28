@@ -24,12 +24,14 @@ from constants.routes import (
     INCOME_LOCK_PASSWORD,
     VATREC_SALE,
 )
+from models.express_company import ExpressCompany
 from models.income_form_config import IncomeFormConfig
 from models.income_form_values import IncomeFormValues
 from models.income_lock_mode import IncomeLockMode
 from models.income_pdf_name import IncomePdfName
 from services.income_pdf_service import IncomePdfService
 from services.income_report_service import IncomeReportService
+from services.pp30_match_service import Pp30MatchService
 from services.income_extract_service import (
     extract_income_invoice,
     extract_income_receipt,
@@ -550,6 +552,20 @@ class IncomeExtractTests(unittest.TestCase):
             self.assertEqual(sheet["A5"].value, 1)
             self.assertEqual(sheet["E5"].font.color.rgb, "FFFF0000")
             self.assertNotEqual(getattr(sheet["E3"].font.color, "rgb", None), "FFFF0000")
+
+    def test_reads_company_with_short_bj_prefix(self) -> None:
+        values = extract_income_values(_SAMPLE.replace("หจก. พี ที รีเทลลิ่ง", "บจ. ไดมอนด์ เอ็นเนอจี กรุ๊ป 1"))
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.company_name, "บจ. ไดมอนด์ เอ็นเนอจี กรุ๊ป 1")
+        companies = [
+            ExpressCompany(folder=Path("a"), shop_name="บจก. ไดมอนด์ เอ็นเนอจี้ กรุ๊ป"),
+            ExpressCompany(folder=Path("b"), shop_name="บจก. ไดมอนด์ เอ็นเนอจี้ กรุ๊ป 1"),
+        ]
+        company = Pp30MatchService.match_lookup(values.company_name, Pp30MatchService.lookup(companies))
+        self.assertIsNotNone(company)
+        assert company is not None
+        self.assertEqual(company.folder, Path("b"))
 
     def test_shop_tax_id_skips_cpall(self) -> None:
         values = extract_income_pv_tax(_CPALL_PV_TAX)
