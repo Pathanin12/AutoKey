@@ -68,7 +68,7 @@ INCOME_PRINT_ALL_NAME = "{shop}.pdf"
 MENU_BUTTON_HEIGHT = 75
 MENU_BUTTON_IPADY = 26
 PDF_OPEN_EXTENSIONS = ("pdf",)
-IMAGE_OPEN_EXTENSIONS = ("png", "jpg", "jpeg")
+IMAGE_OPEN_EXTENSIONS = ("png", "jpg", "jpeg", "pdf")
 DBF_ENCODING = "cp874"
 ISINFO_FILE_NAMES = ("ISINFO.DBF", "isinfo.dbf")
 ISINFO_SHOP_NAME_FIELD = "THINAM"
@@ -213,8 +213,8 @@ UI_TEXT = {
     "income_save_folder_empty": "ยังไม่ได้เลือกโฟลเดอร์บันทึก PDF",
     "income_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",
     "income_pdf_none": "ไม่พบไฟล์ PDF ในโฟลเดอร์นี้",
-    "income_image_none": "ไม่พบไฟล์รูปภาพในโฟลเดอร์นี้",
-    "income_image_total": "พบรูปภาพ {count} ไฟล์",
+    "income_image_none": "ไม่พบไฟล์รูปภาพหรือ PDF ในโฟลเดอร์นี้",
+    "income_image_total": "พบ {count} ไฟล์",
     "income_source": "กรอกจาก",
     "income_source_pdf": "PDF",
     "income_source_image": "รูปภาพ",

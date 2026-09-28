@@ -472,7 +472,7 @@ class IncomeExtractTests(unittest.TestCase):
             pdf_files = IncomeFolderService.list_files(folder, IncomeSourceMode.parse(INCOME_SOURCE_PDF))
             image_files = IncomeFolderService.list_files(folder, IncomeSourceMode.parse(INCOME_SOURCE_IMAGE))
         self.assertEqual([path.name for path in pdf_files], ["a.pdf"])
-        self.assertEqual([path.name for path in image_files], ["b.PNG", "c.jpg"])
+        self.assertEqual([path.name for path in image_files], ["a.pdf", "b.PNG", "c.jpg"])
         self.assertFalse(IncomeSourceMode.parse("").is_image)
 
     def test_reads_cpall_pv_tax_invoice(self) -> None:
