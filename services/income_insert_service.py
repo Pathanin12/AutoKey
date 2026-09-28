@@ -10,8 +10,10 @@ from constants.routes import (
     INCOME_RV_ADVANCE,
     INCOME_RV_DESC,
     INCOME_RV_GOODS,
+    INCOME_RV_RENT,
     INCOME_RV_TOPIC_ADVANCE,
     INCOME_RV_TOPIC_GOODS,
+    INCOME_RV_TOPIC_RENT,
     INCOME_RV_TOPIC_TAX,
     JOURNAL_DOCSTAT,
     VATREC_SALE,
@@ -28,6 +30,7 @@ from services.income_pv_insert_service import IncomePvInsertService
 _TOPICS = {
     INCOME_RV_GOODS: INCOME_RV_TOPIC_GOODS,
     INCOME_RV_ADVANCE: INCOME_RV_TOPIC_ADVANCE,
+    INCOME_RV_RENT: INCOME_RV_TOPIC_RENT,
 }
 
 
@@ -60,7 +63,7 @@ class IncomeInsertService:
         if not voucher.lines:
             return ""
         name = ExpressJournalService.insert(folder, voucher)
-        if values.kind in (INCOME_RV_GOODS, INCOME_RV_ADVANCE):
+        if values.kind in (INCOME_RV_GOODS, INCOME_RV_ADVANCE, INCOME_RV_RENT):
             return name
         date = voucher.voudat_express
         voudat = express_date_to_dbf(date)

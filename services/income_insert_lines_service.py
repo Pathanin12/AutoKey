@@ -5,10 +5,12 @@ from constants.routes import (
     ACCOUNT_INCOME_ADVANCE,
     ACCOUNT_INCOME_GOODS,
     ACCOUNT_INCOME_RECEIVABLE,
+    ACCOUNT_INCOME_RENT,
     ACCOUNT_INCOME_WHT,
     ACCOUNT_PP30_VAT_SALE,
     INCOME_RV_ADVANCE,
     INCOME_RV_GOODS,
+    INCOME_RV_RENT,
     JNLTYP_RV,
     VOUCHER_RV_PREFIX,
 )
@@ -27,7 +29,9 @@ def _credit(account: str, amount: float) -> JournalLine:
 
 def rv_income(values: IncomeFormValues, date: str, description: str) -> JournalVoucher:
     if values.kind == INCOME_RV_GOODS:
-        lines = _goods_lines(values)
+        lines = _receipt_lines(values, ACCOUNT_INCOME_GOODS)
+    elif values.kind == INCOME_RV_RENT:
+        lines = _receipt_lines(values, ACCOUNT_INCOME_RENT)
     elif values.kind == INCOME_RV_ADVANCE:
         lines = _advance_lines(values)
     else:
@@ -56,7 +60,7 @@ def _tax_lines(values: IncomeFormValues) -> list[JournalLine]:
     return [line for line in debits + credits if has_amount(line.amount)]
 
 
-def _goods_lines(values: IncomeFormValues) -> list[JournalLine]:
+def _receipt_lines(values: IncomeFormValues, credit_account: str) -> list[JournalLine]:
     lines: list[JournalLine] = []
     if has_amount(values.total_amount):
         lines.append(_debit(ACCOUNT_INCOME_RECEIVABLE, values.total_amount))
@@ -64,7 +68,7 @@ def _goods_lines(values: IncomeFormValues) -> list[JournalLine]:
         lines.append(_debit(ACCOUNT_INCOME_WHT, values.wht_amount))
     rest = round(sum(line.amount for line in lines), 2)
     if has_amount(rest):
-        lines.append(_credit(ACCOUNT_INCOME_GOODS, rest))
+        lines.append(_credit(credit_account, rest))
     return lines
 
 

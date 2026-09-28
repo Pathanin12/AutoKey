@@ -7,8 +7,10 @@ from constants.routes import (
     INCOME_PAY_ADVANCE,
     INCOME_PAY_ADVANCE_ALT,
     INCOME_PAY_GOODS,
+    INCOME_PAY_RENT,
     INCOME_RV_ADVANCE,
     INCOME_RV_GOODS,
+    INCOME_RV_RENT,
     INCOME_RV_TAX,
 )
 from models.income_form_values import IncomeFormValues
@@ -163,6 +165,8 @@ def _receipt_kind(text: str) -> str | None:
         return INCOME_RV_GOODS
     if INCOME_PAY_ADVANCE in blob or INCOME_PAY_ADVANCE_ALT in blob:
         return INCOME_RV_ADVANCE
+    if INCOME_PAY_RENT in blob:
+        return INCOME_RV_RENT
     return None
 
 

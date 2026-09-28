@@ -8,6 +8,7 @@ from constants.routes import (
     ACCOUNT_INCOME_DEPOSIT,
     ACCOUNT_INCOME_GOODS,
     ACCOUNT_INCOME_RECEIVABLE,
+    ACCOUNT_INCOME_RENT,
     ACCOUNT_INCOME_WHT,
     ACCOUNT_PP30_VAT_SALE,
     ACCOUNT_VAT,
@@ -16,6 +17,7 @@ from constants.routes import (
     INCOME_PV_RECEIPT,
     INCOME_RV_ADVANCE,
     INCOME_RV_GOODS,
+    INCOME_RV_RENT,
     INCOME_RV_TAX,
     VATREC_SALE,
 )
@@ -95,6 +97,34 @@ _RECEIPT_ADVANCE = """
 3807064
 ชำระค่า : เบิกเงินสำรอง
 รวมเงินทั้งสิ้น 5,000.00
+"""
+
+_RECEIPT_RENT = """
+รวมเงิน
+บวก  ภาษีมูลค่าเพิม
+รวมเงิน
+หัก  ภาษีหัก ณ ทีจ่าย
+รวมเงินทังสิน
+6007724078
+31.07.2026
+       8,019.63
+ใบเสร็จรับเงิน (สําเนา)
+หจก. อรพรรณ เทรดดิง (2002)
+0103545013692
+2800009248
+14.08.2026
+บริษัท ซีพี ออลล์ จํากัด (มหาชน)   สํานักงานใหญ่
+เลขประจําตัวผู้เสียภาษี  0107542000011
+3800245
+ค่าเช่ารับ 1% (A-MO) เดือน 07/69 ประจําเดือน 07/69
+OFFSET
+       7,618.65
+       7,618.65
+            8,019.63
+                0.00
+       8,019.63
+              400.98
+       7,618.65
 """
 
 _CPALL_PV_TAX = """
@@ -366,6 +396,31 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertEqual(values.tax_id, "0107542000011")
         self.assertEqual(values.branch_last5, "07064")
         self.assertEqual(values.total_amount, 5000.0)
+
+    def test_rent_receipt_lines_without_vat(self) -> None:
+        values = extract_income_values(_RECEIPT_RENT)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.kind, INCOME_RV_RENT)
+        self.assertEqual(values.invoice_number, "2800009248")
+        self.assertEqual(values.branch_last5, "00245")
+        form = IncomeFormConfig(pdf_folder=Path("."), start_date="01/08/69")
+        self.assertEqual(IncomeInsertService.description(values, form), "บมจ.ซีพีออลล์-ค่าเช่ารับ ด.7/69*00245")
+        voucher = IncomeInsertService.voucher(values, form)
+        self.assertEqual(
+            [(line.account, line.amount, line.is_credit) for line in voucher.lines],
+            [
+                (ACCOUNT_INCOME_RECEIVABLE, 7618.65, False),
+                (ACCOUNT_INCOME_WHT, 400.98, False),
+                (ACCOUNT_INCOME_RENT, 8019.63, True),
+            ],
+        )
+        with (
+            mock.patch("services.income_insert_service.ExpressJournalService.insert", return_value="RV6908-0001"),
+            mock.patch("services.income_insert_service.ExpressVatService.insert") as vat_insert,
+        ):
+            IncomeInsertService.insert(Path("."), values, form)
+        vat_insert.assert_not_called()
 
     def test_reads_cpall_pv_tax_invoice(self) -> None:
         self.assertEqual(extract_income_values(_SAMPLE).kind, INCOME_RV_TAX)
