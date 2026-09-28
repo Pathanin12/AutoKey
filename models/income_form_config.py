@@ -30,6 +30,7 @@ class IncomeFormConfig:
     def matches_month(self, values: IncomeFormValues) -> bool:
         if not is_complete_express_date(self.start_date):
             return False
-        if not values.period_date:
+        check = values.month_date
+        if not is_complete_express_date(check):
             return True
-        return express_month_year_label(values.period_date) == express_month_year_label(self.start_date)
+        return express_month_year_label(check) == express_month_year_label(self.start_date)

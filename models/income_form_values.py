@@ -28,3 +28,7 @@ class IncomeFormValues:
             or abs(self.base_amount) >= 0.005
             or abs(self.deposit_amount) >= 0.005
         )
+
+    @property
+    def month_date(self) -> str:
+        return self.invoice_date or self.period_date

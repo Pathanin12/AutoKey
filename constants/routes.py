@@ -207,7 +207,7 @@ UI_TEXT = {
     "income_download_none": "ไม่พบรายงาน — {name} สาขา {store}",
     "income_welcome_log": "เลือกโฟลเดอร์ PDF กรอกวันที่ แล้วกดเริ่ม",
     "income_skip_zero_log": "ข้าม — {name} ไม่มียอด",
-    "income_skip_month_log": "ข้าม — {name} ไม่ใช่เดือน {month}/{year}",
+    "income_skip_month_log": "ข้าม — {name} เดือน {found_month}/{found_year} ไม่ใช่เดือน {month}/{year}",
     "income_skip_no_invoice_log": "ข้าม — {path} ไม่เจอใบกำกับภาษีหรือใบเสร็จ",
     "income_insert_log": "สรุป — {shop}: {detail}",
     "income_multi_bill_log": "สรุป — {name} สาขา {branch} มี {count} บิล",

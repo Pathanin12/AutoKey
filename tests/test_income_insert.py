@@ -239,6 +239,9 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertEqual(values.vat_amount, 22300.84)
         self.assertEqual(values.bill_count, 1)
         self.assertEqual(values.period_date, "01/08/69")
+        september = IncomeFormConfig(pdf_folder=Path("."), start_date="01/09/69")
+        self.assertTrue(september.matches_month(values))
+        self.assertFalse(IncomeFormConfig(pdf_folder=Path("."), start_date="01/08/69").matches_month(values))
 
     def test_reads_invoice_from_numbers_when_thai_marks_missing(self) -> None:
         text = (
@@ -350,6 +353,16 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertEqual(values.wht_amount, 30.0)
         self.assertEqual(values.total_amount, 1040.0)
         self.assertEqual(values.period_date, "01/08/69")
+        tax27 = extract_income_pv_tax(
+            _CPALL_PV_TAX.replace("2600008431", "2700015438").replace("20.02.2026", "18.09.2026")
+        )
+        self.assertIsNotNone(tax27)
+        assert tax27 is not None
+        self.assertEqual(tax27.invoice_number, "2700015438")
+        self.assertEqual(tax27.invoice_date, "18/09/69")
+        september = IncomeFormConfig(pdf_folder=Path("."), start_date="01/09/69")
+        self.assertTrue(september.matches_month(tax27))
+        self.assertFalse(IncomeFormConfig(pdf_folder=Path("."), start_date="01/08/69").matches_month(tax27))
 
     def test_reads_cpall_pv_receipt_splits(self) -> None:
         values = extract_income_pv_receipt(_CPALL_PV_RECEIPT)
@@ -484,9 +497,12 @@ class IncomeInsertLinesTests(unittest.TestCase):
             bill_count=1,
             period_date="01/07/69",
         )
-        self.assertTrue(form.matches_month(august))
-        self.assertFalse(form.matches_month(july))
-        self.assertTrue(form.matches_month(goods))
+        september = IncomeFormConfig(pdf_folder=Path("."), start_date="01/09/69")
+        self.assertTrue(september.matches_month(august))
+        self.assertFalse(form.matches_month(august))
+        self.assertTrue(form.matches_month(july))
+        self.assertFalse(september.matches_month(july))
+        self.assertTrue(september.matches_month(goods))
 
     def test_pv_tax_lines_and_description(self) -> None:
         values = extract_income_pv_tax(_CPALL_PV_TAX)

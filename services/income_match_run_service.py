@@ -69,9 +69,12 @@ class IncomeMatchRunService:
             for values in record.invoices:
                 if not form_config.matches_month(values):
                     month, year = express_month_year_label(form_config.start_date)
+                    found_month, found_year = express_month_year_label(values.month_date)
                     on_status(
                         UI_TEXT["income_skip_month_log"].format(
                             name=values.company_name,
+                            found_month=found_month,
+                            found_year=found_year,
                             month=month,
                             year=year,
                         )
