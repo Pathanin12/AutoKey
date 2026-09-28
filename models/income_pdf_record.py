@@ -11,3 +11,4 @@ class IncomePdfRecord:
     pdf_path: Path
     invoices: list[IncomeFormValues]
     has_text: bool = True
+    locked: bool = False

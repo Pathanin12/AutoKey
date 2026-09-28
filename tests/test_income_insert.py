@@ -20,14 +20,15 @@ from constants.routes import (
     INCOME_RV_GOODS,
     INCOME_RV_RENT,
     INCOME_RV_TAX,
-    INCOME_SOURCE_IMAGE,
-    INCOME_SOURCE_PDF,
+    INCOME_LOCK_NONE,
+    INCOME_LOCK_PASSWORD,
     VATREC_SALE,
 )
 from models.income_form_config import IncomeFormConfig
 from models.income_form_values import IncomeFormValues
-from models.income_source_mode import IncomeSourceMode
-from services.income_folder_service import IncomeFolderService
+from models.income_lock_mode import IncomeLockMode
+from models.income_pdf_name import IncomePdfName
+from services.income_pdf_service import IncomePdfService
 from services.income_extract_service import (
     extract_income_invoice,
     extract_income_receipt,
@@ -474,16 +475,32 @@ class IncomeExtractTests(unittest.TestCase):
         assert values is not None
         self.assertEqual(values.branch_last5, "00245")
 
-    def test_folder_lists_files_by_source(self) -> None:
+    def test_pdf_name_takes_password_after_last_underscore(self) -> None:
+        self.assertEqual(IncomePdfName.parse(Path("สมยศ_1234.pdf")).password, "1234")
+        self.assertEqual(IncomePdfName.parse(Path("หจก_สมยศ_ab12.pdf")).password, "ab12")
+        self.assertEqual(IncomePdfName.parse(Path("สมยศ.pdf")).password, "")
+        self.assertTrue(IncomeLockMode.parse(INCOME_LOCK_PASSWORD).is_locked)
+        self.assertFalse(IncomeLockMode.parse("").is_locked)
+        self.assertEqual(IncomeLockMode.parse("").key, INCOME_LOCK_NONE)
+
+    def test_locked_pdf_opens_only_with_password(self) -> None:
+        from pypdf import PdfWriter
+        from pypdf.generic import ContentStream
+
         with TemporaryDirectory() as raw:
-            folder = Path(raw)
-            for name in ("a.pdf", "b.PNG", "c.jpg", "d.txt"):
-                (folder / name).write_bytes(b"")
-            pdf_files = IncomeFolderService.list_files(folder, IncomeSourceMode.parse(INCOME_SOURCE_PDF))
-            image_files = IncomeFolderService.list_files(folder, IncomeSourceMode.parse(INCOME_SOURCE_IMAGE))
-        self.assertEqual([path.name for path in pdf_files], ["a.pdf"])
-        self.assertEqual([path.name for path in image_files], ["a.pdf", "b.PNG", "c.jpg"])
-        self.assertFalse(IncomeSourceMode.parse("").is_image)
+            pdf_path = Path(raw) / "สมยศ_1234.pdf"
+            writer = PdfWriter()
+            page = writer.add_blank_page(width=200, height=200)
+            page.replace_contents(ContentStream(None, writer))
+            writer.encrypt("1234", algorithm="RC4-128")
+            with pdf_path.open("wb") as handle:
+                writer.write(handle)
+            wrong = IncomePdfService.load_record(pdf_path, "9999")
+            empty = IncomePdfService.load_record(pdf_path)
+            right = IncomePdfService.load_record(pdf_path, IncomePdfName.parse(pdf_path).password)
+        self.assertTrue(wrong.locked)
+        self.assertTrue(empty.locked)
+        self.assertFalse(right.locked)
 
     def test_reads_cpall_pv_tax_invoice(self) -> None:
         self.assertEqual(extract_income_values(_SAMPLE).kind, INCOME_RV_TAX)

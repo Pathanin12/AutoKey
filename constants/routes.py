@@ -68,7 +68,6 @@ INCOME_PRINT_ALL_NAME = "{shop}.pdf"
 MENU_BUTTON_HEIGHT = 75
 MENU_BUTTON_IPADY = 26
 PDF_OPEN_EXTENSIONS = ("pdf",)
-IMAGE_OPEN_EXTENSIONS = ("png", "jpg", "jpeg", "pdf")
 DBF_ENCODING = "cp874"
 ISINFO_FILE_NAMES = ("ISINFO.DBF", "isinfo.dbf")
 ISINFO_SHOP_NAME_FIELD = "THINAM"
@@ -77,9 +76,10 @@ PP30_MODE_NORMAL = "normal"
 PP30_MODE_SPECIAL = "special"
 PP30_RUN_MODES = (PP30_MODE_NORMAL, PP30_MODE_SPECIAL)
 
-INCOME_SOURCE_PDF = "pdf"
-INCOME_SOURCE_IMAGE = "image"
-INCOME_SOURCES = (INCOME_SOURCE_PDF, INCOME_SOURCE_IMAGE)
+INCOME_LOCK_NONE = "none"
+INCOME_LOCK_PASSWORD = "password"
+INCOME_LOCK_MODES = (INCOME_LOCK_NONE, INCOME_LOCK_PASSWORD)
+INCOME_PDF_PASSWORD_SEPARATOR = "_"
 
 ACCOUNT_CASH = "1111-00"
 ACCOUNT_SERVICE = "5330-05"
@@ -213,20 +213,18 @@ UI_TEXT = {
     "income_save_folder_empty": "ยังไม่ได้เลือกโฟลเดอร์บันทึก PDF",
     "income_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",
     "income_pdf_none": "ไม่พบไฟล์ PDF ในโฟลเดอร์นี้",
-    "income_image_none": "ไม่พบไฟล์รูปภาพหรือ PDF ในโฟลเดอร์นี้",
-    "income_image_total": "พบ {count} ไฟล์",
-    "income_source": "กรอกจาก",
-    "income_source_pdf": "PDF",
-    "income_source_image": "รูปภาพ",
-    "income_folder": "โฟลเดอร์",
-    "income_folder_empty": "ยังไม่ได้เลือกโฟลเดอร์",
+    "income_lock": "PDF",
+    "income_lock_none": "ไม่มีรหัส",
+    "income_lock_password": "มีรหัส",
     "income_login_failed": "เข้าสู่ระบบไม่ได้ — {name}",
     "income_download_log": "โหลดแล้ว — {name} สาขา {store}",
     "income_download_none": "ไม่พบรายงาน — {name} สาขา {store}",
     "income_welcome_log": "เลือกโฟลเดอร์ PDF กรอกวันที่ แล้วกดเริ่ม",
     "income_skip_zero_log": "ข้าม — {name} ไม่มียอด",
     "income_skip_image_log": "ข้าม — {path} เป็นรูปภาพ",
-    "income_skip_ocr_log": "ข้าม — {path} อ่านรูปไม่ได้",
+    "income_skip_locked_log": "ข้าม — {path} ติดรหัส",
+    "income_skip_wrong_password_log": "ข้าม — {path} รหัสไม่ตรง",
+    "income_skip_no_password_log": "ข้าม — {path} ชื่อไฟล์ไม่มีรหัส (ชื่อห้าง_รหัส)",
     "income_skip_no_invoice_log": "ข้าม — {path} ไม่เจอใบกำกับภาษีหรือใบเสร็จ",
     "income_skip_no_month_log": "ข้าม — {path} ไม่มีใบเดือน {month}/{year}",
     "income_insert_log": "สรุป — {shop}: {detail}",

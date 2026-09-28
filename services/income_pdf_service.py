@@ -6,6 +6,7 @@ from models.income_form_values import IncomeFormValues
 from models.income_pdf_record import IncomePdfRecord
 from services.income_extract_service import extract_income_values
 from services.income_sap_text_service import IncomeSapTextService
+from services.pdf_password_service import PdfLockedError, PdfPasswordService
 
 
 class IncomePdfService:
@@ -14,8 +15,11 @@ class IncomePdfService:
         return "\n".join(IncomePdfService._page_texts(pdf_path))
 
     @staticmethod
-    def load_record(pdf_path: Path) -> IncomePdfRecord:
-        texts = IncomePdfService._page_texts(pdf_path)
+    def load_record(pdf_path: Path, password: str = "") -> IncomePdfRecord:
+        try:
+            texts = IncomePdfService._page_texts(pdf_path, password)
+        except PdfLockedError:
+            return IncomePdfRecord(pdf_path=pdf_path, invoices=[], has_text=False, locked=True)
         return IncomePdfRecord(
             pdf_path=pdf_path,
             invoices=invoices_from_texts(texts),
@@ -32,11 +36,12 @@ class IncomePdfService:
         return invoices[0].company_name if invoices else ""
 
     @staticmethod
-    def _page_texts(pdf_path: Path) -> list[str]:
+    def _page_texts(pdf_path: Path, password: str = "") -> list[str]:
         from pypdf import PdfReader
 
         reader = PdfReader(str(pdf_path))
         try:
+            PdfPasswordService.unlock(reader, password)
             return [_best_page_text(page) for page in reader.pages]
         finally:
             closer = getattr(reader, "close", None)

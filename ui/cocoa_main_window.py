@@ -46,8 +46,8 @@ from constants.routes import (
     PAGE_PND3,
     PAGE_PND30,
     PAGE_PP30,
-    INCOME_SOURCE_IMAGE,
-    INCOME_SOURCE_PDF,
+    INCOME_LOCK_NONE,
+    INCOME_LOCK_PASSWORD,
     PP30_MODE_NORMAL,
     PP30_MODE_SPECIAL,
     UI_TEXT,
@@ -56,7 +56,7 @@ from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
 from models.app_config import AppConfig
 from models.income_form_config import IncomeFormConfig
-from models.income_source_mode import IncomeSourceMode
+from models.income_lock_mode import IncomeLockMode
 from models.ka_tam_form_config import KaTamFormConfig
 from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd30_form_config import Pnd30FormConfig
@@ -66,7 +66,6 @@ from models.topic_menu_item import TopicMenuItem
 from services.app_config_service import AppConfigService
 from services.express_shop_index_service import ExpressShopIndexService
 from services.ka_tam_excel_service import KaTamExcelService
-from services.income_folder_service import IncomeFolderService
 from services.income_match_run_service import IncomeMatchRunService
 from services.ka_tam_match_run_service import KaTamMatchRunService
 from services.pnd3_match_run_service import Pnd3MatchRunService
@@ -569,29 +568,29 @@ class MainWindow:
 
         _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 170)
         sy = 8
-        _static_label(settings, UI_TEXT["income_source"], 8, sy, 110, 22)
-        self.income_source_pdf = _radio(
+        _static_label(settings, UI_TEXT["income_lock"], 8, sy, 110, 22)
+        self.income_lock_none = _radio(
             settings,
-            UI_TEXT["income_source_pdf"],
+            UI_TEXT["income_lock_none"],
             120,
             sy - 2,
             130,
             26,
-            self._keep(lambda: self._set_income_source(INCOME_SOURCE_PDF)),
+            self._keep(lambda: self._set_income_lock(INCOME_LOCK_NONE)),
         )
-        self.income_source_image = _radio(
+        self.income_lock_password = _radio(
             settings,
-            UI_TEXT["income_source_image"],
+            UI_TEXT["income_lock_password"],
             260,
             sy - 2,
             130,
             26,
-            self._keep(lambda: self._set_income_source(INCOME_SOURCE_IMAGE)),
+            self._keep(lambda: self._set_income_lock(INCOME_LOCK_PASSWORD)),
         )
-        self._income_source = IncomeSourceMode.parse(INCOME_SOURCE_PDF)
-        self._sync_income_source_radios()
+        self._income_lock = IncomeLockMode.parse(INCOME_LOCK_NONE)
+        self._sync_income_lock_radios()
         sy += 32
-        _static_label(settings, UI_TEXT["income_folder"], 8, sy, 110, 22)
+        _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
         self.income_folder_field = _edit_field(settings, 120, sy, 248)
         _button(
             settings,
@@ -605,7 +604,7 @@ class MainWindow:
         )
         sy += 26
         self.income_folder_summary_field = _static_label(
-            settings, UI_TEXT["income_folder_empty"], 8, sy, 500, 20, size=11, gray=True
+            settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
         )
         sy += 28
         _static_label(settings, UI_TEXT["income_start_date"], 8, sy, 110, 22)
@@ -643,14 +642,13 @@ class MainWindow:
         self.income_log_view.setString_(UI_TEXT["income_welcome_log"] + "\n")
         del _settings_box, _status_box
 
-    def _set_income_source(self, key: str) -> None:
-        self._income_source = IncomeSourceMode.parse(key)
-        self._sync_income_source_radios()
-        self._load_income_folder()
+    def _set_income_lock(self, key: str) -> None:
+        self._income_lock = IncomeLockMode.parse(key)
+        self._sync_income_lock_radios()
 
-    def _sync_income_source_radios(self) -> None:
-        self.income_source_pdf.setState_(0 if self._income_source.is_image else 1)
-        self.income_source_image.setState_(1 if self._income_source.is_image else 0)
+    def _sync_income_lock_radios(self) -> None:
+        self.income_lock_none.setState_(0 if self._income_lock.is_locked else 1)
+        self.income_lock_password.setState_(1 if self._income_lock.is_locked else 0)
 
     def _set_pp30_mode(self, key: str) -> None:
         self._pp30_mode = Pp30RunMode.parse(key)
@@ -1041,20 +1039,20 @@ class MainWindow:
 
     def _load_income_folder(self) -> None:
         folder = Path(str(self.income_folder_field.stringValue() or "")).expanduser()
-        self.income_pdf_files = IncomeFolderService.list_files(folder, self._income_source)
+        self.income_pdf_files = Pp30FolderService.list_pdfs(folder)
         if self.income_pdf_files:
             self.income_folder_summary_field.setStringValue_(
-                self._income_source.total_text(len(self.income_pdf_files))
+                UI_TEXT["pp30_pdf_total"].format(count=len(self.income_pdf_files))
             )
         else:
-            self.income_folder_summary_field.setStringValue_(UI_TEXT["income_folder_empty"])
+            self.income_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
 
     def _income_form_config(self) -> IncomeFormConfig:
         return IncomeFormConfig(
             pdf_folder=Path(str(self.income_folder_field.stringValue() or "")).expanduser(),
             start_date=format_express_pv_date(str(self.income_start_field.stringValue() or "")),
             pdf_files=list(self.income_pdf_files),
-            source=self._income_source,
+            lock=self._income_lock,
         )
 
     def _start_income(self) -> None:
@@ -1070,7 +1068,7 @@ class MainWindow:
         total = len(self.income_pdf_files)
         self._set_income_progress(0, total)
         form_config = self._income_form_config()
-        self._append_income_log(form_config.source.total_text(total))
+        self._append_income_log(UI_TEXT["pp30_pdf_total"].format(count=total))
         express_data_dir = self.app_config.express_data_dir
         self._income_running = True
         threading.Thread(target=self._run_income, args=(form_config, express_data_dir), daemon=True).start()

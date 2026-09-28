@@ -15,8 +15,8 @@ from constants.routes import (
     PAGE_PND3,
     PAGE_PND30,
     PAGE_PP30,
-    INCOME_SOURCE_IMAGE,
-    INCOME_SOURCE_PDF,
+    INCOME_LOCK_NONE,
+    INCOME_LOCK_PASSWORD,
     PP30_MODE_NORMAL,
     PP30_MODE_SPECIAL,
     UI_TEXT,
@@ -25,7 +25,7 @@ from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
 from models.app_config import AppConfig
 from models.income_form_config import IncomeFormConfig
-from models.income_source_mode import IncomeSourceMode
+from models.income_lock_mode import IncomeLockMode
 from models.ka_tam_form_config import KaTamFormConfig
 from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd30_form_config import Pnd30FormConfig
@@ -35,7 +35,6 @@ from models.topic_menu_item import TopicMenuItem
 from services.app_config_service import AppConfigService
 from services.express_shop_index_service import ExpressShopIndexService
 from services.ka_tam_excel_service import KaTamExcelService
-from services.income_folder_service import IncomeFolderService
 from services.income_match_run_service import IncomeMatchRunService
 from services.ka_tam_match_run_service import KaTamMatchRunService
 from services.pnd3_match_run_service import Pnd3MatchRunService
@@ -94,9 +93,9 @@ class MainWindow:
         self.pnd3_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.pnd3_pdf_files: list[Path] = []
         self._pnd3_running = False
-        self.income_source = tk.StringVar(value=INCOME_SOURCE_PDF)
+        self.income_lock = tk.StringVar(value=INCOME_LOCK_NONE)
         self.income_pdf_folder = tk.StringVar(value="")
-        self.income_pdf_summary = tk.StringVar(value=UI_TEXT["income_folder_empty"])
+        self.income_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
         self.income_start_date = tk.StringVar(value="")
         self.income_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.income_pdf_files: list[Path] = []
@@ -383,24 +382,22 @@ class MainWindow:
 
         form = ttk.Frame(page)
         form.pack(fill="x", padx=20, pady=(16, 0))
-        ttk.Label(form, text=UI_TEXT["income_source"]).grid(row=0, column=0, sticky="w")
-        source_row = ttk.Frame(form)
-        source_row.grid(row=0, column=1, columnspan=2, sticky="w", padx=(8, 0))
+        ttk.Label(form, text=UI_TEXT["income_lock"]).grid(row=0, column=0, sticky="w")
+        lock_row = ttk.Frame(form)
+        lock_row.grid(row=0, column=1, columnspan=2, sticky="w", padx=(8, 0))
         ttk.Radiobutton(
-            source_row,
-            text=UI_TEXT["income_source_pdf"],
-            variable=self.income_source,
-            value=INCOME_SOURCE_PDF,
-            command=self._load_income_folder,
+            lock_row,
+            text=UI_TEXT["income_lock_none"],
+            variable=self.income_lock,
+            value=INCOME_LOCK_NONE,
         ).pack(side="left")
         ttk.Radiobutton(
-            source_row,
-            text=UI_TEXT["income_source_image"],
-            variable=self.income_source,
-            value=INCOME_SOURCE_IMAGE,
-            command=self._load_income_folder,
+            lock_row,
+            text=UI_TEXT["income_lock_password"],
+            variable=self.income_lock,
+            value=INCOME_LOCK_PASSWORD,
         ).pack(side="left", padx=(16, 0))
-        ttk.Label(form, text=UI_TEXT["income_folder"]).grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(form, text=UI_TEXT["pp30_pdf_folder"]).grid(row=1, column=0, sticky="w", pady=(8, 0))
         ttk.Entry(form, textvariable=self.income_pdf_folder, width=42).grid(
             row=1, column=1, sticky="ew", padx=(8, 8), pady=(8, 0)
         )
@@ -751,7 +748,7 @@ class MainWindow:
         self.root.clipboard_append(text)
 
     def _choose_income_folder(self) -> None:
-        selected = filedialog.askdirectory(title=UI_TEXT["income_folder"])
+        selected = filedialog.askdirectory(title=UI_TEXT["pp30_pdf_folder"])
         if not selected:
             return
         self.income_pdf_folder.set(selected)
@@ -759,12 +756,11 @@ class MainWindow:
 
     def _load_income_folder(self) -> None:
         folder = Path(self.income_pdf_folder.get().strip()).expanduser()
-        source = IncomeSourceMode.parse(self.income_source.get())
-        self.income_pdf_files = IncomeFolderService.list_files(folder, source)
+        self.income_pdf_files = Pp30FolderService.list_pdfs(folder)
         if self.income_pdf_files:
-            self.income_pdf_summary.set(source.total_text(len(self.income_pdf_files)))
+            self.income_pdf_summary.set(UI_TEXT["pp30_pdf_total"].format(count=len(self.income_pdf_files)))
         else:
-            self.income_pdf_summary.set(UI_TEXT["income_folder_empty"])
+            self.income_pdf_summary.set(UI_TEXT["pp30_pdf_summary_empty"])
 
     def _format_income_date(self, _event=None) -> None:
         current = self.income_start_date.get()
@@ -776,7 +772,7 @@ class MainWindow:
             pdf_folder=Path(self.income_pdf_folder.get().strip()).expanduser(),
             start_date=format_express_pv_date(self.income_start_date.get()),
             pdf_files=list(self.income_pdf_files),
-            source=IncomeSourceMode.parse(self.income_source.get()),
+            lock=IncomeLockMode.parse(self.income_lock.get()),
         )
 
     def _start_income(self) -> None:
@@ -793,7 +789,7 @@ class MainWindow:
         total = len(self.income_pdf_files)
         self._set_income_progress(0, total)
         form_config = self._income_form_config()
-        self._append_income_log(form_config.source.total_text(total))
+        self._append_income_log(UI_TEXT["pp30_pdf_total"].format(count=total))
         express_data_dir = self.app_config.express_data_dir
         self._income_running = True
         threading.Thread(
