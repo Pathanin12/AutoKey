@@ -18,13 +18,13 @@ class IncomePdfService:
         texts = IncomePdfService._page_texts(pdf_path)
         return IncomePdfRecord(
             pdf_path=pdf_path,
-            invoices=_invoices(texts),
+            invoices=invoices_from_texts(texts),
             has_text=any(text.strip() for text in texts),
         )
 
     @staticmethod
     def load_invoices(pdf_path: Path) -> list[IncomeFormValues]:
-        return _invoices(IncomePdfService._page_texts(pdf_path))
+        return invoices_from_texts(IncomePdfService._page_texts(pdf_path))
 
     @staticmethod
     def shop_name(pdf_path: Path) -> str:
@@ -44,7 +44,7 @@ class IncomePdfService:
                 closer()
 
 
-def _invoices(texts: list[str]) -> list[IncomeFormValues]:
+def invoices_from_texts(texts: list[str]) -> list[IncomeFormValues]:
     invoices: list[IncomeFormValues] = []
     seen: set[tuple[str, str, str, float]] = set()
     for text in texts:

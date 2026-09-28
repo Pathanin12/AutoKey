@@ -176,6 +176,9 @@ def _pay_for(text: str) -> str:
 
 
 def _receipt_totals(text: str) -> tuple[float, float, float] | None:
+    stacked = _stacked_totals(money_amounts(text))
+    if stacked:
+        return stacked
     total = _amount_near(text, "รวมเงินทั้งสิ้น")
     wht = _amount_near(text, "หัก ณ ที่จ่าย") or _amount_near(text, "หัก ภาษีหัก ณ ที่จ่าย")
     vat = _amount_near(text, "ภาษีมูลค่าเพิ่ม")
@@ -184,13 +187,23 @@ def _receipt_totals(text: str) -> tuple[float, float, float] | None:
     return _totals(text)
 
 
-def _totals(text: str) -> tuple[float, float, float] | None:
-    amounts = money_amounts(text)
+def _stacked_totals(amounts: list[float]) -> tuple[float, float, float] | None:
     if len(amounts) >= 5:
-        block = amounts[-5:]
-        base, vat, with_vat, wht, total = block
+        base, vat, with_vat, wht, total = amounts[-5:]
         if abs(base + vat - with_vat) < 0.02 and abs(with_vat - wht - total) < 0.02:
             return total, wht, vat
+    if len(amounts) >= 4:
+        base, with_vat, wht, total = amounts[-4:]
+        if abs(base - with_vat) < 0.02 and abs(with_vat - wht - total) < 0.02:
+            return total, wht, 0.0
+    return None
+
+
+def _totals(text: str) -> tuple[float, float, float] | None:
+    amounts = money_amounts(text)
+    stacked = _stacked_totals(amounts)
+    if stacked:
+        return stacked
     if len(amounts) >= 3:
         total = amounts[-1]
         wht = amounts[-2]

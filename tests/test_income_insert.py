@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest import mock
 
 from constants.routes import (
@@ -19,10 +20,14 @@ from constants.routes import (
     INCOME_RV_GOODS,
     INCOME_RV_RENT,
     INCOME_RV_TAX,
+    INCOME_SOURCE_IMAGE,
+    INCOME_SOURCE_PDF,
     VATREC_SALE,
 )
 from models.income_form_config import IncomeFormConfig
 from models.income_form_values import IncomeFormValues
+from models.income_source_mode import IncomeSourceMode
+from services.income_folder_service import IncomeFolderService
 from services.income_extract_service import (
     extract_income_invoice,
     extract_income_receipt,
@@ -125,6 +130,36 @@ OFFSET
        8,019.63
               400.98
        7,618.65
+"""
+
+_RECEIPT_RENT_OCR = """
+หจก. อรพรรณ เทรดดิ้ง (2002)
+เลขประจำตัวผู้เสียภาษี
+0103545013692
+ใบเสร็จรับเงิน (สำเนา)
+2800009248
+14.08.2026
+จำนวนเงิน
+8,019.63
+รับจาก : บริษัท ซีพี ออลล์ จำกัด (มหาชน) สำนักงานใหญ่
+3800245
+313 อาคาร ซี.พี.ทาวเวอร์ ชั้นที่ 24 ถนน สีลม กรุงเทพมหานคร 10506007724078 31.07.2026
+เลขประจำตัวผู้เสียภาษี 0107542000011
+ชำระค่า : ค่าเช่ารับ 1% (A-MO) เดือน 07/69 ประจำเดือน 07/69
+OFFSET
+71518.65
+รวม (บาท)
+7,618.65
+รวมเงิน
+บวก ภาษีมูลค่าเพิ่ม
+รวมเงิน
+หัก ภาษีหัก ณ ที่จ่าย
+รวมเงินทั้งสิ้น
+8,019.63
+0.00
+8,019.63
+400.98
+7,618.65
 """
 
 _CPALL_PV_TAX = """
@@ -421,6 +456,24 @@ class IncomeExtractTests(unittest.TestCase):
         ):
             IncomeInsertService.insert(Path("."), values, form)
         vat_insert.assert_not_called()
+
+    def test_rent_receipt_from_ocr_stacked_totals(self) -> None:
+        values = extract_income_values(_RECEIPT_RENT_OCR)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.kind, INCOME_RV_RENT)
+        self.assertEqual((values.total_amount, values.wht_amount, values.vat_amount), (7618.65, 400.98, 0.0))
+
+    def test_folder_lists_files_by_source(self) -> None:
+        with TemporaryDirectory() as raw:
+            folder = Path(raw)
+            for name in ("a.pdf", "b.PNG", "c.jpg", "d.txt"):
+                (folder / name).write_bytes(b"")
+            pdf_files = IncomeFolderService.list_files(folder, IncomeSourceMode.parse(INCOME_SOURCE_PDF))
+            image_files = IncomeFolderService.list_files(folder, IncomeSourceMode.parse(INCOME_SOURCE_IMAGE))
+        self.assertEqual([path.name for path in pdf_files], ["a.pdf"])
+        self.assertEqual([path.name for path in image_files], ["b.PNG", "c.jpg"])
+        self.assertFalse(IncomeSourceMode.parse("").is_image)
 
     def test_reads_cpall_pv_tax_invoice(self) -> None:
         self.assertEqual(extract_income_values(_SAMPLE).kind, INCOME_RV_TAX)

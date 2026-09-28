@@ -9,10 +9,11 @@ from models.income_form_config import IncomeFormConfig
 from models.income_matched_job import IncomeMatchedJob
 from services.express_journal_date_service import ExpressJournalDateService
 from services.express_shop_index_service import ExpressShopIndexService
+from services.income_folder_service import IncomeFolderService
+from services.income_image_service import IncomeImageService
 from services.income_insert_service import IncomeInsertService
 from services.income_pdf_service import IncomePdfService
 from services.name_match_service import tidy_name
-from services.pp30_folder_service import Pp30FolderService
 from services.pp30_match_service import Pp30MatchService
 
 # from services.income_excel_service import IncomeExcelService
@@ -42,11 +43,12 @@ class IncomeMatchRunService:
         #     form_config,
         #     on_status=on_status,
         # )
-        form_config.pdf_files = form_config.pdf_files or Pp30FolderService.list_pdfs(
-            form_config.pdf_folder
+        form_config.pdf_files = form_config.pdf_files or IncomeFolderService.list_files(
+            form_config.pdf_folder, form_config.source
         )
         if not form_config.pdf_files:
-            raise ValueError(UI_TEXT["income_pdf_none"])
+            raise ValueError(form_config.source.none_text)
+        is_image = form_config.source.is_image
         lookup = Pp30MatchService.lookup(companies)
         total = len(form_config.pdf_files)
         jobs: list[IncomeMatchedJob] = []
@@ -56,13 +58,14 @@ class IncomeMatchRunService:
                 break
             on_progress(index - 1, total)
             try:
-                record = IncomePdfService.load_record(pdf_path)
+                record = IncomeImageService.load_record(pdf_path) if is_image else IncomePdfService.load_record(pdf_path)
             except Exception as exc:
                 on_status(f"{pdf_path.name}: {exc}")
                 on_progress(index, total)
                 continue
             if not record.has_text:
-                on_status(UI_TEXT["income_skip_image_log"].format(path=pdf_path.name))
+                skip_key = "income_skip_ocr_log" if is_image else "income_skip_image_log"
+                on_status(UI_TEXT[skip_key].format(path=pdf_path.name))
                 on_progress(index, total)
                 continue
             if not record.invoices:

@@ -6,6 +6,7 @@ from pathlib import Path
 from constants.date_utils import express_month_year_label, is_complete_express_date
 from constants.routes import UI_TEXT
 from models.income_form_values import IncomeFormValues
+from models.income_source_mode import IncomeSourceMode
 
 
 @dataclass
@@ -15,6 +16,7 @@ class IncomeFormConfig:
     start_date: str = ""
     end_date: str = ""
     pdf_files: list[Path] = field(default_factory=list)
+    source: IncomeSourceMode = field(default_factory=lambda: IncomeSourceMode.parse(""))
 
     def validate(self) -> list[str]:
         errors: list[str] = []
@@ -22,7 +24,7 @@ class IncomeFormConfig:
         if not str(folder).strip() or not folder.exists() or not folder.is_dir():
             errors.append(UI_TEXT["income_pdf_invalid"])
         elif not self.pdf_files:
-            errors.append(UI_TEXT["income_pdf_none"])
+            errors.append(self.source.none_text)
         if not is_complete_express_date(self.start_date):
             errors.append(UI_TEXT["income_date_invalid"])
         return errors

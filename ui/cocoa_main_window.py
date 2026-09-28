@@ -46,6 +46,8 @@ from constants.routes import (
     PAGE_PND3,
     PAGE_PND30,
     PAGE_PP30,
+    INCOME_SOURCE_IMAGE,
+    INCOME_SOURCE_PDF,
     PP30_MODE_NORMAL,
     PP30_MODE_SPECIAL,
     UI_TEXT,
@@ -54,6 +56,7 @@ from constants.topic_menu import TOPIC_MENU_ITEMS
 from constants.version import __version__
 from models.app_config import AppConfig
 from models.income_form_config import IncomeFormConfig
+from models.income_source_mode import IncomeSourceMode
 from models.ka_tam_form_config import KaTamFormConfig
 from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd30_form_config import Pnd30FormConfig
@@ -63,6 +66,7 @@ from models.topic_menu_item import TopicMenuItem
 from services.app_config_service import AppConfigService
 from services.express_shop_index_service import ExpressShopIndexService
 from services.ka_tam_excel_service import KaTamExcelService
+from services.income_folder_service import IncomeFolderService
 from services.income_match_run_service import IncomeMatchRunService
 from services.ka_tam_match_run_service import KaTamMatchRunService
 from services.pnd3_match_run_service import Pnd3MatchRunService
@@ -78,7 +82,7 @@ PP30_WIN_H = 680
 KA_TAM_WIN_H = 680
 PND30_WIN_H = 620
 PND3_WIN_H = 620
-INCOME_WIN_H = 620
+INCOME_WIN_H = 652
 
 
 class FlippedView(NSView):
@@ -563,9 +567,31 @@ class MainWindow:
         )
         _static_label(page, UI_TEXT["menu_income"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
 
-        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 138)
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 170)
         sy = 8
-        _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
+        _static_label(settings, UI_TEXT["income_source"], 8, sy, 110, 22)
+        self.income_source_pdf = _radio(
+            settings,
+            UI_TEXT["income_source_pdf"],
+            120,
+            sy - 2,
+            130,
+            26,
+            self._keep(lambda: self._set_income_source(INCOME_SOURCE_PDF)),
+        )
+        self.income_source_image = _radio(
+            settings,
+            UI_TEXT["income_source_image"],
+            260,
+            sy - 2,
+            130,
+            26,
+            self._keep(lambda: self._set_income_source(INCOME_SOURCE_IMAGE)),
+        )
+        self._income_source = IncomeSourceMode.parse(INCOME_SOURCE_PDF)
+        self._sync_income_source_radios()
+        sy += 32
+        _static_label(settings, UI_TEXT["income_folder"], 8, sy, 110, 22)
         self.income_folder_field = _edit_field(settings, 120, sy, 248)
         _button(
             settings,
@@ -579,7 +605,7 @@ class MainWindow:
         )
         sy += 26
         self.income_folder_summary_field = _static_label(
-            settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
+            settings, UI_TEXT["income_folder_empty"], 8, sy, 500, 20, size=11, gray=True
         )
         sy += 28
         _static_label(settings, UI_TEXT["income_start_date"], 8, sy, 110, 22)
@@ -593,14 +619,14 @@ class MainWindow:
             page,
             f"▶ {UI_TEXT['start']}",
             16,
-            226,
+            258,
             160,
             36,
             self._keep(self._start_income),
             bezel=NSBezelStyleRounded,
         )
 
-        y = 276
+        y = 308
         _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, INCOME_WIN_H - y - 12)
         self.income_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
         self.income_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
@@ -616,6 +642,15 @@ class MainWindow:
         self.income_log_view = _log_view(status, 8, 60, WIN_W - 56, INCOME_WIN_H - y - 100)
         self.income_log_view.setString_(UI_TEXT["income_welcome_log"] + "\n")
         del _settings_box, _status_box
+
+    def _set_income_source(self, key: str) -> None:
+        self._income_source = IncomeSourceMode.parse(key)
+        self._sync_income_source_radios()
+        self._load_income_folder()
+
+    def _sync_income_source_radios(self) -> None:
+        self.income_source_pdf.setState_(0 if self._income_source.is_image else 1)
+        self.income_source_image.setState_(1 if self._income_source.is_image else 0)
 
     def _set_pp30_mode(self, key: str) -> None:
         self._pp30_mode = Pp30RunMode.parse(key)
@@ -1006,19 +1041,20 @@ class MainWindow:
 
     def _load_income_folder(self) -> None:
         folder = Path(str(self.income_folder_field.stringValue() or "")).expanduser()
-        self.income_pdf_files = Pp30FolderService.list_pdfs(folder)
+        self.income_pdf_files = IncomeFolderService.list_files(folder, self._income_source)
         if self.income_pdf_files:
             self.income_folder_summary_field.setStringValue_(
-                UI_TEXT["pp30_pdf_total"].format(count=len(self.income_pdf_files))
+                self._income_source.total_text(len(self.income_pdf_files))
             )
         else:
-            self.income_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
+            self.income_folder_summary_field.setStringValue_(UI_TEXT["income_folder_empty"])
 
     def _income_form_config(self) -> IncomeFormConfig:
         return IncomeFormConfig(
             pdf_folder=Path(str(self.income_folder_field.stringValue() or "")).expanduser(),
             start_date=format_express_pv_date(str(self.income_start_field.stringValue() or "")),
             pdf_files=list(self.income_pdf_files),
+            source=self._income_source,
         )
 
     def _start_income(self) -> None:
@@ -1033,8 +1069,8 @@ class MainWindow:
             return
         total = len(self.income_pdf_files)
         self._set_income_progress(0, total)
-        self._append_income_log(UI_TEXT["pp30_pdf_total"].format(count=total))
         form_config = self._income_form_config()
+        self._append_income_log(form_config.source.total_text(total))
         express_data_dir = self.app_config.express_data_dir
         self._income_running = True
         threading.Thread(target=self._run_income, args=(form_config, express_data_dir), daemon=True).start()
