@@ -10,6 +10,7 @@ from constants.routes import ASSETS_DIR
 from services.income_extract_service import extract_income_values
 
 _RED_GAP = 60
+_MIN_WIDTH = 2400
 
 
 class IncomeOcrService:
@@ -29,6 +30,9 @@ def _strip_red(path: Path, target: Path) -> Path:
 
     with Image.open(path) as source:
         image = source.convert("RGB")
+    if image.width < _MIN_WIDTH:
+        ratio = _MIN_WIDTH / image.width
+        image = image.resize((_MIN_WIDTH, round(image.height * ratio)), Image.LANCZOS)
     red, green, blue = image.split()
     over_green = ImageChops.subtract(red, green).point(lambda v: 255 if v > _RED_GAP else 0)
     over_blue = ImageChops.subtract(red, blue).point(lambda v: 255 if v > _RED_GAP else 0)

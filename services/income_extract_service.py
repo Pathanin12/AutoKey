@@ -29,6 +29,7 @@ _BRANCH_CODE_RE = re.compile(r"รหัสสาขา\s*(\d{5,8})")
 _BRANCH_NO_RE = re.compile(r"สาขาที่\s*(\d{5,8})")
 _HEAD_OFFICE_RE = re.compile(r"สำนักงานใหญ่[^\d]{0,40}(\d{6,8})")
 _BRANCH_ALONE_RE = re.compile(r"(?<!\d)(\d{7})(?!\d)")
+_CUSTOMER_CODE_RE = re.compile(r"(?<!\d)(38\d{5})(?!\d)")
 _TAX_THEN_BRANCH_RE = re.compile(r"(\d{13})(\d{7})(?!\d)")
 _DATE_RE = re.compile(r"(?<!\d)(\d{1,2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{2,4})(?!\d)")
 _INVOICE_THEN_DATE_RE = re.compile(
@@ -257,6 +258,9 @@ def _branch_last5(text: str) -> str:
         if match:
             digits = match.group(1)
             return digits[-5:] if len(digits) >= 5 else digits.zfill(5)
+    customer = _CUSTOMER_CODE_RE.search(text or "")
+    if customer:
+        return customer.group(1)[-5:]
     pair = [item for item in _TAX_THEN_BRANCH_RE.findall(text or "") if item[0].startswith("0")]
     if pair:
         return pair[-1][1][-5:]

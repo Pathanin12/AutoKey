@@ -464,6 +464,16 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertEqual(values.kind, INCOME_RV_RENT)
         self.assertEqual((values.total_amount, values.wht_amount, values.vat_amount), (7618.65, 400.98, 0.0))
 
+    def test_branch_prefers_customer_code_over_glued_date(self) -> None:
+        text = _RECEIPT_RENT_OCR.replace(
+            "10506007724078 31.07.2026",
+            "6007724098} 31.07.2026381,132.22",
+        )
+        values = extract_income_values(text)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.branch_last5, "00245")
+
     def test_folder_lists_files_by_source(self) -> None:
         with TemporaryDirectory() as raw:
             folder = Path(raw)

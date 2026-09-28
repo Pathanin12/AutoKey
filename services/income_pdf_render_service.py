@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-_RENDER_SCALE = 2
+_RENDER_SCALE = 4
 
 
 class IncomePdfRenderService:
