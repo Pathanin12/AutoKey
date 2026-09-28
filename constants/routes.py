@@ -210,6 +210,7 @@ UI_TEXT = {
     "income_skip_month_log": "ข้าม — {name} เดือน {found_month}/{found_year} ไม่ใช่เดือน {month}/{year}",
     "income_skip_no_invoice_log": "ข้าม — {path} ไม่เจอใบกำกับภาษีหรือใบเสร็จ",
     "income_insert_log": "สรุป — {shop}: {detail}",
+    "income_insert_done": "insert เสร็จ {inserted}/{total}",
     "income_multi_bill_log": "สรุป — {name} สาขา {branch} มี {count} บิล",
     "menu_unavailable": "เมนูนี้ยังไม่พร้อมใช้",
     "back_to_menu": "กลับเมนู",

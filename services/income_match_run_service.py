@@ -51,7 +51,6 @@ class IncomeMatchRunService:
         total = len(form_config.pdf_files)
         jobs: list[IncomeMatchedJob] = []
         inserted = 0
-        invoice_total = 0
         for index, pdf_path in enumerate(form_config.pdf_files, start=1):
             if should_stop and should_stop():
                 break
@@ -80,7 +79,6 @@ class IncomeMatchRunService:
                         )
                     )
                     continue
-                invoice_total += 1
                 company = Pp30MatchService.match_lookup(values.company_name, lookup)
                 if company is None:
                     on_status(
@@ -132,7 +130,7 @@ class IncomeMatchRunService:
                 except Exception as exc:
                     on_status(f"{values.company_name}: {exc}")
             on_progress(index, total)
-        on_status(UI_TEXT["pp30_insert_done"].format(inserted=inserted, total=invoice_total))
+        on_status(UI_TEXT["income_insert_done"].format(inserted=inserted, total=total))
         seen: set[tuple[str, str]] = set()
         for job in jobs:
             if job.form_values.bill_count <= 1:
