@@ -32,7 +32,6 @@ from models.topic_menu_item import TopicMenuItem
 from services.app_config_service import AppConfigService
 from services.express_shop_index_service import ExpressShopIndexService
 from services.ka_tam_excel_service import KaTamExcelService
-from services.income_excel_service import IncomeExcelService
 from services.income_match_run_service import IncomeMatchRunService
 from services.ka_tam_match_run_service import KaTamMatchRunService
 from services.pnd3_match_run_service import Pnd3MatchRunService
@@ -91,12 +90,9 @@ class MainWindow:
         self.pnd3_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.pnd3_pdf_files: list[Path] = []
         self._pnd3_running = False
-        self.income_excel_path = tk.StringVar(value="")
-        self.income_excel_summary = tk.StringVar(value=UI_TEXT["income_excel_empty"])
-        self.income_start_date = tk.StringVar(value="")
-        self.income_end_date = tk.StringVar(value="")
         self.income_pdf_folder = tk.StringVar(value="")
-        self.income_pdf_summary = tk.StringVar(value=UI_TEXT["income_save_folder_empty"])
+        self.income_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
+        self.income_start_date = tk.StringVar(value="")
         self.income_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.income_pdf_files: list[Path] = []
         self._income_running = False
@@ -382,30 +378,16 @@ class MainWindow:
 
         form = ttk.Frame(page)
         form.pack(fill="x", padx=20, pady=(16, 0))
-        ttk.Label(form, text=UI_TEXT["income_excel"]).grid(row=0, column=0, sticky="w")
-        ttk.Entry(form, textvariable=self.income_excel_path, width=42).grid(row=0, column=1, sticky="ew", padx=(8, 8))
-        ttk.Button(form, text=UI_TEXT["choose_file"], command=self._choose_income_excel).grid(row=0, column=2)
-        ttk.Label(form, textvariable=self.income_excel_summary, wraplength=500).grid(
+        ttk.Label(form, text=UI_TEXT["pp30_pdf_folder"]).grid(row=0, column=0, sticky="w")
+        ttk.Entry(form, textvariable=self.income_pdf_folder, width=42).grid(row=0, column=1, sticky="ew", padx=(8, 8))
+        ttk.Button(form, text=UI_TEXT["choose_folder"], command=self._choose_income_folder).grid(row=0, column=2)
+        ttk.Label(form, textvariable=self.income_pdf_summary, wraplength=500).grid(
             row=1, column=0, columnspan=3, sticky="w", pady=(4, 0)
         )
         ttk.Label(form, text=UI_TEXT["income_start_date"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
         start_entry = ttk.Entry(form, textvariable=self.income_start_date, width=14)
         start_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
-        start_entry.bind("<FocusOut>", self._format_income_dates)
-        ttk.Label(form, text=UI_TEXT["income_end_date"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
-        end_entry = ttk.Entry(form, textvariable=self.income_end_date, width=14)
-        end_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
-        end_entry.bind("<FocusOut>", self._format_income_dates)
-        ttk.Label(form, text=UI_TEXT["income_save_folder"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(form, textvariable=self.income_pdf_folder, width=42).grid(
-            row=4, column=1, sticky="ew", padx=(8, 8), pady=(8, 0)
-        )
-        ttk.Button(form, text=UI_TEXT["choose_folder"], command=self._choose_income_folder).grid(
-            row=4, column=2, pady=(8, 0)
-        )
-        ttk.Label(form, textvariable=self.income_pdf_summary, wraplength=500).grid(
-            row=5, column=0, columnspan=3, sticky="w", pady=(4, 0)
-        )
+        start_entry.bind("<FocusOut>", self._format_income_date)
         form.columnconfigure(1, weight=1)
 
         ttk.Button(page, text=f"▶ {UI_TEXT['start']}", command=self._start_income).pack(anchor="w", padx=20, pady=12)
@@ -742,38 +724,8 @@ class MainWindow:
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
 
-    def _choose_income_excel(self) -> None:
-        selected = filedialog.askopenfilename(
-            title=UI_TEXT["income_excel"],
-            filetypes=[("Excel", "*.xlsx *.xls"), ("All", "*.*")],
-        )
-        if not selected:
-            return
-        self.income_excel_path.set(selected)
-        self._load_income_excel()
-
-    def _load_income_excel(self) -> None:
-        path = Path(self.income_excel_path.get().strip()).expanduser()
-        if not path.exists():
-            self.income_excel_summary.set(UI_TEXT["income_excel_empty"])
-            return
-        try:
-            accounts = IncomeExcelService.load_accounts(path)
-        except Exception as exc:
-            self.income_excel_summary.set(str(exc))
-            return
-        self.income_excel_summary.set(UI_TEXT["income_excel_total"].format(count=len(accounts)))
-
-    def _format_income_dates(self, _event=None) -> None:
-        start = self.income_start_date.get()
-        end = self.income_end_date.get()
-        if is_complete_express_date(start):
-            self.income_start_date.set(format_express_pv_date(start))
-        if is_complete_express_date(end):
-            self.income_end_date.set(format_express_pv_date(end))
-
     def _choose_income_folder(self) -> None:
-        selected = filedialog.askdirectory(title=UI_TEXT["income_save_folder"])
+        selected = filedialog.askdirectory(title=UI_TEXT["pp30_pdf_folder"])
         if not selected:
             return
         self.income_pdf_folder.set(selected)
@@ -781,17 +733,21 @@ class MainWindow:
 
     def _load_income_folder(self) -> None:
         folder = Path(self.income_pdf_folder.get().strip()).expanduser()
-        if folder.exists() and folder.is_dir():
-            self.income_pdf_summary.set(str(folder))
+        self.income_pdf_files = Pp30FolderService.list_pdfs(folder)
+        if self.income_pdf_files:
+            self.income_pdf_summary.set(UI_TEXT["pp30_pdf_total"].format(count=len(self.income_pdf_files)))
         else:
-            self.income_pdf_summary.set(UI_TEXT["income_save_folder_empty"])
+            self.income_pdf_summary.set(UI_TEXT["pp30_pdf_summary_empty"])
+
+    def _format_income_date(self, _event=None) -> None:
+        current = self.income_start_date.get()
+        if is_complete_express_date(current):
+            self.income_start_date.set(format_express_pv_date(current))
 
     def _income_form_config(self) -> IncomeFormConfig:
         return IncomeFormConfig(
             pdf_folder=Path(self.income_pdf_folder.get().strip()).expanduser(),
-            excel_path=Path(self.income_excel_path.get().strip()).expanduser(),
             start_date=format_express_pv_date(self.income_start_date.get()),
-            end_date=format_express_pv_date(self.income_end_date.get()),
             pdf_files=list(self.income_pdf_files),
         )
 
@@ -799,15 +755,16 @@ class MainWindow:
         if self._income_running:
             return
         self.app_config = self.app_config_service.load()
-        self._load_income_excel()
-        self._format_income_dates()
         self._load_income_folder()
+        self._format_income_date()
         errors = self.app_config.validate()
         errors.extend(self._income_form_config().validate())
         if errors:
             messagebox.showwarning(UI_TEXT["app_title"], "\n".join(errors))
             return
-        self._set_income_progress(0, 0)
+        total = len(self.income_pdf_files)
+        self._set_income_progress(0, total)
+        self._append_income_log(UI_TEXT["pp30_pdf_total"].format(count=total))
         form_config = self._income_form_config()
         express_data_dir = self.app_config.express_data_dir
         self._income_running = True

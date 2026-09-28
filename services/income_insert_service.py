@@ -7,6 +7,8 @@ from constants.routes import (
     ACCOUNT_INCOME,
     ACCOUNT_INCOME_ADVANCE,
     ACCOUNT_INCOME_GOODS,
+    INCOME_PV_RECEIPT,
+    INCOME_PV_TAX,
     INCOME_RV_ADVANCE,
     INCOME_RV_DESC,
     INCOME_RV_GOODS,
@@ -22,6 +24,7 @@ from models.income_form_values import IncomeFormValues
 from services.express_journal_service import ExpressJournalService
 from services.express_vat_service import ExpressVatService
 from services.income_insert_lines_service import rv_income
+from services.income_pv_insert_service import IncomePvInsertService
 
 
 _TOPICS = {
@@ -33,6 +36,8 @@ _TOPICS = {
 class IncomeInsertService:
     @staticmethod
     def description(values: IncomeFormValues, form: IncomeFormConfig) -> str:
+        if values.kind in (INCOME_PV_TAX, INCOME_PV_RECEIPT):
+            return IncomePvInsertService.description(values, form)
         month, year = express_month_year_label(form.start_date)
         topic = _TOPICS.get(values.kind, INCOME_RV_TOPIC_TAX)
         return INCOME_RV_DESC.format(
@@ -44,11 +49,15 @@ class IncomeInsertService:
 
     @staticmethod
     def voucher(values: IncomeFormValues, form: IncomeFormConfig):
+        if values.kind in (INCOME_PV_TAX, INCOME_PV_RECEIPT):
+            return IncomePvInsertService.voucher(values, form)
         date = format_express_pv_date(values.invoice_date) or form.start_date
         return rv_income(values, date, IncomeInsertService.description(values, form))
 
     @staticmethod
     def insert(folder: Path, values: IncomeFormValues, form: IncomeFormConfig) -> str:
+        if values.kind in (INCOME_PV_TAX, INCOME_PV_RECEIPT):
+            return IncomePvInsertService.insert(folder, values, form)
         voucher = IncomeInsertService.voucher(values, form)
         if not voucher.lines:
             return ""

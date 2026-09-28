@@ -36,6 +36,7 @@ _RECEIPT_THEN_DATE_RE = re.compile(
     r"28\d{8}\s*(\d{1,2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{2,4})"
 )
 _INVOICE_DATE_RE = re.compile(r"29\d{8}(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})")
+_PERIOD_RE = re.compile(r"(?:ประจำเดือน|เดือน)\s*(\d{1,2})\s*[./-]\s*(\d{2,4})")
 _COMPANY_PREFIXES = (
     "ห้างหุ้นส่วนจำกัด",
     "ห้างหุ้นส่วนสามัญนิติบุคคล",
@@ -73,6 +74,11 @@ def _glue_digits(text: str) -> str:
 
 
 def extract_income_values(text: str) -> IncomeFormValues | None:
+    from services.income_pv_extract_service import extract_income_pv_receipt, extract_income_pv_tax
+
+    found = extract_income_pv_tax(text) or extract_income_pv_receipt(text)
+    if found:
+        return found
     if _receipt_kind(text):
         return extract_income_receipt(text)
     return extract_income_invoice(text)
@@ -103,6 +109,7 @@ def extract_income_invoice(text: str) -> IncomeFormValues | None:
         vat_amount=vat_amount,
         bill_count=_bill_count(glued or text),
         kind=INCOME_RV_TAX,
+        period_date=_period_date(text),
     )
 
 
@@ -137,6 +144,7 @@ def extract_income_receipt(text: str) -> IncomeFormValues | None:
         vat_amount=vat_amount,
         bill_count=_bill_count(glued or text),
         kind=kind,
+        period_date=_period_date(text),
     )
 
 
@@ -186,6 +194,15 @@ def _totals(text: str) -> tuple[float, float, float] | None:
         if total > 0:
             return total, wht, vat
     return None
+
+
+def _period_date(text: str) -> str:
+    match = _PERIOD_RE.search(text or "")
+    if not match:
+        return ""
+    month, year = match.groups()
+    formatted = format_express_pv_date(f"01/{int(month):02d}/{year}")
+    return formatted if is_complete_express_date(formatted) else ""
 
 
 def _invoice_date(text: str) -> str:

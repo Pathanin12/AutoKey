@@ -17,7 +17,14 @@ class IncomeFormValues:
     vat_amount: float
     bill_count: int
     kind: str = INCOME_RV_TAX
+    period_date: str = ""
+    base_amount: float = 0.0
+    deposit_amount: float = 0.0
 
     @property
     def has_total(self) -> bool:
-        return abs(self.total_amount) >= 0.005
+        return (
+            abs(self.total_amount) >= 0.005
+            or abs(self.base_amount) >= 0.005
+            or abs(self.deposit_amount) >= 0.005
+        )

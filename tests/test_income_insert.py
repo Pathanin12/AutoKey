@@ -4,10 +4,15 @@ from pathlib import Path
 from constants.routes import (
     ACCOUNT_INCOME,
     ACCOUNT_INCOME_ADVANCE,
+    ACCOUNT_INCOME_DEPOSIT,
     ACCOUNT_INCOME_GOODS,
     ACCOUNT_INCOME_RECEIVABLE,
     ACCOUNT_INCOME_WHT,
     ACCOUNT_PP30_VAT_SALE,
+    ACCOUNT_VAT,
+    ACCOUNT_WT,
+    INCOME_PV_TAX,
+    INCOME_PV_RECEIPT,
     INCOME_RV_ADVANCE,
     INCOME_RV_GOODS,
     INCOME_RV_TAX,
@@ -23,6 +28,8 @@ from services.income_extract_service import (
 )
 from services.income_insert_lines_service import rv_income
 from services.income_insert_service import IncomeInsertService
+from services.income_pv_extract_service import extract_income_pv_receipt, extract_income_pv_tax
+from services.income_pv_insert_lines_service import pv_income_receipt, pv_income_tax
 
 _SAMPLE = """
 หจก. พี ที รีเทลลิ่ง
@@ -89,6 +96,131 @@ _RECEIPT_ADVANCE = """
 รวมเงินทั้งสิ้น 5,000.00
 """
 
+_CPALL_PV_TAX = """
+CP ALL PUBLIC COMPANY LIMITED
+บริษัท ซีพี ออลล์ จำกัด (มหาชน)
+เลขประจำตัวผู้เสียภาษี 0107542000011
+Receipt
+ใบเสร็จรับเงิน/ใบกำกับภาษี
+ต้นฉบับ
+รหัสลูกค้า :
+ชื่อลูกค้า :
+3808734 สำนักงานใหญ่
+หจก. 3325 เอ็น เอ็น พี
+เลขที่ :
+2600008431
+วันที่ :
+20.02.2026
+เลขประจำตัวผู้เสียภาษี :
+0123549005198
+ชำระค่า ค่าสิทธิ์ เดือน 08/69
+ค่ารวม 1,000.00
+บวก ภาษีมูลค่าเพิ่ม 70.00
+หัก ณ ที่จ่าย 30.00
+จำนวนเงินที่ต้องชำระ 1,040.00
+"""
+
+_CPALL_PV_RECEIPT = """
+CP ALL PUBLIC COMPANY LIMITED
+บริษัท ซีพี ออลล์ จำกัด (มหาชน)
+เลขประจำตัวผู้เสียภาษี 0107542000011
+Receipt
+ใบเสร็จรับเงิน
+ต้นฉบับ
+รหัสลูกค้า :
+ชื่อลูกค้า :
+3810981 สำนักงานใหญ่
+หจก. อิงฟ้า คอนวีเนียนซ์สโตร์
+เลขที่ :
+2600049608
+วันที่ :
+18.09.2026
+เลขประจำตัวผู้เสียภาษี :
+0103562018222
+ชำระค่า
+ผ่อนเงินสำรอง รถเข็นลัง เดือน 08/69
+เงินประกัน เดือน 08/69
+297.00
+10,132.75
+รวม (บาท)
+หัก ณ ที่จ่าย 0.00
+จำนวนเงินที่ชำระ 10,429.75
+"""
+
+_CPALL_PV_RECEIPT_OCR = """
+CP ALL PUBLIC COMPANY LIMITED
+บริษัท ซีพี ออลล์ จำกัด (มหาชน)
+เลขประจำตัวผู้เสียภาษี 0107542000011
+Receipt
+ใบเสร็จรับเงิน
+ต้นฉบับ
+รหัสลูกค้า :
+ชื่อลูกค้า :
+3810981
+สำนักงานใหญ่
+หจก. อิงฟ้า คอนวีเนียนซ์สโตร์
+เลขประจำตัวผู้เสียภาษี :
+0103562018222
+Invoice Date
+วันที่ใบแจ้งหนี้
+31.03.2026
+31.08.2026
+เลขที่ :
+วันที่ :
+2600049608
+18.09.2026
+6400509502
+Description
+ชำระค่า
+ผ่อนเงินสำรอง รถเข็นลัง เดือน 08/69
+เงินประกัน เดือน 08:69
+Amount
+จำนวนเงิน
+297.00
+10,132.75
+รวม (บาท)
+หัก ณ ที่จ่าย
+จำนวนเงินที่ชำระ
+10,429.75
+0.00
+10,429.75
+"""
+
+_CPALL_PV_DEPOSIT_ONLY = """
+CP ALL PUBLIC COMPANY LIMITED
+บริษัท ซีพี ออลล์ จำกัด (มหาชน)
+เลขประจำตัวผู้เสียภาษี 0107542000011
+Receipt
+ใบเสร็จรับเงิน
+ต้นฉบับ
+รหัสลูกค้า : 3810981
+หจก. อิงฟ้า คอนวีเนียนซ์สโตร์
+เลขที่ : 2600049608
+วันที่ : 18.09.2026
+ชำระค่า
+เงินประกัน เดือน 08/69 5,000.00
+เงินประกัน ค่าเช่า เดือน 08/69 3,000.00
+รวม (บาท)
+จำนวนเงินที่ชำระ 8,000.00
+"""
+
+_CPALL_PV_INSTALL_ONLY = """
+CP ALL PUBLIC COMPANY LIMITED
+บริษัท ซีพี ออลล์ จำกัด (มหาชน)
+เลขประจำตัวผู้เสียภาษี 0107542000011
+Receipt
+ใบเสร็จรับเงิน
+ต้นฉบับ
+รหัสลูกค้า : 3810981
+หจก. อิงฟ้า คอนวีเนียนซ์สโตร์
+เลขที่ : 2600049608
+วันที่ : 18.09.2026
+ชำระค่า
+ผ่อนเงินสำรอง รถเข็นลัง เดือน 08/69 165.00
+รวม (บาท)
+จำนวนเงินที่ชำระ 165.00
+"""
+
 
 class IncomeExtractTests(unittest.TestCase):
     def test_reads_tax_invoice_amounts(self) -> None:
@@ -106,6 +238,7 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertEqual(values.wht_amount, 9557.50)
         self.assertEqual(values.vat_amount, 22300.84)
         self.assertEqual(values.bill_count, 1)
+        self.assertEqual(values.period_date, "01/08/69")
 
     def test_reads_invoice_from_numbers_when_thai_marks_missing(self) -> None:
         text = (
@@ -200,6 +333,57 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertEqual(values.branch_last5, "07064")
         self.assertEqual(values.total_amount, 5000.0)
 
+    def test_reads_cpall_pv_tax_invoice(self) -> None:
+        self.assertEqual(extract_income_values(_SAMPLE).kind, INCOME_RV_TAX)
+        values = extract_income_pv_tax(_CPALL_PV_TAX)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(extract_income_values(_CPALL_PV_TAX).kind, INCOME_PV_TAX)
+        self.assertEqual(values.kind, INCOME_PV_TAX)
+        self.assertEqual(values.company_name, "หจก. 3325 เอ็น เอ็น พี")
+        self.assertEqual(values.branch_last5, "08734")
+        self.assertEqual(values.invoice_date, "20/02/69")
+        self.assertEqual(values.invoice_number, "2600008431")
+        self.assertEqual(values.tax_id, "0107542000011")
+        self.assertEqual(values.base_amount, 1000.0)
+        self.assertEqual(values.vat_amount, 70.0)
+        self.assertEqual(values.wht_amount, 30.0)
+        self.assertEqual(values.total_amount, 1040.0)
+        self.assertEqual(values.period_date, "01/08/69")
+
+    def test_reads_cpall_pv_receipt_splits(self) -> None:
+        values = extract_income_pv_receipt(_CPALL_PV_RECEIPT)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(extract_income_values(_CPALL_PV_RECEIPT).kind, INCOME_PV_RECEIPT)
+        self.assertEqual(values.kind, INCOME_PV_RECEIPT)
+        self.assertEqual(values.company_name, "หจก. อิงฟ้า คอนวีเนียนซ์สโตร์")
+        self.assertEqual(values.branch_last5, "10981")
+        self.assertEqual(values.invoice_number, "2600049608")
+        self.assertEqual(values.tax_id, "0107542000011")
+        self.assertEqual(values.base_amount, 297.0)
+        self.assertEqual(values.deposit_amount, 10132.75)
+        self.assertEqual(values.total_amount, 10429.75)
+        self.assertEqual(values.invoice_date, "18/09/69")
+        ocr = extract_income_pv_receipt(_CPALL_PV_RECEIPT_OCR)
+        self.assertIsNotNone(ocr)
+        assert ocr is not None
+        self.assertEqual(ocr.invoice_date, "18/09/69")
+        self.assertEqual(ocr.invoice_number, "2600049608")
+        self.assertEqual(ocr.base_amount, 297.0)
+        self.assertEqual(ocr.deposit_amount, 10132.75)
+        self.assertEqual(ocr.total_amount, 10429.75)
+        deposit = extract_income_pv_receipt(_CPALL_PV_DEPOSIT_ONLY)
+        self.assertIsNotNone(deposit)
+        assert deposit is not None
+        self.assertEqual(deposit.deposit_amount, 8000.0)
+        self.assertEqual(deposit.base_amount, 0.0)
+        install = extract_income_pv_receipt(_CPALL_PV_INSTALL_ONLY)
+        self.assertIsNotNone(install)
+        assert install is not None
+        self.assertEqual(install.base_amount, 165.0)
+        self.assertEqual(install.deposit_amount, 0.0)
+
 
 class IncomeInsertLinesTests(unittest.TestCase):
     def test_rv_lines_then_income_remainder(self) -> None:
@@ -276,7 +460,129 @@ class IncomeInsertLinesTests(unittest.TestCase):
             IncomeInsertService.description(advance, form),
             "บมจ.ซีพีออลล์-เบิกเงินสำรอง ด.8/69*09310",
         )
+        august = IncomeFormValues(
+            company_name="หจก. ทดสอบ",
+            branch_last5="70064",
+            invoice_date="18/09/69",
+            invoice_number="2900054763",
+            tax_id="0107542000011",
+            total_amount=100.0,
+            wht_amount=0.0,
+            vat_amount=0.0,
+            bill_count=1,
+            period_date="01/08/69",
+        )
+        july = IncomeFormValues(
+            company_name="หจก. ทดสอบ",
+            branch_last5="70064",
+            invoice_date="18/08/69",
+            invoice_number="2900054763",
+            tax_id="0107542000011",
+            total_amount=100.0,
+            wht_amount=0.0,
+            vat_amount=0.0,
+            bill_count=1,
+            period_date="01/07/69",
+        )
+        self.assertTrue(form.matches_month(august))
+        self.assertFalse(form.matches_month(july))
+        self.assertTrue(form.matches_month(goods))
+
+    def test_pv_tax_lines_and_description(self) -> None:
+        values = extract_income_pv_tax(_CPALL_PV_TAX)
+        self.assertIsNotNone(values)
+        assert values is not None
+        form = IncomeFormConfig(pdf_folder=Path("."), start_date="01/08/69")
+        self.assertEqual(
+            IncomeInsertService.description(values, form),
+            "บมจ.ซีพี ออลล์-ค่าสิทธ์ ด.8/69*08734",
+        )
+        july = IncomeFormConfig(pdf_folder=Path("."), start_date="01/07/69")
+        self.assertEqual(
+            IncomeInsertService.description(values, july),
+            "บมจ.ซีพี ออลล์-ค่าสิทธ์ ด.7/69*08734",
+        )
+        voucher = IncomeInsertService.voucher(values, form)
+        self.assertEqual(voucher.jnltyp, "01")
+        self.assertEqual(voucher.prefix, "PV")
+        self.assertEqual(voucher.voudat_express, "20/02/69")
+        self.assertEqual(
+            [(line.account, line.amount, line.is_credit) for line in voucher.lines],
+            [
+                (ACCOUNT_INCOME_ADVANCE, 1000.0, False),
+                (ACCOUNT_VAT, 70.0, False),
+                (ACCOUNT_WT, 30.0, True),
+                (ACCOUNT_INCOME_RECEIVABLE, 1040.0, True),
+            ],
+        )
+        self.assertEqual(
+            [(line.account, line.amount, line.is_credit) for line in pv_income_tax(values, "20/02/69", "x").lines],
+            [
+                (ACCOUNT_INCOME_ADVANCE, 1000.0, False),
+                (ACCOUNT_VAT, 70.0, False),
+                (ACCOUNT_WT, 30.0, True),
+                (ACCOUNT_INCOME_RECEIVABLE, 1040.0, True),
+            ],
+        )
         self.assertEqual(VATREC_SALE, "S")
+
+    def test_pv_receipt_lines_and_description(self) -> None:
+        values = extract_income_pv_receipt(_CPALL_PV_RECEIPT)
+        self.assertIsNotNone(values)
+        assert values is not None
+        form = IncomeFormConfig(pdf_folder=Path("."), start_date="01/07/69")
+        self.assertEqual(
+            IncomeInsertService.description(values, form),
+            "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน ด.7/69*",
+        )
+        voucher = IncomeInsertService.voucher(values, form)
+        self.assertEqual(voucher.jnltyp, "01")
+        self.assertEqual(voucher.prefix, "PV")
+        self.assertEqual(voucher.voudat_express, "18/09/69")
+        self.assertEqual(
+            [(line.account, line.amount, line.is_credit) for line in voucher.lines],
+            [
+                (ACCOUNT_INCOME_DEPOSIT, 10132.75, False),
+                (ACCOUNT_INCOME_ADVANCE, 297.0, False),
+                (ACCOUNT_INCOME_RECEIVABLE, 10429.75, True),
+            ],
+        )
+        self.assertEqual(
+            [(line.account, line.amount, line.is_credit) for line in pv_income_receipt(values, "18/09/69", "x").lines],
+            [
+                (ACCOUNT_INCOME_DEPOSIT, 10132.75, False),
+                (ACCOUNT_INCOME_ADVANCE, 297.0, False),
+                (ACCOUNT_INCOME_RECEIVABLE, 10429.75, True),
+            ],
+        )
+        deposit = extract_income_pv_receipt(_CPALL_PV_DEPOSIT_ONLY)
+        self.assertIsNotNone(deposit)
+        assert deposit is not None
+        self.assertEqual(
+            IncomeInsertService.description(deposit, form),
+            "บมจ.ซีพีออลล์-เงินประกัน ด.7/69*10981",
+        )
+        self.assertEqual(
+            [(line.account, line.amount, line.is_credit) for line in IncomeInsertService.voucher(deposit, form).lines],
+            [
+                (ACCOUNT_INCOME_DEPOSIT, 8000.0, False),
+                (ACCOUNT_INCOME_RECEIVABLE, 8000.0, True),
+            ],
+        )
+        install = extract_income_pv_receipt(_CPALL_PV_INSTALL_ONLY)
+        self.assertIsNotNone(install)
+        assert install is not None
+        self.assertEqual(
+            IncomeInsertService.description(install, form),
+            "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง ด.7/69*10981",
+        )
+        self.assertEqual(
+            [(line.account, line.amount, line.is_credit) for line in IncomeInsertService.voucher(install, form).lines],
+            [
+                (ACCOUNT_INCOME_ADVANCE, 165.0, False),
+                (ACCOUNT_INCOME_RECEIVABLE, 165.0, True),
+            ],
+        )
 
     def test_goods_and_advance_lines(self) -> None:
         goods = IncomeFormValues(
@@ -322,7 +628,8 @@ class IncomeInsertLinesTests(unittest.TestCase):
     def test_form_needs_pdf_folder(self) -> None:
         errors = IncomeFormConfig(pdf_folder=Path("/no-folder")).validate()
         self.assertTrue(any("โฟลเดอร์" in item for item in errors))
-        self.assertTrue(any("Excel" in item for item in errors))
+        self.assertTrue(any("วันที่" in item for item in errors))
+        self.assertFalse(any("Excel" in item for item in errors))
 
 
 if __name__ == "__main__":
