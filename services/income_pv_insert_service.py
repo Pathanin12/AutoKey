@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from constants.date_utils import express_date_to_dbf, express_month_date_range, express_month_year_label, format_express_pv_date
+from constants.date_utils import express_date_to_dbf, express_month_date_range, format_express_pv_date
 from constants.routes import (
     INCOME_PV_BOTH_DESC,
     INCOME_PV_DEPOSIT_DESC,
@@ -24,7 +24,7 @@ from services.pp30_amount_service import has_amount
 class IncomePvInsertService:
     @staticmethod
     def description(values: IncomeFormValues, form: IncomeFormConfig) -> str:
-        month, year = express_month_year_label(form.start_date)
+        month, year = values.description_month_year(form.start_date)
         if values.kind == INCOME_PV_RECEIPT:
             return _receipt_description(values, month, year)
         return INCOME_PV_TAX_DESC.format(month=month, year=year, branch=values.branch_last5)

@@ -3,7 +3,13 @@ from __future__ import annotations
 import re
 
 from constants.date_utils import format_express_pv_date, is_complete_express_date
-from constants.routes import INCOME_PV_DEPOSIT_MARK, INCOME_PV_RECEIPT, INCOME_PV_TAX
+from constants.routes import (
+    INCOME_PV_DEPOSIT_MARK,
+    INCOME_PV_RECEIPT,
+    INCOME_PV_TAX,
+    INCOME_PV_TAX_TITLE,
+    INCOME_PV_TAX_TITLE_GLUED,
+)
 from models.income_form_values import IncomeFormValues
 from services.income_extract_service import (
     _branch_last5,
@@ -18,7 +24,6 @@ from services.name_match_service import tidy_name
 from services.pp30_amount_service import money_amounts
 
 
-_TAX_MARK = "ใบกำกับภาษี"
 _RECEIPT_MARK = "ใบเสร็จรับเงิน"
 _CUSTOMER_RE = re.compile(r"รหัสลูกค้า[^\d]{0,80}(\d{7,8})")
 _DOC_NUM_RE = re.compile(r"เลขที่\s*[:：]?\s*(\d{8,12})")
@@ -66,18 +71,23 @@ def is_cpall_pv_tax(text: str) -> bool:
     compact = re.sub(r"\s+", "", _norm_thai(text))
     if not _is_cpall_doc(compact):
         return False
-    if _TAX_MARK not in compact and "กำกับภาษี" not in compact:
-        return False
-    return _RECEIPT_MARK in compact or "เสร็จรับเงิน" in compact
+    return _has_pv_tax_title(compact)
 
 
 def is_cpall_pv_receipt(text: str) -> bool:
     compact = re.sub(r"\s+", "", _norm_thai(text))
     if not _is_cpall_doc(compact):
         return False
-    if _TAX_MARK in compact or "กำกับภาษี" in compact:
+    if _has_pv_tax_title(compact):
         return False
     return _RECEIPT_MARK in compact or "เสร็จรับเงิน" in compact
+
+
+def _has_pv_tax_title(compact: str) -> bool:
+    if INCOME_PV_TAX_TITLE in compact or INCOME_PV_TAX_TITLE_GLUED in compact:
+        return True
+    upper = compact.upper()
+    return "RECEIPT/TAXINVOICE" in upper or "RECEIPTTAXINVOICE" in upper
 
 
 def _is_cpall_doc(compact: str) -> bool:

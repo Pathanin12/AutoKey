@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from constants.date_utils import express_month_year_label, is_complete_express_date
 from constants.routes import INCOME_RV_TAX
 
 
@@ -32,3 +33,7 @@ class IncomeFormValues:
     @property
     def month_date(self) -> str:
         return self.invoice_date or self.period_date
+
+    def description_month_year(self, fallback: str) -> tuple[int, str]:
+        source = self.period_date if is_complete_express_date(self.period_date) else fallback
+        return express_month_year_label(source)

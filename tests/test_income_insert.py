@@ -137,6 +137,7 @@ Receipt
 18.09.2026
 เลขประจำตัวผู้เสียภาษี :
 0103562018222
+สาขาที่ออกใบกำกับภาษี : 00000
 ชำระค่า
 ผ่อนเงินสำรอง รถเข็นลัง เดือน 08/69
 เงินประกัน เดือน 08/69
@@ -369,7 +370,9 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertIsNotNone(values)
         assert values is not None
         self.assertEqual(extract_income_values(_CPALL_PV_RECEIPT).kind, INCOME_PV_RECEIPT)
+        self.assertIsNone(extract_income_pv_tax(_CPALL_PV_RECEIPT))
         self.assertEqual(values.kind, INCOME_PV_RECEIPT)
+        self.assertEqual(values.vat_amount, 0.0)
         self.assertEqual(values.company_name, "หจก. อิงฟ้า คอนวีเนียนซ์สโตร์")
         self.assertEqual(values.branch_last5, "10981")
         self.assertEqual(values.invoice_number, "2600049608")
@@ -502,7 +505,10 @@ class IncomeInsertLinesTests(unittest.TestCase):
         self.assertFalse(form.matches_month(august))
         self.assertTrue(form.matches_month(july))
         self.assertFalse(september.matches_month(july))
-        self.assertTrue(september.matches_month(goods))
+        self.assertEqual(
+            IncomeInsertService.description(august, september),
+            "บมจ.ซีพีออลล์-ค่าตอบแทนการบริหาร ด.8/69*70064",
+        )
 
     def test_pv_tax_lines_and_description(self) -> None:
         values = extract_income_pv_tax(_CPALL_PV_TAX)
@@ -516,7 +522,7 @@ class IncomeInsertLinesTests(unittest.TestCase):
         july = IncomeFormConfig(pdf_folder=Path("."), start_date="01/07/69")
         self.assertEqual(
             IncomeInsertService.description(values, july),
-            "บมจ.ซีพี ออลล์-ค่าสิทธ์ ด.7/69*08734",
+            "บมจ.ซีพี ออลล์-ค่าสิทธ์ ด.8/69*08734",
         )
         voucher = IncomeInsertService.voucher(values, form)
         self.assertEqual(voucher.jnltyp, "01")
@@ -549,7 +555,7 @@ class IncomeInsertLinesTests(unittest.TestCase):
         form = IncomeFormConfig(pdf_folder=Path("."), start_date="01/07/69")
         self.assertEqual(
             IncomeInsertService.description(values, form),
-            "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน ด.7/69*",
+            "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน ด.8/69*",
         )
         voucher = IncomeInsertService.voucher(values, form)
         self.assertEqual(voucher.jnltyp, "01")
@@ -563,6 +569,7 @@ class IncomeInsertLinesTests(unittest.TestCase):
                 (ACCOUNT_INCOME_RECEIVABLE, 10429.75, True),
             ],
         )
+        self.assertNotIn(ACCOUNT_VAT, [line.account for line in voucher.lines])
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in pv_income_receipt(values, "18/09/69", "x").lines],
             [
@@ -576,7 +583,7 @@ class IncomeInsertLinesTests(unittest.TestCase):
         assert deposit is not None
         self.assertEqual(
             IncomeInsertService.description(deposit, form),
-            "บมจ.ซีพีออลล์-เงินประกัน ด.7/69*10981",
+            "บมจ.ซีพีออลล์-เงินประกัน ด.8/69*10981",
         )
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in IncomeInsertService.voucher(deposit, form).lines],
@@ -590,7 +597,7 @@ class IncomeInsertLinesTests(unittest.TestCase):
         assert install is not None
         self.assertEqual(
             IncomeInsertService.description(install, form),
-            "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง ด.7/69*10981",
+            "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง ด.8/69*10981",
         )
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in IncomeInsertService.voucher(install, form).lines],

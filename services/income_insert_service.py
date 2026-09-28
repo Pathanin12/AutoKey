@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from constants.date_utils import express_date_to_dbf, express_month_date_range, express_month_year_label, format_express_pv_date
+from constants.date_utils import express_date_to_dbf, express_month_date_range, format_express_pv_date
 from constants.routes import (
     ACCOUNT_INCOME,
     ACCOUNT_INCOME_ADVANCE,
@@ -38,7 +38,7 @@ class IncomeInsertService:
     def description(values: IncomeFormValues, form: IncomeFormConfig) -> str:
         if values.kind in (INCOME_PV_TAX, INCOME_PV_RECEIPT):
             return IncomePvInsertService.description(values, form)
-        month, year = express_month_year_label(form.start_date)
+        month, year = values.description_month_year(form.start_date)
         topic = _TOPICS.get(values.kind, INCOME_RV_TOPIC_TAX)
         return INCOME_RV_DESC.format(
             topic=topic,
