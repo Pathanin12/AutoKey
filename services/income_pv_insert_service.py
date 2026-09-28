@@ -43,11 +43,11 @@ class IncomePvInsertService:
         if not voucher.lines:
             return ""
         name = ExpressJournalService.insert(folder, voucher)
+        if values.kind == INCOME_PV_RECEIPT:
+            return name
         date = voucher.voudat_express
         voudat = express_date_to_dbf(date)
         period_start, _end = express_month_date_range(date)
-        vat01 = 0.0 if values.kind == INCOME_PV_RECEIPT else round(values.vat_amount, 2)
-        amt01 = round(values.total_amount if values.kind == INCOME_PV_RECEIPT else values.base_amount, 2)
         ExpressVatService.insert(
             folder,
             ExpressVatRecord(
@@ -57,8 +57,8 @@ class IncomePvInsertService:
                 docdat=voudat,
                 refnum=values.invoice_number,
                 descrp=voucher.description,
-                amt01=amt01,
-                vat01=vat01,
+                amt01=round(values.base_amount, 2),
+                vat01=round(values.vat_amount, 2),
                 taxid=values.tax_id,
                 docstat=JOURNAL_DOCSTAT,
                 docnum=name,

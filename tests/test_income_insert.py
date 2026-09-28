@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from constants.routes import (
     ACCOUNT_INCOME,
@@ -609,6 +610,12 @@ class IncomeInsertLinesTests(unittest.TestCase):
             ],
         )
         self.assertNotIn(ACCOUNT_VAT, [line.account for line in voucher.lines])
+        with (
+            mock.patch("services.income_pv_insert_service.ExpressJournalService.insert", return_value="PV6909-0001"),
+            mock.patch("services.income_pv_insert_service.ExpressVatService.insert") as vat_insert,
+        ):
+            self.assertEqual(IncomeInsertService.insert(Path("."), values, form), "PV6909-0001")
+        vat_insert.assert_not_called()
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in pv_income_receipt(values, "18/09/69", "x").lines],
             [
