@@ -6,12 +6,14 @@ from typing import Callable
 from constants.date_utils import express_month_year_label
 from constants.routes import UI_TEXT
 from models.income_form_config import IncomeFormConfig
+from models.income_form_values import IncomeFormValues
 from models.income_matched_job import IncomeMatchedJob
 from models.income_pdf_name import IncomePdfName
 from services.express_journal_date_service import ExpressJournalDateService
 from services.express_shop_index_service import ExpressShopIndexService
 from services.income_insert_service import IncomeInsertService
 from services.income_pdf_service import IncomePdfService
+from services.income_report_service import IncomeReportService
 from services.name_match_service import tidy_name
 from services.pp30_folder_service import Pp30FolderService
 from services.pp30_match_service import Pp30MatchService
@@ -51,6 +53,7 @@ class IncomeMatchRunService:
         total = len(form_config.pdf_files)
         jobs: list[IncomeMatchedJob] = []
         broken_files: list[tuple[str, list[int]]] = []
+        report_invoices: list[IncomeFormValues] = []
         inserted = 0
         for index, pdf_path in enumerate(form_config.pdf_files, start=1):
             if should_stop and should_stop():
@@ -88,6 +91,7 @@ class IncomeMatchRunService:
                 on_status(UI_TEXT["income_skip_no_month_log"].format(path=pdf_path.name, month=month, year=year))
                 on_progress(index, total)
                 continue
+            report_invoices.extend(month_invoices)
             unmatched: set[str] = set()
             for values in month_invoices:
                 company = Pp30MatchService.match_lookup(values.company_name, lookup)
@@ -138,6 +142,16 @@ class IncomeMatchRunService:
                     on_status(f"{values.company_name}: {exc}")
             on_progress(index, total)
         on_status(UI_TEXT["income_insert_done"].format(inserted=inserted, total=total))
+        if form_config.has_report:
+            try:
+                report_path = IncomeReportService.write(
+                    form_config.report_folder.expanduser(),
+                    form_config.start_date,
+                    IncomeReportService.build_rows(report_invoices),
+                )
+                on_status(UI_TEXT["income_report_done_log"].format(path=report_path.name))
+            except Exception as exc:
+                on_status(UI_TEXT["income_report_failed_log"].format(error=exc))
         for path, pages in broken_files:
             on_status(
                 UI_TEXT["income_broken_pages_log"].format(

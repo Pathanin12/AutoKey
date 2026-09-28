@@ -121,6 +121,31 @@ INCOME_PV_TAX_DESC = "บมจ.ซีพี ออลล์-ค่าสิท�
 INCOME_PV_DEPOSIT_DESC = "บมจ.ซีพีออลล์-เงินประกัน ด.{month}/{year}*{branch}"
 INCOME_PV_INSTALL_DESC = "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง ด.{month}/{year}*{branch}"
 INCOME_PV_BOTH_DESC = "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน {month}/{year}*{branch}"
+CPALL_TAX_ID = "0107542000011"
+
+INCOME_REPORT_FILE = "รายได้ {month}.{year}.xlsx"
+INCOME_REPORT_SHEET = "vat {year} {month}"
+INCOME_REPORT_HEADERS = (
+    "NO.",
+    "นิติบุคคล",
+    "NEW TAX ID",
+    "รหัสสาขา",
+    "รายได้",
+    "ภาษีขาย",
+    "ภาษีถูกหัก ณ.ที่จ่าย",
+    "ค่าสิทธิ",
+    "ภาษีซื้อ",
+    "ภาษีหัก ณ.ที่จ่าย",
+    "ดอกเบี้ยซีพี",
+)
+INCOME_REPORT_WIDTHS = (5.71, 39.86, 18.71, 12.0, 20.71, 20.71, 20.71, 20.71, 20.71, 20.71, 20.71)
+INCOME_REPORT_FONT = "CordiaUPC"
+INCOME_REPORT_FONT_SIZE = 18
+INCOME_REPORT_TOTAL_COLOR = "FFFF0000"
+INCOME_REPORT_MONEY_FORMAT = "#,##0.00;[Red]\\(#,##0.00\\)"
+INCOME_REPORT_TEXT_FORMAT = "@"
+INCOME_REPORT_HEADER_ROW = 2
+INCOME_REPORT_FREEZE = "D3"
 
 GLJNL_FILE_NAMES = ("GLJNL.DBF", "gljnl.dbf")
 GLJNLIT_FILE_NAMES = ("GLJNLIT.DBF", "gljnlit.dbf")
@@ -231,6 +256,11 @@ UI_TEXT = {
     "income_insert_done": "insert เสร็จ {inserted}/{total}",
     "income_multi_bill_log": "สรุป — {name} สาขา {branch} มี {count} บิล",
     "income_broken_pages_log": "เช็คซ้ำ — {path} หน้า {pages} อ่านไม่ได้",
+    "income_report_folder": "โฟลเดอร์ Excel",
+    "income_report_empty": "ยังไม่ได้เลือกโฟลเดอร์ Excel",
+    "income_report_invalid": "โฟลเดอร์ Excel ไม่ถูกต้อง",
+    "income_report_done_log": "สร้าง Excel — {path}",
+    "income_report_failed_log": "สร้าง Excel ไม่ได้ — {error}",
     "menu_unavailable": "เมนูนี้ยังไม่พร้อมใช้",
     "back_to_menu": "กลับเมนู",
     "config_title": "ตั้งค่า",

@@ -19,6 +19,7 @@ from services.income_extract_service import (
     _norm_thai,
     _period_date,
     _tax_id,
+    shop_tax_id,
 )
 from services.name_match_service import tidy_name
 from services.pp30_amount_service import eq_amount, money_amounts
@@ -64,6 +65,7 @@ def extract_income_pv_tax(text: str) -> IncomeFormValues | None:
         kind=INCOME_PV_TAX,
         period_date=_period_date(text),
         base_amount=base_amount,
+        shop_tax_id=shop_tax_id(text),
     )
 
 

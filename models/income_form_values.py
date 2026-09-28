@@ -21,6 +21,7 @@ class IncomeFormValues:
     period_date: str = ""
     base_amount: float = 0.0
     deposit_amount: float = 0.0
+    shop_tax_id: str = ""
 
     @property
     def has_total(self) -> bool:

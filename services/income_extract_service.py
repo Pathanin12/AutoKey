@@ -4,6 +4,7 @@ import re
 
 from constants.date_utils import format_express_pv_date, is_complete_express_date
 from constants.routes import (
+    CPALL_TAX_ID,
     INCOME_PAY_ADVANCE,
     INCOME_PAY_ADVANCE_ALT,
     INCOME_PAY_GOODS,
@@ -113,6 +114,7 @@ def extract_income_invoice(text: str) -> IncomeFormValues | None:
         bill_count=_bill_count(glued or text),
         kind=INCOME_RV_TAX,
         period_date=_period_date(text),
+        shop_tax_id=shop_tax_id(text),
     )
 
 
@@ -242,6 +244,13 @@ def _invoice_number(text: str) -> str:
 def _receipt_number(text: str) -> str:
     match = _RECEIPT_NUM_RE.search(text or "")
     return match.group(1) if match else ""
+
+
+def shop_tax_id(text: str) -> str:
+    for tax_id in _TAX_ID_LOOSE_RE.findall(text or ""):
+        if tax_id != CPALL_TAX_ID:
+            return tax_id
+    return ""
 
 
 def _tax_id(text: str) -> str:

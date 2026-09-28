@@ -81,7 +81,7 @@ PP30_WIN_H = 680
 KA_TAM_WIN_H = 680
 PND30_WIN_H = 620
 PND3_WIN_H = 620
-INCOME_WIN_H = 652
+INCOME_WIN_H = 684
 
 
 class FlippedView(NSView):
@@ -566,7 +566,7 @@ class MainWindow:
         )
         _static_label(page, UI_TEXT["menu_income"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
 
-        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 170)
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 202)
         sy = 8
         _static_label(settings, UI_TEXT["income_lock"], 8, sy, 110, 22)
         self.income_lock_none = _radio(
@@ -607,6 +607,19 @@ class MainWindow:
             settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
         )
         sy += 28
+        _static_label(settings, UI_TEXT["income_report_folder"], 8, sy, 110, 22)
+        self.income_report_field = _edit_field(settings, 120, sy, 248)
+        _button(
+            settings,
+            UI_TEXT["choose_folder"],
+            376,
+            sy - 2,
+            108,
+            28,
+            self._keep(self._choose_income_report_folder),
+            bezel=NSBezelStyleRounded,
+        )
+        sy += 32
         _static_label(settings, UI_TEXT["income_start_date"], 8, sy, 110, 22)
         self.income_start_field = _edit_field(settings, 120, sy, 120)
         self.income_start_field.setPlaceholderString_(PV_DATE_EXAMPLE)
@@ -618,14 +631,14 @@ class MainWindow:
             page,
             f"▶ {UI_TEXT['start']}",
             16,
-            258,
+            290,
             160,
             36,
             self._keep(self._start_income),
             bezel=NSBezelStyleRounded,
         )
 
-        y = 308
+        y = 340
         _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, INCOME_WIN_H - y - 12)
         self.income_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
         self.income_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
@@ -1037,6 +1050,11 @@ class MainWindow:
         self.income_folder_field.setStringValue_(selected)
         self._load_income_folder()
 
+    def _choose_income_report_folder(self) -> None:
+        selected = _pick_folder()
+        if selected:
+            self.income_report_field.setStringValue_(selected)
+
     def _load_income_folder(self) -> None:
         folder = Path(str(self.income_folder_field.stringValue() or "")).expanduser()
         self.income_pdf_files = Pp30FolderService.list_pdfs(folder)
@@ -1053,6 +1071,7 @@ class MainWindow:
             start_date=format_express_pv_date(str(self.income_start_field.stringValue() or "")),
             pdf_files=list(self.income_pdf_files),
             lock=self._income_lock,
+            report_folder=Path(str(self.income_report_field.stringValue() or "").strip()),
         )
 
     def _start_income(self) -> None:

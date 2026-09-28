@@ -96,6 +96,7 @@ class MainWindow:
         self.income_lock = tk.StringVar(value=INCOME_LOCK_NONE)
         self.income_pdf_folder = tk.StringVar(value="")
         self.income_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
+        self.income_report_folder = tk.StringVar(value="")
         self.income_start_date = tk.StringVar(value="")
         self.income_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.income_pdf_files: list[Path] = []
@@ -407,9 +408,16 @@ class MainWindow:
         ttk.Label(form, textvariable=self.income_pdf_summary, wraplength=500).grid(
             row=2, column=0, columnspan=3, sticky="w", pady=(4, 0)
         )
-        ttk.Label(form, text=UI_TEXT["income_start_date"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(form, text=UI_TEXT["income_report_folder"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(form, textvariable=self.income_report_folder, width=42).grid(
+            row=3, column=1, sticky="ew", padx=(8, 8), pady=(8, 0)
+        )
+        ttk.Button(form, text=UI_TEXT["choose_folder"], command=self._choose_income_report_folder).grid(
+            row=3, column=2, pady=(8, 0)
+        )
+        ttk.Label(form, text=UI_TEXT["income_start_date"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
         start_entry = ttk.Entry(form, textvariable=self.income_start_date, width=14)
-        start_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        start_entry.grid(row=4, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
         start_entry.bind("<FocusOut>", self._format_income_date)
         form.columnconfigure(1, weight=1)
 
@@ -754,6 +762,11 @@ class MainWindow:
         self.income_pdf_folder.set(selected)
         self._load_income_folder()
 
+    def _choose_income_report_folder(self) -> None:
+        selected = filedialog.askdirectory(title=UI_TEXT["income_report_folder"])
+        if selected:
+            self.income_report_folder.set(selected)
+
     def _load_income_folder(self) -> None:
         folder = Path(self.income_pdf_folder.get().strip()).expanduser()
         self.income_pdf_files = Pp30FolderService.list_pdfs(folder)
@@ -773,6 +786,7 @@ class MainWindow:
             start_date=format_express_pv_date(self.income_start_date.get()),
             pdf_files=list(self.income_pdf_files),
             lock=IncomeLockMode.parse(self.income_lock.get()),
+            report_folder=Path(self.income_report_folder.get().strip()),
         )
 
     def _start_income(self) -> None:

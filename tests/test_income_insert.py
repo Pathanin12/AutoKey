@@ -29,6 +29,7 @@ from models.income_form_values import IncomeFormValues
 from models.income_lock_mode import IncomeLockMode
 from models.income_pdf_name import IncomePdfName
 from services.income_pdf_service import IncomePdfService
+from services.income_report_service import IncomeReportService
 from services.income_extract_service import (
     extract_income_invoice,
     extract_income_receipt,
@@ -501,6 +502,59 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertTrue(wrong.locked)
         self.assertTrue(empty.locked)
         self.assertFalse(right.locked)
+
+    def test_report_groups_branches_and_adds_red_total(self) -> None:
+        def invoice(name: str, branch: str, kind: str, total: float, wht: float, vat: float, base: float = 0.0):
+            return IncomeFormValues(
+                company_name=name,
+                branch_last5=branch,
+                invoice_date="14/08/69",
+                invoice_number="2900000000",
+                tax_id="0107542000011",
+                total_amount=total,
+                wht_amount=wht,
+                vat_amount=vat,
+                bill_count=1,
+                kind=kind,
+                base_amount=base,
+                shop_tax_id="0103545013692",
+            )
+
+        invoices = [
+            invoice("หจก. อรพรรณ", "00435", INCOME_RV_TAX, 208448.86, 6012.95, 14030.21),
+            invoice("หจก. อรพรรณ", "00245", INCOME_RV_TAX, 396377.51, 11433.97, 26679.26),
+            invoice("หจก. อรพรรณ", "00245", INCOME_PV_TAX, 1040.0, 30.0, 70.0, base=1000.0),
+            invoice("หจก. อรพรรณ", "00245", INCOME_RV_RENT, 7618.65, 400.98, 0.0),
+            invoice("หจก. สมยศ", "00111", INCOME_RV_TAX, 1070.0, 30.0, 70.0),
+        ]
+        rows = IncomeReportService.build_rows(invoices)
+        self.assertEqual([(row.branch, row.number, row.is_total) for row in rows], [
+            ("00245", None, False),
+            ("00435", None, False),
+            ("", 1, True),
+            ("00111", 2, False),
+        ])
+        self.assertEqual(rows[0].amounts, (381132.22, 26679.26, 11433.97, 1000.0, 70.0, 30.0))
+        self.assertEqual(rows[2].income, round(381132.22 + 200431.6, 2))
+        self.assertEqual(rows[3].income, 1030.0)
+
+        with TemporaryDirectory() as raw:
+            path = IncomeReportService.write(Path(raw), "15/08/69", rows)
+            from openpyxl import load_workbook
+
+            sheet = load_workbook(path).active
+            self.assertEqual(path.name, "รายได้ 8.69.xlsx")
+            self.assertEqual(sheet.title, "vat 2026 08")
+            self.assertEqual(sheet["B2"].value, "นิติบุคคล")
+            self.assertEqual(sheet["C3"].value, "0103545013692")
+            self.assertEqual(sheet["A5"].value, 1)
+            self.assertEqual(sheet["E5"].font.color.rgb, "FFFF0000")
+            self.assertNotEqual(getattr(sheet["E3"].font.color, "rgb", None), "FFFF0000")
+
+    def test_shop_tax_id_skips_cpall(self) -> None:
+        values = extract_income_pv_tax(_CPALL_PV_TAX)
+        assert values is not None
+        self.assertEqual(values.shop_tax_id, "0123549005198")
 
     def test_broken_page_does_not_skip_whole_pdf(self) -> None:
         from pypdf import PdfWriter
