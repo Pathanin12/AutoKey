@@ -595,7 +595,7 @@ class IncomeInsertLinesTests(unittest.TestCase):
         form = IncomeFormConfig(pdf_folder=Path("."), start_date="01/07/69")
         self.assertEqual(
             IncomeInsertService.description(values, form),
-            "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน ด.8/69*",
+            "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน ด.8/69*10981",
         )
         voucher = IncomeInsertService.voucher(values, form)
         self.assertEqual(voucher.jnltyp, "01")
