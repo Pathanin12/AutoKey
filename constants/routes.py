@@ -111,7 +111,7 @@ INCOME_RV_TOPIC_ADVANCE = "เบิกเงินสำรอง"
 INCOME_PV_TAX_DESC = "บมจ.ซีพี ออลล์-ค่าสิทธ์ ด.{month}/{year}*{branch}"
 INCOME_PV_DEPOSIT_DESC = "บมจ.ซีพีออลล์-เงินประกัน ด.{month}/{year}*{branch}"
 INCOME_PV_INSTALL_DESC = "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง ด.{month}/{year}*{branch}"
-INCOME_PV_BOTH_DESC = "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน ด.{month}/{year}*{branch}"
+INCOME_PV_BOTH_DESC = "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน {month}/{year}*{branch}"
 
 GLJNL_FILE_NAMES = ("GLJNL.DBF", "gljnl.dbf")
 GLJNLIT_FILE_NAMES = ("GLJNLIT.DBF", "gljnlit.dbf")

@@ -595,7 +595,7 @@ class IncomeInsertLinesTests(unittest.TestCase):
         form = IncomeFormConfig(pdf_folder=Path("."), start_date="01/07/69")
         self.assertEqual(
             IncomeInsertService.description(values, form),
-            "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน ด.8/69*10981",
+            "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน 8/69*10981",
         )
         voucher = IncomeInsertService.voucher(values, form)
         self.assertEqual(voucher.jnltyp, "01")
@@ -693,6 +693,14 @@ class IncomeInsertLinesTests(unittest.TestCase):
                 (ACCOUNT_INCOME_ADVANCE, 5000.0, True),
             ],
         )
+        form = IncomeFormConfig(pdf_folder=Path("."), start_date="01/09/69")
+        with (
+            mock.patch("services.income_insert_service.ExpressJournalService.insert", return_value="RV6909-0001"),
+            mock.patch("services.income_insert_service.ExpressVatService.insert") as vat_insert,
+        ):
+            self.assertEqual(IncomeInsertService.insert(Path("."), goods, form), "RV6909-0001")
+            self.assertEqual(IncomeInsertService.insert(Path("."), advance, form), "RV6909-0001")
+        vat_insert.assert_not_called()
 
     def test_form_needs_pdf_folder(self) -> None:
         errors = IncomeFormConfig(pdf_folder=Path("/no-folder")).validate()
