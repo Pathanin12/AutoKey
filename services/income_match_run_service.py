@@ -144,12 +144,14 @@ class IncomeMatchRunService:
         on_status(UI_TEXT["income_insert_done"].format(inserted=inserted, total=total))
         if form_config.has_report:
             try:
-                report_path = IncomeReportService.write(
+                report = IncomeReportService.write(
                     form_config.report_folder.expanduser(),
                     form_config.start_date,
-                    IncomeReportService.build_rows(report_invoices),
+                    report_invoices,
                 )
-                on_status(UI_TEXT["income_report_done_log"].format(path=report_path.name))
+                for shop in report.skipped_shops:
+                    on_status(UI_TEXT["income_report_skip_log"].format(name=shop))
+                on_status(UI_TEXT["income_report_done_log"].format(path=report.path.name))
             except Exception as exc:
                 on_status(UI_TEXT["income_report_failed_log"].format(error=exc))
         for path, pages in broken_files:

@@ -541,17 +541,23 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertEqual(rows[3].income, 1030.0)
 
         with TemporaryDirectory() as raw:
-            path = IncomeReportService.write(Path(raw), "15/08/69", rows)
             from openpyxl import load_workbook
 
-            sheet = load_workbook(path).active
-            self.assertEqual(path.name, "รายได้ 8.69.xlsx")
+            first = IncomeReportService.write(Path(raw), "15/08/69", invoices[:4])
+            second = IncomeReportService.write(Path(raw), "20/08/69", invoices)
+            sheet = load_workbook(first.path).active
+            self.assertEqual(first.path, second.path)
+            self.assertEqual(first.path.name, "รายได้ 8.69.xlsx")
+            self.assertEqual(second.skipped_shops, ["หจก. อรพรรณ"])
             self.assertEqual(sheet.title, "vat 2026 08")
             self.assertEqual(sheet["B2"].value, "นิติบุคคล")
             self.assertEqual(sheet["C3"].value, "0103545013692")
             self.assertEqual(sheet["A5"].value, 1)
             self.assertEqual(sheet["E5"].font.color.rgb, "FFFF0000")
             self.assertNotEqual(getattr(sheet["E3"].font.color, "rgb", None), "FFFF0000")
+            self.assertEqual((sheet["A6"].value, sheet["B6"].value, sheet["E6"].value), (2, "หจก. สมยศ", 1030.0))
+            self.assertIsNone(sheet["B7"].value)
+            self.assertEqual(sheet.auto_filter.ref, "A2:K6")
 
     def test_reads_company_with_short_bj_prefix(self) -> None:
         values = extract_income_values(_SAMPLE.replace("หจก. พี ที รีเทลลิ่ง", "บจ. ไดมอนด์ เอ็นเนอจี กรุ๊ป 1"))
