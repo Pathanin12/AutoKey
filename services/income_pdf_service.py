@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from models.income_form_values import IncomeFormValues
 from models.income_pdf_record import IncomePdfRecord
 from services.income_extract_service import extract_income_values
-from services.income_ocr_service import IncomeOcrService
-from services.income_pdf_render_service import IncomePdfRenderService
 from services.income_sap_text_service import IncomeSapTextService
 
 
@@ -46,15 +43,11 @@ class IncomePdfService:
 
         reader = PdfReader(str(pdf_path))
         try:
-            texts = [_best_page_text(page) for page in reader.pages]
-            found = any(extract_income_values(text) for text in texts)
+            return [_best_page_text(page) for page in reader.pages]
         finally:
             closer = getattr(reader, "close", None)
             if closer:
                 closer()
-        if found:
-            return texts
-        return _ocr_pages(pdf_path)
 
 
 def _best_page_text(page) -> str:
@@ -75,9 +68,3 @@ def _pypdf_page(page) -> str:
         layout = ""
     plain = page.extract_text() or ""
     return "\n".join(part for part in (layout, plain) if part)
-
-
-def _ocr_pages(pdf_path: Path) -> list[str]:
-    with TemporaryDirectory(prefix="income-pdf-") as raw_dir:
-        images = IncomePdfRenderService.render_pages(pdf_path, Path(raw_dir))
-        return [IncomeOcrService.read_image(path) for path in images]

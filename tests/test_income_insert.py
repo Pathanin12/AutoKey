@@ -120,6 +120,35 @@ Receipt
 จำนวนเงินที่ต้องชำระ 1,040.00
 """
 
+_CPALL_PV_TAX_OCR = """
+CP ALL PUBLIC COMPANY LIMITED
+บริษัท ซีพี ออลล์ จำกัด (มหาชน)
+เลขประจำตัวผู้เสียภาษี 0107542000011
+Receipt
+ใบเสร็จรับเงิน
+ต้นฉบับ
+รหัสลูกค้า : 3810981
+หจก. อิงฟ้า คอนวีเนียนซ์สโตร์
+เลขที่ : 2700015438
+วันที่ : 18.09.2026
+สาขาที่ออกใบกำกับภาษี : 00000
+ใบกำกับภาษี
+ชำระค่า
+Renewal Expense เดือน 08/69 5,000.00
+ค่าใช้จ่ายเพื่อการเปิดร้าน เดือน 08/69 5,000.00
+รวม (บาท)
+ภาษีถูกหัก ณ ที่จ่าย 300.00
+รวม
+บาก ภาษีมูลค่าเพิ่ม
+หัก ณ ที่จ่าย
+จำนวนเงินที่ชำระ
+10,000.00
+700.00
+10,700.00
+300.00
+10,400.00
+"""
+
 _CPALL_PV_RECEIPT = """
 CP ALL PUBLIC COMPANY LIMITED
 บริษัท ซีพี ออลล์ จำกัด (มหาชน)
@@ -364,6 +393,16 @@ class IncomeExtractTests(unittest.TestCase):
         september = IncomeFormConfig(pdf_folder=Path("."), start_date="01/09/69")
         self.assertTrue(september.matches_month(tax27))
         self.assertFalse(IncomeFormConfig(pdf_folder=Path("."), start_date="01/08/69").matches_month(tax27))
+        ocr = extract_income_pv_tax(_CPALL_PV_TAX_OCR)
+        self.assertIsNotNone(ocr)
+        assert ocr is not None
+        self.assertEqual(extract_income_values(_CPALL_PV_TAX_OCR).kind, INCOME_PV_TAX)
+        self.assertEqual(ocr.kind, INCOME_PV_TAX)
+        self.assertEqual(ocr.invoice_number, "2700015438")
+        self.assertEqual(ocr.base_amount, 10000.0)
+        self.assertEqual(ocr.vat_amount, 700.0)
+        self.assertEqual(ocr.wht_amount, 300.0)
+        self.assertEqual(ocr.total_amount, 10400.0)
 
     def test_reads_cpall_pv_receipt_splits(self) -> None:
         values = extract_income_pv_receipt(_CPALL_PV_RECEIPT)

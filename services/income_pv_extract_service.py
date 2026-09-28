@@ -21,7 +21,7 @@ from services.income_extract_service import (
     _tax_id,
 )
 from services.name_match_service import tidy_name
-from services.pp30_amount_service import money_amounts
+from services.pp30_amount_service import eq_amount, money_amounts
 
 
 _RECEIPT_MARK = "ใบเสร็จรับเงิน"
@@ -87,7 +87,10 @@ def _has_pv_tax_title(compact: str) -> bool:
     if INCOME_PV_TAX_TITLE in compact or INCOME_PV_TAX_TITLE_GLUED in compact:
         return True
     upper = compact.upper()
-    return "RECEIPT/TAXINVOICE" in upper or "RECEIPTTAXINVOICE" in upper
+    if "RECEIPT/TAXINVOICE" in upper or "RECEIPTTAXINVOICE" in upper or "TAXINVOICE" in upper:
+        return True
+    rest = compact.replace("สาขาที่ออกใบกำกับภาษี", "")
+    return "ใบเสร็จรับเงิน" in compact and "ใบกำกับภาษี" in rest
 
 
 def _is_cpall_doc(compact: str) -> bool:
@@ -127,11 +130,36 @@ def _pv_doc_date(text: str) -> str:
 
 
 def _pv_amounts(text: str) -> tuple[float, float, float, float]:
-    base = _amount_near(text, "ค่ารวม") or _amount_near(text, "รวม (บาท)")
-    vat = _amount_near(text, "บวก ภาษีมูลค่าเพิ่ม") or _amount_near(text, "ภาษีมูลค่าเพิ่ม")
+    base = _amount_near(text, "ค่ารวม")
+    vat = _amount_near(text, "บวก ภาษีมูลค่าเพิ่ม") or _amount_near(text, "บาก ภาษีมูลค่าเพิ่ม")
     wht = _amount_near(text, "หัก ณ ที่จ่าย") or _amount_near(text, "หัก ภาษีหัก ณ ที่จ่าย")
     pay = _amount_near(text, "จำนวนเงินที่ต้องชำระ") or _amount_near(text, "จำนวนเงินที่ชำระ")
+    if base > 0 and pay > 0:
+        if vat <= 0:
+            vat = _amount_near(text, "ภาษีมูลค่าเพิ่ม")
+        return base, vat, wht, pay
+    stacked = _stacked_tax_totals(text)
+    if stacked:
+        return stacked
+    if vat <= 0:
+        vat = _amount_near(text, "ภาษีมูลค่าเพิ่ม")
+    if base <= 0:
+        base = _amount_near(text, "รวม (บาท)")
     return base, vat, wht, pay
+
+
+def _stacked_tax_totals(text: str) -> tuple[float, float, float, float] | None:
+    index = (text or "").find("รวม (บาท)")
+    if index < 0:
+        index = (text or "").find("รวม(บาท)")
+    if index < 0:
+        return None
+    amounts = money_amounts(text[index:])
+    for i in range(len(amounts) - 4):
+        base, vat, included, wht, pay = amounts[i : i + 5]
+        if eq_amount(base + vat, included) and eq_amount(included - wht, pay):
+            return base, vat, wht, pay
+    return None
 
 
 def _amount_near(text: str, label: str) -> float:
