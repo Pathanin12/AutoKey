@@ -50,6 +50,7 @@ class IncomeMatchRunService:
         lookup = Pp30MatchService.lookup(companies)
         total = len(form_config.pdf_files)
         jobs: list[IncomeMatchedJob] = []
+        broken_files: list[tuple[str, list[int]]] = []
         inserted = 0
         for index, pdf_path in enumerate(form_config.pdf_files, start=1):
             if should_stop and should_stop():
@@ -71,6 +72,8 @@ class IncomeMatchRunService:
                 on_status(UI_TEXT[skip_key].format(path=pdf_path.name))
                 on_progress(index, total)
                 continue
+            if record.broken_pages:
+                broken_files.append((pdf_path.name, record.broken_pages))
             if not record.has_text:
                 on_status(UI_TEXT["income_skip_image_log"].format(path=pdf_path.name))
                 on_progress(index, total)
@@ -135,6 +138,13 @@ class IncomeMatchRunService:
                     on_status(f"{values.company_name}: {exc}")
             on_progress(index, total)
         on_status(UI_TEXT["income_insert_done"].format(inserted=inserted, total=total))
+        for path, pages in broken_files:
+            on_status(
+                UI_TEXT["income_broken_pages_log"].format(
+                    path=path,
+                    pages=", ".join(str(page) for page in pages),
+                )
+            )
         seen: set[tuple[str, str]] = set()
         for job in jobs:
             if job.form_values.bill_count <= 1:

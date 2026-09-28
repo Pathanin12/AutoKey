@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from models.income_form_values import IncomeFormValues
@@ -12,3 +12,4 @@ class IncomePdfRecord:
     invoices: list[IncomeFormValues]
     has_text: bool = True
     locked: bool = False
+    broken_pages: list[int] = field(default_factory=list)

@@ -17,13 +17,15 @@ class IncomePdfService:
     @staticmethod
     def load_record(pdf_path: Path, password: str = "") -> IncomePdfRecord:
         try:
-            texts = IncomePdfService._page_texts(pdf_path, password)
+            pages = IncomePdfService._read_pages(pdf_path, password)
         except PdfLockedError:
             return IncomePdfRecord(pdf_path=pdf_path, invoices=[], has_text=False, locked=True)
+        texts = [text or "" for text in pages]
         return IncomePdfRecord(
             pdf_path=pdf_path,
             invoices=invoices_from_texts(texts),
             has_text=any(text.strip() for text in texts),
+            broken_pages=[number for number, text in enumerate(pages, start=1) if text is None],
         )
 
     @staticmethod
@@ -37,12 +39,16 @@ class IncomePdfService:
 
     @staticmethod
     def _page_texts(pdf_path: Path, password: str = "") -> list[str]:
+        return [text or "" for text in IncomePdfService._read_pages(pdf_path, password)]
+
+    @staticmethod
+    def _read_pages(pdf_path: Path, password: str = "") -> list[str | None]:
         from pypdf import PdfReader
 
         reader = PdfReader(str(pdf_path))
         try:
             PdfPasswordService.unlock(reader, password)
-            return [_best_page_text(page) for page in reader.pages]
+            return [_safe_page_text(reader, index) for index in range(len(reader.pages))]
         finally:
             closer = getattr(reader, "close", None)
             if closer:
@@ -62,6 +68,13 @@ def invoices_from_texts(texts: list[str]) -> list[IncomeFormValues]:
         seen.add(key)
         invoices.append(values)
     return invoices
+
+
+def _safe_page_text(reader, index: int) -> str | None:
+    try:
+        return _best_page_text(reader.pages[index])
+    except Exception:
+        return None
 
 
 def _best_page_text(page) -> str:

@@ -230,6 +230,7 @@ UI_TEXT = {
     "income_insert_log": "สรุป — {shop}: {detail}",
     "income_insert_done": "insert เสร็จ {inserted}/{total}",
     "income_multi_bill_log": "สรุป — {name} สาขา {branch} มี {count} บิล",
+    "income_broken_pages_log": "เช็คซ้ำ — {path} หน้า {pages} อ่านไม่ได้",
     "menu_unavailable": "เมนูนี้ยังไม่พร้อมใช้",
     "back_to_menu": "กลับเมนู",
     "config_title": "ตั้งค่า",

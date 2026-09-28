@@ -502,6 +502,24 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertTrue(empty.locked)
         self.assertFalse(right.locked)
 
+    def test_broken_page_does_not_skip_whole_pdf(self) -> None:
+        from pypdf import PdfWriter
+        from pypdf.generic import DecodedStreamObject, NameObject
+
+        with TemporaryDirectory() as raw:
+            pdf_path = Path(raw) / "broken.pdf"
+            writer = PdfWriter()
+            for data in (b"BT [ (cut", b""):
+                page = writer.add_blank_page(width=200, height=200)
+                stream = DecodedStreamObject()
+                stream.set_data(data)
+                page[NameObject("/Contents")] = writer._add_object(stream)
+            with pdf_path.open("wb") as handle:
+                writer.write(handle)
+            record = IncomePdfService.load_record(pdf_path)
+        self.assertFalse(record.locked)
+        self.assertEqual(record.broken_pages, [1])
+
     def test_reads_cpall_pv_tax_invoice(self) -> None:
         self.assertEqual(extract_income_values(_SAMPLE).kind, INCOME_RV_TAX)
         values = extract_income_pv_tax(_CPALL_PV_TAX)
