@@ -10,3 +10,4 @@ from models.income_form_values import IncomeFormValues
 class IncomePdfRecord:
     pdf_path: Path
     invoices: list[IncomeFormValues]
+    has_text: bool = True

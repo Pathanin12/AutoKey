@@ -15,22 +15,16 @@ class IncomePdfService:
 
     @staticmethod
     def load_record(pdf_path: Path) -> IncomePdfRecord:
-        return IncomePdfRecord(pdf_path=pdf_path, invoices=IncomePdfService.load_invoices(pdf_path))
+        texts = IncomePdfService._page_texts(pdf_path)
+        return IncomePdfRecord(
+            pdf_path=pdf_path,
+            invoices=_invoices(texts),
+            has_text=any(text.strip() for text in texts),
+        )
 
     @staticmethod
     def load_invoices(pdf_path: Path) -> list[IncomeFormValues]:
-        invoices: list[IncomeFormValues] = []
-        seen: set[tuple[str, str, str, float]] = set()
-        for text in IncomePdfService._page_texts(pdf_path):
-            values = extract_income_values(text)
-            if values is None:
-                continue
-            key = (values.kind, values.invoice_number, values.branch_last5, round(values.total_amount, 2))
-            if key in seen:
-                continue
-            seen.add(key)
-            invoices.append(values)
-        return invoices
+        return _invoices(IncomePdfService._page_texts(pdf_path))
 
     @staticmethod
     def shop_name(pdf_path: Path) -> str:
@@ -48,6 +42,21 @@ class IncomePdfService:
             closer = getattr(reader, "close", None)
             if closer:
                 closer()
+
+
+def _invoices(texts: list[str]) -> list[IncomeFormValues]:
+    invoices: list[IncomeFormValues] = []
+    seen: set[tuple[str, str, str, float]] = set()
+    for text in texts:
+        values = extract_income_values(text)
+        if values is None:
+            continue
+        key = (values.kind, values.invoice_number, values.branch_last5, round(values.total_amount, 2))
+        if key in seen:
+            continue
+        seen.add(key)
+        invoices.append(values)
+    return invoices
 
 
 def _best_page_text(page) -> str:

@@ -61,39 +61,33 @@ class IncomeMatchRunService:
                 on_status(f"{pdf_path.name}: {exc}")
                 on_progress(index, total)
                 continue
+            if not record.has_text:
+                on_status(UI_TEXT["income_skip_image_log"].format(path=pdf_path.name))
+                on_progress(index, total)
+                continue
             if not record.invoices:
                 on_status(UI_TEXT["income_skip_no_invoice_log"].format(path=pdf_path.name))
                 on_progress(index, total)
                 continue
-            for values in record.invoices:
-                if not form_config.matches_month(values):
-                    month, year = express_month_year_label(form_config.start_date)
-                    found_month, found_year = express_month_year_label(values.month_date)
-                    on_status(
-                        UI_TEXT["income_skip_month_log"].format(
-                            name=values.company_name,
-                            found_month=found_month,
-                            found_year=found_year,
-                            month=month,
-                            year=year,
-                        )
-                    )
-                    continue
+            month_invoices = [values for values in record.invoices if form_config.matches_month(values)]
+            if not month_invoices:
+                month, year = express_month_year_label(form_config.start_date)
+                on_status(UI_TEXT["income_skip_no_month_log"].format(path=pdf_path.name, month=month, year=year))
+                on_progress(index, total)
+                continue
+            unmatched: set[str] = set()
+            for values in month_invoices:
                 company = Pp30MatchService.match_lookup(values.company_name, lookup)
                 if company is None:
-                    on_status(
-                        UI_TEXT["pp30_unmatched"].format(
-                            pdf_name=values.company_name,
-                            path=pdf_path.name,
+                    if values.company_name not in unmatched:
+                        unmatched.add(values.company_name)
+                        on_status(
+                            UI_TEXT["pp30_unmatched"].format(
+                                pdf_name=values.company_name,
+                                path=pdf_path.name,
+                            )
                         )
-                    )
                     continue
-                on_status(
-                    UI_TEXT["pp30_match_log"].format(
-                        pdf_name=values.company_name,
-                        shop_name=tidy_name(company.shop_name),
-                    )
-                )
                 jobs.append(
                     IncomeMatchedJob(
                         pdf_path=record.pdf_path,
