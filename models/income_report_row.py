@@ -14,9 +14,18 @@ class IncomeReportRow:
     royalty: float = 0.0
     buy_vat: float = 0.0
     buy_wht: float = 0.0
+    interest: float = 0.0
     number: int | None = None
     is_total: bool = False
 
     @property
-    def amounts(self) -> tuple[float, float, float, float, float, float]:
-        return (self.income, self.sale_vat, self.sale_wht, self.royalty, self.buy_vat, self.buy_wht)
+    def amounts(self) -> tuple[float, float, float, float, float, float, float]:
+        return (
+            self.income,
+            self.sale_vat,
+            self.sale_wht,
+            self.royalty,
+            self.buy_vat,
+            self.buy_wht,
+            self.interest,
+        )

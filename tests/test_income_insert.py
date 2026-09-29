@@ -528,6 +528,7 @@ class IncomeExtractTests(unittest.TestCase):
             invoice("หจก. อรพรรณ", "00245", INCOME_PV_TAX, 1040.0, 30.0, 70.0, base=1000.0),
             invoice("หจก. อรพรรณ", "00245", INCOME_RV_RENT, 7618.65, 400.98, 0.0),
             invoice("หจก. สมยศ", "00111", INCOME_RV_TAX, 1070.0, 30.0, 70.0),
+            invoice("หจก. สมยศ", "00111", INCOME_RV_GOODS, 8019.01, 81.01, 0.0),
         ]
         rows = IncomeReportService.build_rows(invoices)
         self.assertEqual([(row.branch, row.number, row.is_total) for row in rows], [
@@ -536,9 +537,9 @@ class IncomeExtractTests(unittest.TestCase):
             ("", 1, True),
             ("00111", 2, False),
         ])
-        self.assertEqual(rows[0].amounts, (381132.22, 26679.26, 11433.97, 1000.0, 70.0, 30.0))
+        self.assertEqual(rows[0].amounts, (381132.22, 26679.26, 11433.97, 1000.0, 70.0, 30.0, 0.0))
         self.assertEqual(rows[2].income, round(381132.22 + 200431.6, 2))
-        self.assertEqual(rows[3].income, 1030.0)
+        self.assertEqual((rows[3].income, rows[3].interest), (1030.0, 8100.02))
 
         with TemporaryDirectory() as raw:
             from openpyxl import load_workbook
@@ -555,8 +556,15 @@ class IncomeExtractTests(unittest.TestCase):
             self.assertEqual(sheet["A5"].value, 1)
             self.assertEqual(sheet["E5"].font.color.rgb, "FFFF0000")
             self.assertNotEqual(getattr(sheet["E3"].font.color, "rgb", None), "FFFF0000")
-            self.assertEqual((sheet["A6"].value, sheet["B6"].value, sheet["E6"].value), (2, "หจก. สมยศ", 1030.0))
-            self.assertIsNone(sheet["B7"].value)
+            self.assertEqual(
+                (sheet["A6"].value, sheet["B6"].value, sheet["E6"].value, sheet["K6"].value),
+                (2, "หจก. สมยศ", 1030.0, 8100.02),
+            )
+            self.assertEqual(sheet["B7"].value, "รวมทั้งหมด")
+            self.assertEqual(sheet["E7"].value, round(381132.22 + 200431.6 + 1030.0, 2))
+            self.assertEqual(sheet["H7"].value, 1000.0)
+            self.assertEqual(sheet["K7"].value, 8100.02)
+            self.assertIsNone(sheet["B8"].value)
             self.assertEqual(sheet.auto_filter.ref, "A2:K6")
 
     def test_reads_company_with_short_bj_prefix(self) -> None:
@@ -572,6 +580,18 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertIsNotNone(company)
         assert company is not None
         self.assertEqual(company.folder, Path("b"))
+
+    def test_pv_receipt_amount_that_looks_like_date(self) -> None:
+        text = (
+            _CPALL_PV_RECEIPT.replace("ผ่อนเงินสำรอง รถเข็นลัง เดือน 08/69\n", "")
+            .replace("297.00\n10,132.75", "2006826003\n31.08.2026\n21,117.10")
+            .replace("จำนวนเงินที่ชำระ 10,429.75", "จำนวนเงินทีชำระ")
+        )
+        values = extract_income_pv_receipt(text)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertEqual(values.deposit_amount, 21117.10)
+        self.assertEqual(values.base_amount, 0.0)
 
     def test_shop_tax_id_skips_cpall(self) -> None:
         values = extract_income_pv_tax(_CPALL_PV_TAX)

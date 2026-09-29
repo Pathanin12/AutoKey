@@ -9,6 +9,7 @@ from constants.routes import (
     INCOME_REPORT_FONT,
     INCOME_REPORT_FONT_SIZE,
     INCOME_REPORT_FREEZE,
+    INCOME_REPORT_GRAND_LABEL,
     INCOME_REPORT_HEADER_ROW,
     INCOME_REPORT_HEADERS,
     INCOME_REPORT_MONEY_FORMAT,
@@ -16,6 +17,7 @@ from constants.routes import (
     INCOME_REPORT_TEXT_FORMAT,
     INCOME_REPORT_TOTAL_COLOR,
     INCOME_REPORT_WIDTHS,
+    INCOME_RV_GOODS,
     INCOME_RV_TAX,
 )
 from models.income_form_values import IncomeFormValues
@@ -23,9 +25,13 @@ from models.income_report_result import IncomeReportResult
 from models.income_report_row import IncomeReportRow
 from services.name_match_service import compact_name, tidy_name
 
+_REPORT_KINDS = (INCOME_RV_TAX, INCOME_PV_TAX, INCOME_RV_GOODS)
 _TEXT_COLUMNS = (3, 4)
 _CENTER_COLUMNS = (1, 3, 4)
+_NAME_COLUMN = 2
+_BRANCH_COLUMN = 4
 _FIRST_MONEY_COLUMN = 5
+_MONEY_COUNT = len(INCOME_REPORT_HEADERS) - _FIRST_MONEY_COLUMN + 1
 
 
 class IncomeReportService:
@@ -38,7 +44,7 @@ class IncomeReportService:
     ) -> list[IncomeReportRow]:
         shops: dict[str, dict[str, IncomeReportRow]] = {}
         for values in invoices:
-            if values.kind not in (INCOME_RV_TAX, INCOME_PV_TAX):
+            if values.kind not in _REPORT_KINDS:
                 continue
             key = compact_name(values.company_name)
             if key in skip_shops:
@@ -96,7 +102,11 @@ class IncomeReportService:
                 cell.alignment = center
                 sheet.column_dimensions[cell.column_letter].width = width
 
-        existing_shops, last_row, last_number = _sheet_state(sheet)
+        existing_shops, last_row, last_number, grand_rows, sums = _sheet_state(sheet)
+        for grand_row in sorted(grand_rows, reverse=True):
+            sheet.delete_rows(grand_row)
+            if grand_row < last_row:
+                last_row -= 1
         rows = IncomeReportService.build_rows(
             invoices,
             skip_shops=frozenset(existing_shops),
@@ -104,11 +114,10 @@ class IncomeReportService:
         )
         skipped_shops = _skipped_shop_names(invoices, existing_shops)
 
-        for offset, row in enumerate(rows, start=1):
-            values = [row.number, row.shop_name, row.tax_id, row.branch, *row.amounts, None]
+        def write_cells(row_index: int, values: list, cell_font) -> None:
             for column, value in enumerate(values, start=1):
-                cell = sheet.cell(row=last_row + offset, column=column, value=value)
-                cell.font = total_font if row.is_total else font
+                cell = sheet.cell(row=row_index, column=column, value=value)
+                cell.font = cell_font
                 cell.border = border
                 if column in _TEXT_COLUMNS:
                     cell.number_format = INCOME_REPORT_TEXT_FORMAT
@@ -117,48 +126,78 @@ class IncomeReportService:
                 if column in _CENTER_COLUMNS:
                     cell.alignment = center
 
+        for offset, row in enumerate(rows, start=1):
+            write_cells(
+                last_row + offset,
+                [row.number, row.shop_name, row.tax_id, row.branch, *row.amounts],
+                total_font if row.is_total else font,
+            )
+            if not row.is_total:
+                sums = [round(total + amount, 2) for total, amount in zip(sums, row.amounts)]
+
+        data_end = last_row + len(rows)
+        write_cells(data_end + 1, [None, INCOME_REPORT_GRAND_LABEL, None, None, *sums], font)
         last_column = sheet.cell(row=INCOME_REPORT_HEADER_ROW, column=len(INCOME_REPORT_HEADERS)).column_letter
-        sheet.auto_filter.ref = f"A{INCOME_REPORT_HEADER_ROW}:{last_column}{last_row + len(rows)}"
+        sheet.auto_filter.ref = f"A{INCOME_REPORT_HEADER_ROW}:{last_column}{data_end}"
         sheet.freeze_panes = INCOME_REPORT_FREEZE
         workbook.save(path)
         return IncomeReportResult(path=path, skipped_shops=skipped_shops)
 
 
-def _sheet_state(sheet) -> tuple[set[str], int, int]:
+def _sheet_state(sheet) -> tuple[set[str], int, int, list[int], list[float]]:
     shops: set[str] = set()
     last_row = INCOME_REPORT_HEADER_ROW
     last_number = 0
-    for row_index, (number, name) in enumerate(
-        sheet.iter_rows(min_row=INCOME_REPORT_HEADER_ROW + 1, max_col=2, values_only=True),
+    grand_rows: list[int] = []
+    sums = [0.0] * _MONEY_COUNT
+    for row_index, cells in enumerate(
+        sheet.iter_rows(min_row=INCOME_REPORT_HEADER_ROW + 1, max_col=len(INCOME_REPORT_HEADERS), values_only=True),
         start=INCOME_REPORT_HEADER_ROW + 1,
     ):
+        number, name, branch = cells[0], cells[_NAME_COLUMN - 1], cells[_BRANCH_COLUMN - 1]
         if not name:
+            continue
+        if name == INCOME_REPORT_GRAND_LABEL:
+            grand_rows.append(row_index)
             continue
         shops.add(compact_name(str(name)))
         last_row = row_index
         if isinstance(number, (int, float)):
             last_number = max(last_number, int(number))
-    return shops, last_row, last_number
+        if branch:
+            amounts = cells[_FIRST_MONEY_COLUMN - 1 :]
+            sums = [
+                round(total + (amount if isinstance(amount, (int, float)) else 0.0), 2)
+                for total, amount in zip(sums, amounts)
+            ]
+    return shops, last_row, last_number, grand_rows, sums
 
 
 def _skipped_shop_names(invoices: list[IncomeFormValues], existing_shops: set[str]) -> list[str]:
     names: dict[str, str] = {}
     for values in invoices:
         key = compact_name(values.company_name)
-        if values.kind in (INCOME_RV_TAX, INCOME_PV_TAX) and key in existing_shops:
+        if values.kind in _REPORT_KINDS and key in existing_shops:
             names.setdefault(key, tidy_name(values.company_name))
     return list(names.values())
 
 
 def _add_invoice(row: IncomeReportRow, values: IncomeFormValues) -> None:
     if values.kind == INCOME_RV_TAX:
-        row.income = round(row.income + values.total_amount + values.wht_amount - values.vat_amount, 2)
+        row.income = round(row.income + _before_wht(values), 2)
         row.sale_vat = round(row.sale_vat + values.vat_amount, 2)
         row.sale_wht = round(row.sale_wht + values.wht_amount, 2)
+        return
+    if values.kind == INCOME_RV_GOODS:
+        row.interest = round(row.interest + _before_wht(values), 2)
         return
     row.royalty = round(row.royalty + values.base_amount, 2)
     row.buy_vat = round(row.buy_vat + values.vat_amount, 2)
     row.buy_wht = round(row.buy_wht + values.wht_amount, 2)
+
+
+def _before_wht(values: IncomeFormValues) -> float:
+    return values.total_amount + values.wht_amount - values.vat_amount
 
 
 def _total_row(branch_rows: list[IncomeReportRow], number: int) -> IncomeReportRow:
@@ -173,6 +212,7 @@ def _total_row(branch_rows: list[IncomeReportRow], number: int) -> IncomeReportR
         royalty=round(sum(row.royalty for row in branch_rows), 2),
         buy_vat=round(sum(row.buy_vat for row in branch_rows), 2),
         buy_wht=round(sum(row.buy_wht for row in branch_rows), 2),
+        interest=round(sum(row.interest for row in branch_rows), 2),
         number=number,
         is_total=True,
     )

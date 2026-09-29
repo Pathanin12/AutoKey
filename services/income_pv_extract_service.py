@@ -30,6 +30,7 @@ _CUSTOMER_RE = re.compile(r"รหัสลูกค้า[^\d]{0,80}(\d{7,8})")
 _DOC_NUM_RE = re.compile(r"เลขที่\s*[:：]?\s*(\d{8,12})")
 _PV_NUM_RE = re.compile(r"((?:26|27)\d{8})(?=\d{2}[./-]\d{2}[./-]\d{2,4}|\D|$)")
 _TAX_ID_RE = re.compile(r"เลขประจำตัวผู้เสียภาษี\s*(\d{13})")
+_DATE_LINE_RE = re.compile(r"\d{1,2}\s*[./-]\s*\d{1,2}\s*[./-]\s*\d{2,4}")
 _PV_THEN_DATE_RE = re.compile(
     r"(?:26|27)\d{8}[^\d]{0,40}(\d{1,2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{2,4})"
 )
@@ -257,5 +258,7 @@ def _receipt_items(text: str) -> list[tuple[str, float]]:
 
 
 def _is_date_line(line: str) -> bool:
+    if not _DATE_LINE_RE.fullmatch(line.strip()):
+        return False
     formatted = format_express_pv_date(line)
     return is_complete_express_date(formatted)
