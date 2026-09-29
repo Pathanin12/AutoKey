@@ -116,6 +116,8 @@ INCOME_PAY_ADVANCE = "เบิกเงินสำรอง"
 INCOME_PAY_ADVANCE_ALT = "เบิกงานสำรอง"
 INCOME_PAY_RENT = "ค่าเช่ารับ"
 INCOME_PV_DEPOSIT_MARK = "เงินประกัน"
+INCOME_PV_SPECIAL_MARK = "ท/สและอุปกรณ์พิเศษ"
+INCOME_PV_INSTALL_MARK = "ผ่อนเงินสำรอง"
 INCOME_PV_TAX_TITLE = "ใบเสร็จรับเงิน/ใบกำกับภาษี"
 INCOME_PV_TAX_TITLE_GLUED = "ใบเสร็จรับเงินใบกำกับภาษี"
 INCOME_RV_DESC = "บมจ.ซีพีออลล์-{topic} ด.{month}/{year}*{branch}"
@@ -125,8 +127,10 @@ INCOME_RV_TOPIC_ADVANCE = "เบิกเงินสำรอง"
 INCOME_RV_TOPIC_RENT = "ค่าเช่ารับ"
 INCOME_PV_TAX_DESC = "บมจ.ซีพีออลล์-ค่าสิทธิ์ ด.{month}/{year}*{branch}"
 INCOME_PV_DEPOSIT_DESC = "บมจ.ซีพีออลล์-เงินประกัน ด.{month}/{year}*{branch}"
-INCOME_PV_INSTALL_DESC = "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง ด.{month}/{year}*{branch}"
-INCOME_PV_BOTH_DESC = "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน ด.{month}/{year}*{branch}"
+INCOME_PV_INSTALL_DESC = "บมจ.ซีพีออลล์-{topic} ด.{month}/{year}*{branch}"
+INCOME_PV_BOTH_DESC = "บมจ.ซีพีออลล์-{topic},เงินประกัน ด.{month}/{year}*{branch}"
+INCOME_PV_TOPIC_INSTALL = "ผ่อนเงินสำรอง"
+INCOME_PV_TOPIC_SPECIAL = "ท/ส และอุปกรณ์พิเศษ"
 CPALL_TAX_ID = "0107542000011"
 
 INCOME_REPORT_FILE = "รายได้ {month}.{year}.xlsx"
@@ -261,6 +265,7 @@ UI_TEXT = {
     "income_skip_wrong_password_log": "ข้าม — {path} รหัสไม่ตรง",
     "income_skip_no_password_log": "ข้าม — {path} ชื่อไฟล์ไม่มีรหัส (ชื่อห้าง_รหัส)",
     "income_skip_no_invoice_log": "ข้าม — {path} ไม่เจอใบกำกับภาษีหรือใบเสร็จ",
+    "income_skip_unknown_receipt_log": "ข้าม — {path} ใบเสร็จ {number} ไม่รู้จักรายการ: {items}",
     "income_skip_no_month_log": "ข้าม — {path} ไม่มีใบเดือน {month}/{year}",
     "income_insert_log": "สรุป — {shop}: {detail}",
     "income_insert_done": "insert เสร็จ {inserted}/{total}",

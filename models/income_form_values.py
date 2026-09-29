@@ -22,6 +22,8 @@ class IncomeFormValues:
     base_amount: float = 0.0
     deposit_amount: float = 0.0
     shop_tax_id: str = ""
+    special_equipment: bool = False
+    unknown_items: tuple[str, ...] = ()
 
     @property
     def has_total(self) -> bool:

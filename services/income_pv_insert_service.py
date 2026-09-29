@@ -9,6 +9,8 @@ from constants.routes import (
     INCOME_PV_INSTALL_DESC,
     INCOME_PV_RECEIPT,
     INCOME_PV_TAX_DESC,
+    INCOME_PV_TOPIC_INSTALL,
+    INCOME_PV_TOPIC_SPECIAL,
     JOURNAL_DOCSTAT,
     VATREC_PURCHASE,
 )
@@ -70,8 +72,9 @@ class IncomePvInsertService:
 def _receipt_description(values: IncomeFormValues, month: int, year: str) -> str:
     has_deposit = has_amount(values.deposit_amount)
     has_install = has_amount(values.base_amount)
+    topic = INCOME_PV_TOPIC_SPECIAL if values.special_equipment else INCOME_PV_TOPIC_INSTALL
     if has_deposit and has_install:
-        return INCOME_PV_BOTH_DESC.format(month=month, year=year, branch=values.branch_last5)
+        return INCOME_PV_BOTH_DESC.format(topic=topic, month=month, year=year, branch=values.branch_last5)
     if has_deposit:
         return INCOME_PV_DEPOSIT_DESC.format(month=month, year=year, branch=values.branch_last5)
-    return INCOME_PV_INSTALL_DESC.format(month=month, year=year, branch=values.branch_last5)
+    return INCOME_PV_INSTALL_DESC.format(topic=topic, month=month, year=year, branch=values.branch_last5)

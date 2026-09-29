@@ -94,6 +94,15 @@ class IncomeMatchRunService:
             report_invoices.extend(month_invoices)
             unmatched: set[str] = set()
             for values in month_invoices:
+                if values.unknown_items:
+                    on_status(
+                        UI_TEXT["income_skip_unknown_receipt_log"].format(
+                            path=pdf_path.name,
+                            number=values.invoice_number,
+                            items=", ".join(values.unknown_items),
+                        )
+                    )
+                    continue
                 company = Pp30MatchService.match_lookup(values.company_name, lookup)
                 if company is None:
                     if values.company_name not in unmatched:

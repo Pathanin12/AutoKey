@@ -593,6 +593,60 @@ class IncomeExtractTests(unittest.TestCase):
         self.assertEqual(values.deposit_amount, 21117.10)
         self.assertEqual(values.base_amount, 0.0)
 
+    def test_special_equipment_receipt_uses_install_with_own_description(self) -> None:
+        text = (
+            _CPALL_PV_RECEIPT.replace("ผ่อนเงินสำรอง รถเข็นลัง เดือน 08/69\nเงินประกัน เดือน 08/69\n", "")
+            .replace("297.00\n10,132.75", "ท/ส และอุปกรณ์พิเศษ SBP 12,947.00\nท/ส และอุปกรณ์พิเศษ SBP 12,947.00")
+            .replace("จำนวนเงินที่ชำระ 10,429.75", "จำนวนเงินที่ชำระ 25,894.00")
+        )
+        values = extract_income_pv_receipt(text)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertTrue(values.special_equipment)
+        self.assertEqual(values.base_amount, 25894.0)
+        self.assertEqual(values.deposit_amount, 0.0)
+        form = IncomeFormConfig(pdf_folder=Path("."), start_date="01/08/69")
+        self.assertEqual(
+            IncomeInsertService.description(values, form),
+            "บมจ.ซีพีออลล์-ท/ส และอุปกรณ์พิเศษ ด.8/69*10981",
+        )
+        self.assertEqual(
+            [(line.account, line.amount, line.is_credit) for line in IncomeInsertService.voucher(values, form).lines],
+            [
+                (ACCOUNT_INCOME_ADVANCE, 25894.0, False),
+                (ACCOUNT_INCOME_RECEIVABLE, 25894.0, True),
+            ],
+        )
+
+    def test_receipt_with_unknown_item_is_logged_and_skipped(self) -> None:
+        from services.income_match_run_service import IncomeMatchRunService
+
+        text = _CPALL_PV_RECEIPT.replace("ผ่อนเงินสำรอง รถเข็นลัง เดือน 08/69", "ค่าอะไรไม่รู้ เดือน 08/69")
+        values = extract_income_pv_receipt(text)
+        assert values is not None
+        self.assertEqual(values.unknown_items, ("ค่าอะไรไม่รู้ เดือน 08/69",))
+        self.assertEqual(extract_income_pv_receipt(_CPALL_PV_RECEIPT).unknown_items, ())
+
+        with TemporaryDirectory() as raw:
+            folder = Path(raw)
+            pdf_path = folder / "a.pdf"
+            pdf_path.write_bytes(b"%PDF")
+            record = mock.Mock(locked=False, has_text=True, broken_pages=[], invoices=[values], pdf_path=pdf_path)
+            logs: list[str] = []
+            form = IncomeFormConfig(pdf_folder=folder, start_date="18/09/69", pdf_files=[pdf_path])
+            with (
+                mock.patch(
+                    "services.income_match_run_service.ExpressShopIndexService.load",
+                    return_value=[ExpressCompany(folder=folder, shop_name=values.company_name)],
+                ),
+                mock.patch("services.income_match_run_service.IncomePdfService.load_record", return_value=record),
+                mock.patch("services.income_match_run_service.IncomeInsertService.insert") as insert,
+            ):
+                jobs = IncomeMatchRunService.run(form, folder, on_status=logs.append, on_progress=lambda *_: None)
+        insert.assert_not_called()
+        self.assertEqual(jobs, [])
+        self.assertIn("ข้าม — a.pdf ใบเสร็จ 2600049608 ไม่รู้จักรายการ: ค่าอะไรไม่รู้ เดือน 08/69", logs)
+
     def test_shop_tax_id_skips_cpall(self) -> None:
         values = extract_income_pv_tax(_CPALL_PV_TAX)
         assert values is not None

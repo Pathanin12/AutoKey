@@ -5,6 +5,8 @@ import re
 from constants.date_utils import format_express_pv_date, is_complete_express_date
 from constants.routes import (
     INCOME_PV_DEPOSIT_MARK,
+    INCOME_PV_INSTALL_MARK,
+    INCOME_PV_SPECIAL_MARK,
     INCOME_PV_RECEIPT,
     INCOME_PV_TAX,
     INCOME_PV_TAX_TITLE,
@@ -183,7 +185,7 @@ def extract_income_pv_receipt(text: str) -> IncomeFormValues | None:
     tax_id = _issuer_tax_id(text) or _tax_id(glued) or _tax_id(text)
     branch = _customer_branch(text) or _branch_last5(glued) or _branch_last5(text)
     company = _company_name(text)
-    deposit_amount, install_amount = _receipt_splits(text)
+    deposit_amount, install_amount, special_equipment, unknown_items = _receipt_splits(text)
     pay_amount = _amount_near(text, "จำนวนเงินที่ชำระ") or _amount_near(text, "จำนวนเงินที่ต้องชำระ")
     if pay_amount <= 0:
         pay_amount = round(deposit_amount + install_amount, 2)
@@ -205,18 +207,28 @@ def extract_income_pv_receipt(text: str) -> IncomeFormValues | None:
         period_date=_period_date(text),
         base_amount=install_amount,
         deposit_amount=deposit_amount,
+        special_equipment=special_equipment,
+        unknown_items=unknown_items,
     )
 
 
-def _receipt_splits(text: str) -> tuple[float, float]:
+def _receipt_splits(text: str) -> tuple[float, float, bool, tuple[str, ...]]:
     deposit = 0.0
     install = 0.0
+    special = False
+    unknown: list[str] = []
     for desc, amount in _receipt_items(text):
-        if INCOME_PV_DEPOSIT_MARK in desc:
+        compact = re.sub(r"\s+", "", desc)
+        if INCOME_PV_DEPOSIT_MARK in compact:
             deposit = round(deposit + amount, 2)
-        else:
+        elif INCOME_PV_SPECIAL_MARK in compact:
             install = round(install + amount, 2)
-    return deposit, install
+            special = True
+        elif INCOME_PV_INSTALL_MARK in compact:
+            install = round(install + amount, 2)
+        else:
+            unknown.append(desc)
+    return deposit, install, special, tuple(unknown)
 
 
 def _receipt_items(text: str) -> list[tuple[str, float]]:
