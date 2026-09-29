@@ -31,6 +31,12 @@ PAGE_PP30 = "pp30"
 PAGE_PND30 = "pnd30"
 PAGE_PND3 = "pnd3"
 PAGE_INCOME = "income"
+PERIOD_EXAMPLE = "MM/YY"
+KA_TAM_DESCRIPTION = "บจก.เอ็นอาร์จี แอคเคาท์ ค่าทำบัญชี ด.{period}"
+PP30_JV_DESCRIPTION = "ปิดภาษีซื้อ-ขาย เดือน{period}"
+PP30_PV_DESCRIPTION = "กรมสรรพากร-ภ.พ.30 เดือน{period}"
+PND30_DESCRIPTION = "กรมสรรพากร-ภ.ง.ด.53 เดือน{period}"
+PND3_DESCRIPTION = "กรมสรรพากร-ภ.ง.ด.3 เดือน{period}"
 EKO_HTTP_URL = "https://cpall-h1.ekoapp.com"
 EKO_LOGIN_PATH = "/api/v1/auth/login"
 EKO_ORIGIN_URL = "https://cpall.ekoapp.com"
@@ -117,10 +123,10 @@ INCOME_RV_TOPIC_TAX = "ค่าตอบแทนการบริหาร"
 INCOME_RV_TOPIC_GOODS = "สินค้าและบริการ"
 INCOME_RV_TOPIC_ADVANCE = "เบิกเงินสำรอง"
 INCOME_RV_TOPIC_RENT = "ค่าเช่ารับ"
-INCOME_PV_TAX_DESC = "บมจ.ซีพี ออลล์-ค่าสิทธ์ ด.{month}/{year}*{branch}"
+INCOME_PV_TAX_DESC = "บมจ.ซีพีออลล์-ค่าสิทธิ์ ด.{month}/{year}*{branch}"
 INCOME_PV_DEPOSIT_DESC = "บมจ.ซีพีออลล์-เงินประกัน ด.{month}/{year}*{branch}"
 INCOME_PV_INSTALL_DESC = "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง ด.{month}/{year}*{branch}"
-INCOME_PV_BOTH_DESC = "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน {month}/{year}*{branch}"
+INCOME_PV_BOTH_DESC = "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน ด.{month}/{year}*{branch}"
 CPALL_TAX_ID = "0107542000011"
 
 INCOME_REPORT_FILE = "รายได้ {month}.{year}.xlsx"
@@ -199,9 +205,10 @@ UI_TEXT = {
     "ka_tam_excel_none": "ไม่พบรายการในไฟล์ Excel",
     "ka_tam_pv_date": "วันที่ PV",
     "ka_tam_pv_date_invalid": "กรุณากรอกวันที่ PV ให้ครบ เช่น 25/07/69",
-    "ka_tam_description": "รายละเอียด",
+    "ka_tam_period": "เดือน/ปี รายละเอียด",
+    "ka_tam_period_invalid": "กรุณากรอกเดือน/ปี ให้ครบ แบบ MM/YY",
     "ka_tam_tax_payer": "เลขผู้เสียภาษี",
-    "ka_tam_welcome_log": "เลือกไฟล์ Excel กรอกวันที่ รายละเอียด และเลขผู้เสียภาษี แล้วกดเริ่ม",
+    "ka_tam_welcome_log": "เลือกไฟล์ Excel กรอกวันที่ เดือน/ปี และเลขผู้เสียภาษี แล้วกดเริ่ม",
     "ka_tam_unmatched": "ไม่ตรง — Excel: {name}",
     "ka_tam_match_log": "ตรง — Excel: {excel_name} → {shop_name}",
     "ka_tam_skip_zero_log": "ข้าม — {name} ไม่มียอดค่าบริการ",
@@ -211,18 +218,20 @@ UI_TEXT = {
     "menu_pp30_hint": "ภาษีมูลค่าเพิ่ม — อ่าน PDF แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
     "menu_pnd30": "ภ.ง.ด.53",
     "menu_pnd30_hint": "ภาษีเงินได้หัก ณ ที่จ่าย — อ่าน PDF แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
-    "pnd30_description": "รายละเอียด",
+    "pnd30_period": "เดือน/ปี รายละเอียด",
+    "pnd30_period_invalid": "กรุณากรอกเดือน/ปี รายละเอียด ให้ครบ แบบ MM/YY",
     "pnd30_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",
     "pnd30_pdf_none": "ไม่พบไฟล์ PDF ในโฟลเดอร์นี้",
-    "pnd30_welcome_log": "เลือกโฟลเดอร์ PDF กรอกรายละเอียด แล้วกดเริ่ม",
+    "pnd30_welcome_log": "เลือกโฟลเดอร์ PDF กรอกเดือน/ปี แล้วกดเริ่ม",
     "pnd30_skip_zero_log": "ข้าม — {name} ไม่มียอดภาษี",
     "pnd30_insert_log": "สรุป — {shop}: {detail}",
     "menu_pnd3": "ภ.ง.ด.3",
     "menu_pnd3_hint": "ภาษีเงินได้หัก ณ ที่จ่าย — อ่าน PDF แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
-    "pnd3_description": "รายละเอียด",
+    "pnd3_period": "เดือน/ปี รายละเอียด",
+    "pnd3_period_invalid": "กรุณากรอกเดือน/ปี รายละเอียด ให้ครบ แบบ MM/YY",
     "pnd3_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",
     "pnd3_pdf_none": "ไม่พบไฟล์ PDF ในโฟลเดอร์นี้",
-    "pnd3_welcome_log": "เลือกโฟลเดอร์ PDF กรอกรายละเอียด แล้วกดเริ่ม",
+    "pnd3_welcome_log": "เลือกโฟลเดอร์ PDF กรอกเดือน/ปี แล้วกดเริ่ม",
     "pnd3_skip_zero_log": "ข้าม — {name} ไม่มียอดภาษี",
     "pnd3_insert_log": "สรุป — {shop}: {detail}",
     "menu_income": "รายได้",
@@ -282,8 +291,10 @@ UI_TEXT = {
     "pp30_pdf_total": "พบ PDF {count} ไฟล์",
     "pp30_jv_date": "วันที่ JV",
     "pp30_jv_date_invalid": "กรุณากรอกวันที่ JV ให้ครบ เช่น 31/08/69",
-    "pp30_jv_description": "รายละเอียด JV",
-    "pp30_pv_description": "รายละเอียด PV",
+    "pp30_jv_period": "เดือน/ปี รายละเอียด JV",
+    "pp30_pv_period": "เดือน/ปี รายละเอียด PV",
+    "pp30_jv_period_invalid": "กรุณากรอกเดือน/ปี รายละเอียด JV ให้ครบ แบบ MM/YY",
+    "pp30_pv_period_invalid": "กรุณากรอกเดือน/ปี รายละเอียด PV ให้ครบ แบบ MM/YY",
     "pp30_run_mode": "รูปแบบ",
     "pp30_mode_normal": "แบบปกติ",
     "pp30_mode_special": "แบบพิเศษ",

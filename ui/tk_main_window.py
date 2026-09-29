@@ -27,6 +27,7 @@ from models.app_config import AppConfig
 from models.income_form_config import IncomeFormConfig
 from models.income_lock_mode import IncomeLockMode
 from models.ka_tam_form_config import KaTamFormConfig
+from models.month_year_period import MonthYearPeriod
 from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd30_form_config import Pnd30FormConfig
 from models.pp30_form_config import Pp30FormConfig
@@ -53,6 +54,17 @@ PND3_WIN_H = 600
 INCOME_WIN_H = 720
 
 
+def _bind_period_mask(variable: tk.StringVar, entry: ttk.Entry) -> None:
+    def mask(*_args) -> None:
+        current = variable.get()
+        masked = MonthYearPeriod.mask(current)
+        if masked != current:
+            variable.set(masked)
+            entry.icursor("end")
+
+    variable.trace_add("write", mask)
+
+
 class MainWindow:
     def __init__(self) -> None:
         self.root = tk.Tk()
@@ -68,28 +80,28 @@ class MainWindow:
         self.pp30_pdf_folder = tk.StringVar(value="")
         self.pp30_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
         self.pp30_jv_date = tk.StringVar(value="")
-        self.pp30_jv_description = tk.StringVar(value="")
-        self.pp30_pv_description = tk.StringVar(value="")
+        self.pp30_jv_period = tk.StringVar(value="")
+        self.pp30_pv_period = tk.StringVar(value="")
         self.pp30_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.pp30_pdf_files: list[Path] = []
         self._pp30_running = False
         self.ka_tam_excel_path = tk.StringVar(value="")
         self.ka_tam_excel_summary = tk.StringVar(value=UI_TEXT["ka_tam_excel_empty"])
         self.ka_tam_pv_date = tk.StringVar(value="")
-        self.ka_tam_description = tk.StringVar(value="")
+        self.ka_tam_period = tk.StringVar(value="")
         self.ka_tam_tax_payer = tk.StringVar(value="")
         self.ka_tam_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.ka_tam_rows_count = 0
         self._ka_tam_running = False
         self.pnd30_pdf_folder = tk.StringVar(value="")
         self.pnd30_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
-        self.pnd30_description = tk.StringVar(value="")
+        self.pnd30_period = tk.StringVar(value="")
         self.pnd30_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.pnd30_pdf_files: list[Path] = []
         self._pnd30_running = False
         self.pnd3_pdf_folder = tk.StringVar(value="")
         self.pnd3_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
-        self.pnd3_description = tk.StringVar(value="")
+        self.pnd3_period = tk.StringVar(value="")
         self.pnd3_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.pnd3_pdf_files: list[Path] = []
         self._pnd3_running = False
@@ -205,14 +217,14 @@ class MainWindow:
         jv_date_entry = ttk.Entry(form, textvariable=self.pp30_jv_date, width=14)
         jv_date_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
         jv_date_entry.bind("<FocusOut>", self._format_pp30_jv_date)
-        ttk.Label(form, text=UI_TEXT["pp30_jv_description"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(form, textvariable=self.pp30_jv_description, width=42).grid(
-            row=4, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
-        )
-        ttk.Label(form, text=UI_TEXT["pp30_pv_description"]).grid(row=5, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(form, textvariable=self.pp30_pv_description, width=42).grid(
-            row=5, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
-        )
+        ttk.Label(form, text=UI_TEXT["pp30_jv_period"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
+        jv_period_entry = ttk.Entry(form, textvariable=self.pp30_jv_period, width=14)
+        jv_period_entry.grid(row=4, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        _bind_period_mask(self.pp30_jv_period, jv_period_entry)
+        ttk.Label(form, text=UI_TEXT["pp30_pv_period"]).grid(row=5, column=0, sticky="w", pady=(8, 0))
+        pv_period_entry = ttk.Entry(form, textvariable=self.pp30_pv_period, width=14)
+        pv_period_entry.grid(row=5, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        _bind_period_mask(self.pp30_pv_period, pv_period_entry)
         form.columnconfigure(1, weight=1)
 
         ttk.Button(page, text=f"▶ {UI_TEXT['start']}", command=self._start_pp30).pack(anchor="w", padx=20, pady=12)
@@ -256,10 +268,10 @@ class MainWindow:
         date_entry = ttk.Entry(form, textvariable=self.ka_tam_pv_date, width=14)
         date_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
         date_entry.bind("<FocusOut>", self._format_ka_tam_pv_date)
-        ttk.Label(form, text=UI_TEXT["ka_tam_description"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(form, textvariable=self.ka_tam_description, width=42).grid(
-            row=3, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
-        )
+        ttk.Label(form, text=UI_TEXT["ka_tam_period"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
+        period_entry = ttk.Entry(form, textvariable=self.ka_tam_period, width=14)
+        period_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        _bind_period_mask(self.ka_tam_period, period_entry)
         ttk.Label(form, text=UI_TEXT["ka_tam_tax_payer"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
         ttk.Entry(form, textvariable=self.ka_tam_tax_payer, width=42).grid(
             row=4, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
@@ -303,10 +315,10 @@ class MainWindow:
         ttk.Label(form, textvariable=self.pnd30_pdf_summary, wraplength=500).grid(
             row=1, column=0, columnspan=3, sticky="w", pady=(4, 0)
         )
-        ttk.Label(form, text=UI_TEXT["pnd30_description"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(form, textvariable=self.pnd30_description, width=42).grid(
-            row=2, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
-        )
+        ttk.Label(form, text=UI_TEXT["pnd30_period"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        period_entry = ttk.Entry(form, textvariable=self.pnd30_period, width=14)
+        period_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        _bind_period_mask(self.pnd30_period, period_entry)
         form.columnconfigure(1, weight=1)
 
         ttk.Button(page, text=f"▶ {UI_TEXT['start']}", command=self._start_pnd30).pack(anchor="w", padx=20, pady=12)
@@ -346,10 +358,10 @@ class MainWindow:
         ttk.Label(form, textvariable=self.pnd3_pdf_summary, wraplength=500).grid(
             row=1, column=0, columnspan=3, sticky="w", pady=(4, 0)
         )
-        ttk.Label(form, text=UI_TEXT["pnd3_description"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(form, textvariable=self.pnd3_description, width=42).grid(
-            row=2, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=(8, 0)
-        )
+        ttk.Label(form, text=UI_TEXT["pnd3_period"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        period_entry = ttk.Entry(form, textvariable=self.pnd3_period, width=14)
+        period_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        _bind_period_mask(self.pnd3_period, period_entry)
         form.columnconfigure(1, weight=1)
 
         ttk.Button(page, text=f"▶ {UI_TEXT['start']}", command=self._start_pnd3).pack(anchor="w", padx=20, pady=12)
@@ -485,8 +497,8 @@ class MainWindow:
     def _pp30_form_config(self) -> Pp30FormConfig:
         return Pp30FormConfig(
             pdf_folder=Path(self.pp30_pdf_folder.get().strip()).expanduser(),
-            jv_description=self.pp30_jv_description.get().strip(),
-            pv_description=self.pp30_pv_description.get().strip(),
+            jv_period=MonthYearPeriod.parse(self.pp30_jv_period.get()),
+            pv_period=MonthYearPeriod.parse(self.pp30_pv_period.get()),
             jv_date=format_express_pv_date(self.pp30_jv_date.get()),
             pdf_files=list(self.pp30_pdf_files),
             run_mode=Pp30RunMode.parse(self.pp30_run_mode.get()),
@@ -526,7 +538,7 @@ class MainWindow:
         return KaTamFormConfig(
             excel_path=Path(self.ka_tam_excel_path.get().strip()).expanduser(),
             pv_date=format_express_pv_date(self.ka_tam_pv_date.get()),
-            description=self.ka_tam_description.get().strip(),
+            period=MonthYearPeriod.parse(self.ka_tam_period.get()),
             tax_payer_id=self.ka_tam_tax_payer.get().strip(),
         )
 
@@ -613,7 +625,7 @@ class MainWindow:
     def _pnd30_form_config(self) -> Pnd30FormConfig:
         return Pnd30FormConfig(
             pdf_folder=Path(self.pnd30_pdf_folder.get().strip()).expanduser(),
-            description=self.pnd30_description.get().strip(),
+            period=MonthYearPeriod.parse(self.pnd30_period.get()),
             pdf_files=list(self.pnd30_pdf_files),
         )
 
@@ -693,7 +705,7 @@ class MainWindow:
     def _pnd3_form_config(self) -> Pnd3FormConfig:
         return Pnd3FormConfig(
             pdf_folder=Path(self.pnd3_pdf_folder.get().strip()).expanduser(),
-            description=self.pnd3_description.get().strip(),
+            period=MonthYearPeriod.parse(self.pnd3_period.get()),
             pdf_files=list(self.pnd3_pdf_files),
         )
 

@@ -1,7 +1,8 @@
 import unittest
 from pathlib import Path
 
-from constants.routes import ACCOUNT_CASH, ACCOUNT_PP30_PENALTY, ACCOUNT_WT
+from constants.routes import ACCOUNT_CASH, ACCOUNT_PP30_PENALTY, ACCOUNT_WT, UI_TEXT
+from models.month_year_period import MonthYearPeriod
 from models.pnd30_form_config import Pnd30FormConfig
 from models.pnd30_form_values import Pnd30FormValues
 from services.pnd30_extract_service import extract_line_2_and_3, extract_pv_date
@@ -74,8 +75,17 @@ class Pnd30InsertLinesTests(unittest.TestCase):
         )
 
     def test_form_needs_pdf_folder(self) -> None:
-        errors = Pnd30FormConfig(pdf_folder=Path("/no-folder"), description="x").validate()
+        errors = Pnd30FormConfig(pdf_folder=Path("/no-folder"), period=MonthYearPeriod.parse("08/69")).validate()
         self.assertTrue(any("โฟลเดอร์" in item for item in errors))
+        self.assertNotIn(UI_TEXT["pnd30_period_invalid"], errors)
+
+    def test_form_needs_period(self) -> None:
+        errors = Pnd30FormConfig(pdf_folder=Path("/no-folder"), period=MonthYearPeriod.parse("")).validate()
+        self.assertIn(UI_TEXT["pnd30_period_invalid"], errors)
+
+    def test_description_from_month_and_year(self) -> None:
+        form = Pnd30FormConfig(pdf_folder=Path("."), period=MonthYearPeriod.parse("07/69"))
+        self.assertEqual(form.description, "กรมสรรพากร-ภ.ง.ด.53 เดือน7/69")
 
 
 if __name__ == "__main__":

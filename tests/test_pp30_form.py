@@ -3,17 +3,20 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from constants.routes import PP30_MODE_NORMAL, PP30_MODE_SPECIAL, UI_TEXT
+from models.month_year_period import MonthYearPeriod
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_run_mode import Pp30RunMode
 from services.pp30_folder_service import Pp30FolderService
+
+_PERIOD = MonthYearPeriod(month=8, year=69)
 
 
 class Pp30FormTests(unittest.TestCase):
     def test_validate_requires_pdf_folder(self) -> None:
         config = Pp30FormConfig(
             pdf_folder=Path("/tmp/missing-pp30"),
-            jv_description="",
-            pv_description="",
+            jv_period=MonthYearPeriod(month=8, year=69),
+            pv_period=MonthYearPeriod(month=8, year=69),
         )
         errors = config.validate()
         self.assertTrue(any("โฟลเดอร์ PDF" in item for item in errors))
@@ -21,7 +24,7 @@ class Pp30FormTests(unittest.TestCase):
         self.assertIn(UI_TEXT["pp30_jv_date_invalid"], errors)
 
     def test_default_mode_is_normal(self) -> None:
-        config = Pp30FormConfig(pdf_folder=Path("/tmp"), jv_description="", pv_description="")
+        config = Pp30FormConfig(pdf_folder=Path("/tmp"), jv_period=_PERIOD, pv_period=_PERIOD)
         self.assertEqual(config.run_mode.key, PP30_MODE_NORMAL)
         self.assertEqual(Pp30RunMode.special().key, PP30_MODE_SPECIAL)
         self.assertEqual(Pp30RunMode.special().label, UI_TEXT["pp30_mode_special"])
@@ -32,14 +35,29 @@ class Pp30FormTests(unittest.TestCase):
             (folder / "a.pdf").write_bytes(b"%PDF")
             config = Pp30FormConfig(
                 pdf_folder=folder,
-                jv_description="",
-                pv_description="",
+                jv_period=MonthYearPeriod(month=8, year=69),
+                pv_period=MonthYearPeriod(month=8, year=69),
                 jv_date="31/08",
                 pdf_files=Pp30FolderService.list_pdfs(folder),
             )
             self.assertEqual(config.validate(), [UI_TEXT["pp30_jv_date_invalid"]])
             config.jv_date = "31/08/69"
             self.assertEqual(config.validate(), [])
+            config.jv_period = MonthYearPeriod.parse("")
+            config.pv_period = MonthYearPeriod.parse("13/69")
+            self.assertEqual(
+                config.validate(),
+                [UI_TEXT["pp30_jv_period_invalid"], UI_TEXT["pp30_pv_period_invalid"]],
+            )
+
+    def test_descriptions_from_month_and_year(self) -> None:
+        config = Pp30FormConfig(
+            pdf_folder=Path("/tmp"),
+            jv_period=MonthYearPeriod.parse("07/69"),
+            pv_period=MonthYearPeriod.parse("12/69"),
+        )
+        self.assertEqual(config.jv_description, "ปิดภาษีซื้อ-ขาย เดือน7/69")
+        self.assertEqual(config.pv_description, "กรมสรรพากร-ภ.พ.30 เดือน12/69")
 
     def test_lists_pdf_files(self) -> None:
         with TemporaryDirectory() as tmp:

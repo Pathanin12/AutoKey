@@ -48,6 +48,7 @@ from constants.routes import (
     PAGE_PP30,
     INCOME_LOCK_NONE,
     INCOME_LOCK_PASSWORD,
+    PERIOD_EXAMPLE,
     PP30_MODE_NORMAL,
     PP30_MODE_SPECIAL,
     UI_TEXT,
@@ -58,6 +59,7 @@ from models.app_config import AppConfig
 from models.income_form_config import IncomeFormConfig
 from models.income_lock_mode import IncomeLockMode
 from models.ka_tam_form_config import KaTamFormConfig
+from models.month_year_period import MonthYearPeriod
 from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd30_form_config import Pnd30FormConfig
 from models.pp30_form_config import Pp30FormConfig
@@ -112,6 +114,15 @@ class _DateFieldDelegate(NSObject):
             field.setStringValue_(format_express_pv_date(raw))
 
 
+class _PeriodFieldDelegate(NSObject):
+    def controlTextDidChange_(self, notification) -> None:
+        field = notification.object()
+        current = str(field.stringValue() or "")
+        masked = MonthYearPeriod.mask(current)
+        if masked != current:
+            field.setStringValue_(masked)
+
+
 class MainWindow:
     def __init__(self) -> None:
         self._targets: list[_CallbackTarget] = []
@@ -129,6 +140,7 @@ class MainWindow:
         self._pnd3_running = False
         self.income_pdf_files: list[Path] = []
         self._income_running = False
+        self._period_delegate = _PeriodFieldDelegate.alloc().init()
 
         self._app = NSApplication.sharedApplication()
         self._app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
@@ -141,6 +153,12 @@ class MainWindow:
         target._callback = callback
         self._targets.append(target)
         return target
+
+    def _period_field(self, parent, x, y):
+        field = _edit_field(parent, x, y, 120)
+        field.setPlaceholderString_(PERIOD_EXAMPLE)
+        field.setDelegate_(self._period_delegate)
+        return field
 
     def _set_app_icon(self) -> None:
         png = icon_dir() / "app_icon.png"
@@ -322,11 +340,11 @@ class MainWindow:
         self.pp30_jv_date_field.setDelegate_(date_delegate)
         self._pp30_date_delegate = date_delegate
         sy += 30
-        _static_label(settings, UI_TEXT["pp30_jv_description"], 8, sy, 110, 22)
-        self.pp30_jv_description_field = _edit_field(settings, 120, sy, 356)
+        _static_label(settings, UI_TEXT["pp30_jv_period"], 8, sy, 140, 22)
+        self.pp30_jv_period_field = self._period_field(settings, 150, sy)
         sy += 30
-        _static_label(settings, UI_TEXT["pp30_pv_description"], 8, sy, 110, 22)
-        self.pp30_pv_description_field = _edit_field(settings, 120, sy, 356)
+        _static_label(settings, UI_TEXT["pp30_pv_period"], 8, sy, 140, 22)
+        self.pp30_pv_period_field = self._period_field(settings, 150, sy)
 
         _button(
             page,
@@ -393,8 +411,8 @@ class MainWindow:
         self.ka_tam_pv_date_field.setDelegate_(date_delegate)
         self._ka_tam_date_delegate = date_delegate
         sy += 30
-        _static_label(settings, UI_TEXT["ka_tam_description"], 8, sy, 110, 22)
-        self.ka_tam_description_field = _edit_field(settings, 120, sy, 356)
+        _static_label(settings, UI_TEXT["ka_tam_period"], 8, sy, 110, 22)
+        self.ka_tam_period_field = self._period_field(settings, 120, sy)
         sy += 30
         _static_label(settings, UI_TEXT["ka_tam_tax_payer"], 8, sy, 110, 22)
         self.ka_tam_tax_payer_field = _edit_field(settings, 120, sy, 356)
@@ -459,8 +477,8 @@ class MainWindow:
             settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
         )
         sy += 28
-        _static_label(settings, UI_TEXT["pnd30_description"], 8, sy, 110, 22)
-        self.pnd30_description_field = _edit_field(settings, 120, sy, 356)
+        _static_label(settings, UI_TEXT["pnd30_period"], 8, sy, 110, 22)
+        self.pnd30_period_field = self._period_field(settings, 120, sy)
 
         _button(
             page,
@@ -522,8 +540,8 @@ class MainWindow:
             settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
         )
         sy += 28
-        _static_label(settings, UI_TEXT["pnd3_description"], 8, sy, 110, 22)
-        self.pnd3_description_field = _edit_field(settings, 120, sy, 356)
+        _static_label(settings, UI_TEXT["pnd3_period"], 8, sy, 110, 22)
+        self.pnd3_period_field = self._period_field(settings, 120, sy)
 
         _button(
             page,
@@ -714,8 +732,8 @@ class MainWindow:
         folder = Path(str(self.pp30_folder_field.stringValue() or "")).expanduser()
         return Pp30FormConfig(
             pdf_folder=folder,
-            jv_description=str(self.pp30_jv_description_field.stringValue() or "").strip(),
-            pv_description=str(self.pp30_pv_description_field.stringValue() or "").strip(),
+            jv_period=MonthYearPeriod.parse(str(self.pp30_jv_period_field.stringValue() or "")),
+            pv_period=MonthYearPeriod.parse(str(self.pp30_pv_period_field.stringValue() or "")),
             jv_date=format_express_pv_date(str(self.pp30_jv_date_field.stringValue() or "")),
             pdf_files=list(self.pp30_pdf_files),
             run_mode=self._pp30_mode,
@@ -812,7 +830,7 @@ class MainWindow:
         return KaTamFormConfig(
             excel_path=Path(str(self.ka_tam_excel_field.stringValue() or "")).expanduser(),
             pv_date=format_express_pv_date(str(self.ka_tam_pv_date_field.stringValue() or "")),
-            description=str(self.ka_tam_description_field.stringValue() or "").strip(),
+            period=MonthYearPeriod.parse(str(self.ka_tam_period_field.stringValue() or "")),
             tax_payer_id=str(self.ka_tam_tax_payer_field.stringValue() or "").strip(),
         )
 
@@ -897,7 +915,7 @@ class MainWindow:
     def _pnd30_form_config(self) -> Pnd30FormConfig:
         return Pnd30FormConfig(
             pdf_folder=Path(str(self.pnd30_folder_field.stringValue() or "")).expanduser(),
-            description=str(self.pnd30_description_field.stringValue() or "").strip(),
+            period=MonthYearPeriod.parse(str(self.pnd30_period_field.stringValue() or "")),
             pdf_files=list(self.pnd30_pdf_files),
         )
 
@@ -980,7 +998,7 @@ class MainWindow:
     def _pnd3_form_config(self) -> Pnd3FormConfig:
         return Pnd3FormConfig(
             pdf_folder=Path(str(self.pnd3_folder_field.stringValue() or "")).expanduser(),
-            description=str(self.pnd3_description_field.stringValue() or "").strip(),
+            period=MonthYearPeriod.parse(str(self.pnd3_period_field.stringValue() or "")),
             pdf_files=list(self.pnd3_pdf_files),
         )
 

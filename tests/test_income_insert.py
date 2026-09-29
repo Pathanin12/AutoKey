@@ -806,12 +806,12 @@ class IncomeInsertLinesTests(unittest.TestCase):
         form = IncomeFormConfig(pdf_folder=Path("."), start_date="01/08/69")
         self.assertEqual(
             IncomeInsertService.description(values, form),
-            "บมจ.ซีพี ออลล์-ค่าสิทธ์ ด.8/69*08734",
+            "บมจ.ซีพีออลล์-ค่าสิทธิ์ ด.8/69*08734",
         )
         july = IncomeFormConfig(pdf_folder=Path("."), start_date="01/07/69")
         self.assertEqual(
             IncomeInsertService.description(values, july),
-            "บมจ.ซีพี ออลล์-ค่าสิทธ์ ด.8/69*08734",
+            "บมจ.ซีพีออลล์-ค่าสิทธิ์ ด.8/69*08734",
         )
         voucher = IncomeInsertService.voucher(values, form)
         self.assertEqual(voucher.jnltyp, "01")
@@ -844,7 +844,7 @@ class IncomeInsertLinesTests(unittest.TestCase):
         form = IncomeFormConfig(pdf_folder=Path("."), start_date="01/07/69")
         self.assertEqual(
             IncomeInsertService.description(values, form),
-            "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน 8/69*10981",
+            "บมจ.ซีพีออลล์-ผ่อนเงินสำรอง,เงินประกัน ด.8/69*10981",
         )
         voucher = IncomeInsertService.voucher(values, form)
         self.assertEqual(voucher.jnltyp, "01")

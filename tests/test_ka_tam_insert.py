@@ -5,7 +5,8 @@ from struct import unpack
 from tempfile import TemporaryDirectory
 
 from constants.date_utils import is_complete_express_date
-from constants.routes import ACCOUNT_CASH, ACCOUNT_SERVICE, ACCOUNT_VAT, ACCOUNT_WT
+from constants.routes import ACCOUNT_CASH, ACCOUNT_SERVICE, ACCOUNT_VAT, ACCOUNT_WT, UI_TEXT
+from models.month_year_period import MonthYearPeriod
 from models.ka_tam_form_config import KaTamFormConfig
 from models.ka_tam_row import KaTamRow
 from services.dbf_table_service import DbfTableService
@@ -64,7 +65,7 @@ class KaTamInsertLinesTests(unittest.TestCase):
         form = KaTamFormConfig(
             excel_path=Path("."),
             pv_date="25/07/69",
-            description="ค่าทำ",
+            period=MonthYearPeriod(month=7, year=69),
             tax_payer_id="0115569014941",
         )
         self.assertEqual(KaTamInsertService.invoice_number(_row()), "NRG2026080001")
@@ -76,8 +77,42 @@ class KaTamInsertLinesTests(unittest.TestCase):
 
     def test_form_date_must_be_complete(self) -> None:
         self.assertFalse(is_complete_express_date(""))
-        errors = KaTamFormConfig(excel_path=Path("/no.xlsx"), pv_date="25/07", description="x").validate()
+        errors = KaTamFormConfig(
+            excel_path=Path("/no.xlsx"), pv_date="25/07", period=MonthYearPeriod(month=7, year=69)
+        ).validate()
         self.assertTrue(any("วันที่" in item for item in errors))
+
+    def test_description_from_month_and_year(self) -> None:
+        def description(text: str) -> str:
+            return KaTamFormConfig(excel_path=Path("."), pv_date="25/08/69", period=MonthYearPeriod.parse(text)).description
+
+        self.assertEqual(description("08/69"), "บจก.เอ็นอาร์จี แอคเคาท์ ค่าทำบัญชี ด.8/69")
+        self.assertEqual(description("07/69"), "บจก.เอ็นอาร์จี แอคเคาท์ ค่าทำบัญชี ด.7/69")
+        self.assertEqual(description("12/69"), "บจก.เอ็นอาร์จี แอคเคาท์ ค่าทำบัญชี ด.12/69")
+        self.assertEqual(MonthYearPeriod.parse("8/69").label, "08/69")
+        self.assertEqual(MonthYearPeriod.parse("0869").label, "08/69")
+
+    def test_period_must_be_selected(self) -> None:
+        errors = KaTamFormConfig(
+            excel_path=Path("/no.xlsx"), pv_date="25/07/69", period=MonthYearPeriod.parse("")
+        ).validate()
+        self.assertIn(UI_TEXT["ka_tam_period_invalid"], errors)
+        self.assertFalse(MonthYearPeriod.parse("13/69").is_valid)
+
+    def test_period_mask_while_typing(self) -> None:
+        mask = MonthYearPeriod.mask
+        self.assertEqual(mask("0"), "0")
+        self.assertEqual(mask("08"), "08")
+        self.assertEqual(mask("086"), "08/6")
+        self.assertEqual(mask("08/69"), "08/69")
+        self.assertEqual(mask("08/691"), "08/69")
+        self.assertEqual(mask("8"), "08")
+        self.assertEqual(mask("1/"), "01")
+        self.assertEqual(mask("1/6"), "01/6")
+        self.assertEqual(mask("13"), "1")
+        self.assertEqual(mask("00"), "0")
+        self.assertEqual(mask("ab12"), "12")
+        self.assertEqual(mask("08/"), "08")
 
 
 class KaTamExcelInvoiceTests(unittest.TestCase):
@@ -97,7 +132,7 @@ class KaTamLiveInsertTests(unittest.TestCase):
             form = KaTamFormConfig(
                 excel_path=Path("."),
                 pv_date="25/07/69",
-                description="บจก.เอ็นอาร์จี แอคเคาท์-ค่าทำบัญชี 7/69",
+                period=MonthYearPeriod(month=7, year=69),
                 tax_payer_id="0115569014941",
             )
             name = KaTamInsertService.insert(dest, _row(tax_id="0123562000773"), form)

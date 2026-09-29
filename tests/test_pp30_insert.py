@@ -12,6 +12,7 @@ from constants.routes import (
     ACCOUNT_PP30_VAT_PURCHASE,
     ACCOUNT_PP30_VAT_SALE,
 )
+from models.month_year_period import MonthYearPeriod
 from models.pp30_form_config import Pp30FormConfig
 from models.pp30_form_values import Pp30FormValues
 from models.pp30_payment_kind import Pp30PaymentKind
@@ -25,6 +26,7 @@ from services.pp30_insert_lines_service import (
 )
 from services.pp30_insert_service import Pp30InsertService
 
+_PERIOD = MonthYearPeriod(month=8, year=69)
 
 def _values(**kwargs) -> Pp30FormValues:
     data = dict(
@@ -47,8 +49,8 @@ class Pp30InsertLinesTests(unittest.TestCase):
         values = _values(vat_sale=14238, vat_purchase=784, amount_due=13454, line_8=13454)
         form = Pp30FormConfig(
             pdf_folder=Path("."),
-            jv_description="ปิดภาษี",
-            pv_description="ภพ.30",
+            jv_period=_PERIOD,
+            pv_period=_PERIOD,
             jv_date="15/07/69",
         )
         vouchers = Pp30InsertService.vouchers(Pp30PaymentKind.normal(), values, form)
@@ -91,7 +93,7 @@ class Pp30InsertLinesTests(unittest.TestCase):
 
     def test_skips_shop_when_line_5_and_7_empty(self) -> None:
         values = _values(line_10=137.2, line_12=137.2)
-        form = Pp30FormConfig(pdf_folder=Path("."), jv_description="jv", pv_description="pv", jv_date="31/08/69")
+        form = Pp30FormConfig(pdf_folder=Path("."), jv_period=_PERIOD, pv_period=_PERIOD, jv_date="31/08/69")
         self.assertFalse(values.has_vat_lines)
         self.assertEqual(Pp30InsertService.vouchers(Pp30PaymentKind.no_pay_normal(), values, form), [])
         self.assertEqual(Pp30InsertService.vouchers(Pp30PaymentKind.normal(), values, form), [])
