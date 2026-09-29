@@ -1,13 +1,7 @@
 from __future__ import annotations
 
 from models.express_company import ExpressCompany
-from services.name_match_service import (
-    compact_name,
-    core_company_name,
-    drop_silent_letters,
-    fold_thai_marks,
-    tidy_name,
-)
+from services.name_match_service import compact_name, core_company_name, fold_thai_marks, tidy_name
 
 
 class Pp30MatchService:
@@ -38,7 +32,7 @@ def _name_keys(value: str) -> list[str]:
     tidy = tidy_name(value)
     keys: list[str] = []
     for raw in (tidy, core_company_name(tidy)):
-        for key in (compact_name(raw), fold_thai_marks(raw), fold_thai_marks(drop_silent_letters(raw))):
+        for key in (compact_name(raw), fold_thai_marks(raw)):
             if key and key not in keys:
                 keys.append(key)
     return keys

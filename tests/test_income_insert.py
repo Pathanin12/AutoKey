@@ -581,17 +581,6 @@ class IncomeExtractTests(unittest.TestCase):
         assert company is not None
         self.assertEqual(company.folder, Path("b"))
 
-    def test_matches_name_missing_silent_letter(self) -> None:
-        companies = [
-            ExpressCompany(folder=Path("a"), shop_name="บจก.ไดมอนด์\xa0เอ็นเนอร์จี้\xa0กรุ๊ป"),
-            ExpressCompany(folder=Path("b"), shop_name="บจก.ไดมอนด์\xa0เอ็นเนอร์จี้\xa0กรุ๊ป\xa01"),
-            ExpressCompany(folder=Path("c"), shop_name="บจก.ไดมอนด์\xa0เอ็นเนอร์จี้\xa0กรุ๊ป\xa02"),
-        ]
-        company = Pp30MatchService.match_lookup("บจ. ไดมอนด์ เอ็นเนอจี กรุ๊ป 1", Pp30MatchService.lookup(companies))
-        self.assertIsNotNone(company)
-        assert company is not None
-        self.assertEqual(company.folder, Path("b"))
-
     def test_pv_receipt_amount_that_looks_like_date(self) -> None:
         text = (
             _CPALL_PV_RECEIPT.replace("ผ่อนเงินสำรอง รถเข็นลัง เดือน 08/69\n", "")

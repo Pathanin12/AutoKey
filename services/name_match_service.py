@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import re
 import unicodedata
 
-_SILENT_LETTER_RE = re.compile(r"[\u0e01-\u0e2e][\u0e31-\u0e3a\u0e47-\u0e4b]*\u0e4c")
 
 _LEGAL_PREFIXES = (
     "ห้างหุ้นส่วนสามัญนิติบุคคล",
@@ -39,10 +37,6 @@ def tidy_name(value: str) -> str:
 
 def fold_thai_marks(value: str) -> str:
     return "".join(ch for ch in compact_name(value) if unicodedata.category(ch) != "Mn")
-
-
-def drop_silent_letters(value: str) -> str:
-    return _SILENT_LETTER_RE.sub("", tidy_name(value))
 
 
 def compact_name(value: str) -> str:
