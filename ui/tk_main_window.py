@@ -60,7 +60,7 @@ def _bind_period_mask(variable: tk.StringVar, entry: ttk.Entry) -> None:
         masked = MonthYearPeriod.mask(current)
         if masked != current:
             variable.set(masked)
-            entry.icursor("end")
+            entry.after_idle(lambda: entry.icursor("end"))
 
     variable.trace_add("write", mask)
 
