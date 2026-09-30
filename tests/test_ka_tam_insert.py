@@ -15,7 +15,6 @@ from services.ka_tam_insert_lines_service import pv_ka_tam
 from services.ka_tam_insert_service import KaTamInsertService
 
 SAMPLE_SHOP = Path("/Users/pathanin/Downloads/kachapor 3")
-SAMPLE_EXCEL = Path("/Users/pathanin/Downloads/srv 2026 08 acct.8 - Copyค่าทำจ้า.xlsx")
 
 
 def _row(**kwargs) -> KaTamRow:
@@ -116,11 +115,20 @@ class KaTamInsertLinesTests(unittest.TestCase):
 
 
 class KaTamExcelInvoiceTests(unittest.TestCase):
-    @unittest.skipUnless(SAMPLE_EXCEL.exists(), "sample excel")
-    def test_invoice_is_nrg_year_month_sequence(self) -> None:
-        rows = KaTamExcelService.load_rows(SAMPLE_EXCEL)
+    def test_invoice_comes_from_excel_column(self) -> None:
+        from openpyxl import Workbook
+
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "ค่าทำ.xlsx"
+            book = Workbook()
+            sheet = book.active
+            sheet.append(("ลำดับ", "นิติบุคคล", "srv", "vat", "wt", "เลขที่ใบกำกับ"))
+            sheet.append((1, "ห้างทดสอบ", 1200, 84, 36, "INV-0001"))
+            sheet.append((2, "ห้างทดสอบ 2", 500, 35, 15, 2026080002))
+            book.save(path)
+            rows = KaTamExcelService.load_rows(path)
         self.assertEqual([row.sequence for row in rows], [1, 2])
-        self.assertEqual([row.invoice_number for row in rows], ["NRG2026080001", "NRG2026080002"])
+        self.assertEqual([row.invoice_number for row in rows], ["INV-0001", "2026080002"])
 
 
 class KaTamLiveInsertTests(unittest.TestCase):

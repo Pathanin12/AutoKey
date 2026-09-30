@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -15,7 +14,6 @@ _SERVICE = ("srv",)
 _VAT = ("vat",)
 _WT = ("wt",)
 _INVOICE = ("เลขที่ใบกำกับ",)
-_PERIOD = re.compile(r"(\d{4})\s+(\d{2})")
 
 
 class KaTamExcelService:
@@ -32,10 +30,9 @@ class KaTamExcelService:
                 if index < 8:
                     preview.append(values)
             column_map = detect_column_map(preview)
-            period_text = f"{sheet.title} {excel_path.stem}"
             parsed: list[KaTamRow] = []
             for excel_row, raw_values in enumerate(rows[column_map.data_start_row :], start=column_map.data_start_row + 1):
-                row = _parse_row(raw_values, column_map, excel_row, sheet.title, period_text)
+                row = _parse_row(raw_values, column_map, excel_row, sheet.title)
                 if row is not None:
                     parsed.append(row)
             return parsed
@@ -99,7 +96,6 @@ def _parse_row(
     column_map: KaTamSheetMap,
     excel_row_number: int,
     sheet_name: str,
-    period_text: str,
 ) -> KaTamRow | None:
     sequence = _parse_sequence(raw_values)
     if sequence is None:
@@ -107,7 +103,7 @@ def _parse_row(
     legal_name = _to_text(_cell_at(raw_values, column_map.legal_name))
     if not legal_name:
         return None
-    invoice_number = _nrg_reference(period_text, sequence)
+    invoice_number = _to_tax_id(_cell_at(raw_values, column_map.invoice_number))
     return KaTamRow(
         row_number=excel_row_number,
         sequence=sequence,
@@ -119,13 +115,6 @@ def _parse_row(
         invoice_number=invoice_number,
         tax_id=_to_tax_id(_cell_at(raw_values, column_map.tax_id)),
     )
-
-
-def _nrg_reference(period_text: str, sequence: int) -> str:
-    match = _PERIOD.search(period_text.strip())
-    if not match:
-        return ""
-    return f"NRG{int(match.group(1))}{int(match.group(2)):02d}{int(sequence):04d}"
 
 
 def _cell_text(value) -> str:
