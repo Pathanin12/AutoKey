@@ -11,8 +11,6 @@ _LINE7_RE = re.compile(r"(?<!\d)7\.\s*เงินเพิ่ม")
 _LINE8_MARKER = "และเงินเพิ่ม"
 _COUNT_RE = re.compile(r"(?<!\d)(\d{1,6})(?!\d)")
 _BE_YEAR_RE = re.compile(r"พ\.?\s*ศ\.?\s*(\d{4})")
-_CHECK_RE = re.compile(r"[ü✓✔☑]")
-_NEXT_MONTH_CHECK_RE = re.compile(r"\s*[ü✓✔☑]\s*\(\s*\d{1,2}\s*\)")
 _MONTH_NAMES = sorted(THAI_MONTHS, key=len, reverse=True)
 
 
@@ -53,24 +51,34 @@ def extract_income_period(text: str) -> MonthYearPeriod | None:
     return period if period.is_valid else None
 
 
+def _month_window(text: str) -> str:
+    start = text.find("เดือนที่จ่ายเงินได้พึงประเมิน")
+    if start < 0:
+        start = 0
+    end = len(text)
+    for marker in ("ยื่นปกติ", "สรุปรายการภาษีที่นำส่ง", "สำหรับใบเสร็จรับเงิน"):
+        pos = text.find(marker, start)
+        if 0 <= pos < end:
+            end = pos
+    return text[start:end]
+
+
 def _be_year(text: str) -> int | None:
-    marker = text.find("เดือนที่จ่ายเงินได้พึงประเมิน")
-    window = text[marker : marker + 500] if marker >= 0 else text
-    match = _BE_YEAR_RE.search(window) or _BE_YEAR_RE.search(text)
+    match = _BE_YEAR_RE.search(_month_window(text)) or _BE_YEAR_RE.search(text)
     if not match:
         return None
     year = int(match.group(1))
     return year if year >= 2500 else None
 
 
+_CHECKED_MONTH_RE = re.compile(
+    r"[ü✓✔☑]\s*\(\s*(\d{1,2})\s*\)\s*(" + "|".join(re.escape(name) for name in _MONTH_NAMES) + r")"
+)
+
+
 def _checked_month(text: str) -> int | None:
-    pattern = "|".join(re.escape(name) for name in _MONTH_NAMES)
-    for match in re.finditer(pattern, text):
-        month = THAI_MONTHS[match.group(0)]
-        prefix = text[max(0, match.start() - 12) : match.start()]
-        suffix = text[match.end() : match.end() + 12]
-        if _CHECK_RE.search(prefix):
-            return month
-        if _CHECK_RE.match(suffix.lstrip()) and not _NEXT_MONTH_CHECK_RE.match(suffix):
-            return month
-    return None
+    match = _CHECKED_MONTH_RE.search(_month_window(text))
+    if not match:
+        return None
+    month = THAI_MONTHS.get(match.group(2))
+    return month

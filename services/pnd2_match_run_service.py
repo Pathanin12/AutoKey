@@ -9,7 +9,6 @@ from models.pnd2_matched_job import Pnd2MatchedJob
 from services.express_journal_date_service import ExpressJournalDateService
 from services.express_shop_index_service import ExpressShopIndexService
 from services.name_match_service import tidy_name
-from services.express_journal_service import ExpressJournalService
 from services.pnd2_insert_service import Pnd2InsertService
 from services.pnd2_pdf_service import Pnd2PdfService
 from services.pp30_match_service import Pp30MatchService
@@ -90,7 +89,11 @@ class Pnd2MatchRunService:
                     if existing_date:
                         skipped_date = existing_date
                         continue
-                    names.append(ExpressJournalService.insert(company.folder, voucher))
+                    names.append(
+                        Pnd2InsertService.insert_voucher(
+                            company.folder, voucher, record.form_values
+                        )
+                    )
                 if names:
                     inserted += 1
                     on_status(

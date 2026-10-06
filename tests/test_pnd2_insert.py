@@ -169,6 +169,18 @@ class Pnd2InsertLinesTests(unittest.TestCase):
             ],
         )
 
+    def test_tax_isvat_uses_pdf_month(self) -> None:
+        form = Pnd2FormConfig(pdf_folder=Path("."), pv_date="25/07/69")
+        dividend, tax = Pnd2InsertService.vouchers(_VALUES, form)
+        record = Pnd2InsertService.tax_vat_record(_VALUES, tax, "PV6906-0001")
+        self.assertIsNotNone(record)
+        assert record is not None
+        self.assertEqual(record.vatprd, "20260501")
+        self.assertEqual(record.vatdat, "20260612")
+        self.assertEqual(record.amt01, 50000.00)
+        self.assertEqual(record.vat01, 5000.00)
+        self.assertIsNone(Pnd2InsertService.tax_vat_record(_VALUES, dividend, "PV6907-0001"))
+
     def test_form_needs_pdf_folder(self) -> None:
         errors = Pnd2FormConfig(pdf_folder=Path("/no-folder"), pv_date="25/07/69").validate()
         self.assertTrue(any("โฟลเดอร์" in item for item in errors))
