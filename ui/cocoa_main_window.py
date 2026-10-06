@@ -43,6 +43,8 @@ from constants.routes import (
     PAGE_INCOME,
     PAGE_KA_TAM,
     PAGE_MENU,
+    PAGE_PND1,
+    PAGE_PND2,
     PAGE_PND3,
     PAGE_PND30,
     PAGE_PP30,
@@ -60,6 +62,8 @@ from models.income_form_config import IncomeFormConfig
 from models.income_lock_mode import IncomeLockMode
 from models.ka_tam_form_config import KaTamFormConfig
 from models.month_year_period import MonthYearPeriod
+from models.pnd1_form_config import Pnd1FormConfig
+from models.pnd2_form_config import Pnd2FormConfig
 from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd30_form_config import Pnd30FormConfig
 from models.pp30_form_config import Pp30FormConfig
@@ -70,6 +74,8 @@ from services.express_shop_index_service import ExpressShopIndexService
 from services.ka_tam_excel_service import KaTamExcelService
 from services.income_match_run_service import IncomeMatchRunService
 from services.ka_tam_match_run_service import KaTamMatchRunService
+from services.pnd1_match_run_service import Pnd1MatchRunService
+from services.pnd2_match_run_service import Pnd2MatchRunService
 from services.pnd3_match_run_service import Pnd3MatchRunService
 from services.pnd30_match_run_service import Pnd30MatchRunService
 from services.pp30_folder_service import Pp30FolderService
@@ -77,12 +83,14 @@ from services.pp30_match_run_service import Pp30MatchRunService
 from ui.app_icon import icon_dir
 
 WIN_W = 560
-MENU_WIN_H = 740
+MENU_WIN_H = 920
 CONFIG_WIN_H = 360
 PP30_WIN_H = 680
 KA_TAM_WIN_H = 680
 PND30_WIN_H = 620
 PND3_WIN_H = 620
+PND1_WIN_H = 620
+PND2_WIN_H = 620
 INCOME_WIN_H = 684
 
 
@@ -138,6 +146,10 @@ class MainWindow:
         self._pnd30_running = False
         self.pnd3_pdf_files: list[Path] = []
         self._pnd3_running = False
+        self.pnd1_pdf_files: list[Path] = []
+        self._pnd1_running = False
+        self.pnd2_pdf_files: list[Path] = []
+        self._pnd2_running = False
         self.income_pdf_files: list[Path] = []
         self._income_running = False
         self._period_delegate = _PeriodFieldDelegate.alloc().init()
@@ -191,6 +203,8 @@ class MainWindow:
         self._ka_tam_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, KA_TAM_WIN_H))
         self._pnd30_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PND30_WIN_H))
         self._pnd3_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PND3_WIN_H))
+        self._pnd1_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PND1_WIN_H))
+        self._pnd2_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PND2_WIN_H))
         self._income_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, INCOME_WIN_H))
         root.addSubview_(self._menu_view)
         root.addSubview_(self._config_view)
@@ -198,6 +212,8 @@ class MainWindow:
         root.addSubview_(self._ka_tam_view)
         root.addSubview_(self._pnd30_view)
         root.addSubview_(self._pnd3_view)
+        root.addSubview_(self._pnd1_view)
+        root.addSubview_(self._pnd2_view)
         root.addSubview_(self._income_view)
         self._build_menu_page(self._menu_view)
         self._build_config_page(self._config_view)
@@ -205,6 +221,8 @@ class MainWindow:
         self._build_ka_tam_page(self._ka_tam_view)
         self._build_pnd30_page(self._pnd30_view)
         self._build_pnd3_page(self._pnd3_view)
+        self._build_pnd1_page(self._pnd1_view)
+        self._build_pnd2_page(self._pnd2_view)
         self._build_income_page(self._income_view)
         self.window.makeKeyAndOrderFront_(None)
 
@@ -571,6 +589,136 @@ class MainWindow:
         self.pnd3_log_view.setString_(UI_TEXT["pnd3_welcome_log"] + "\n")
         del _settings_box, _status_box
 
+
+    def _build_pnd1_page(self, page) -> None:
+        _button(
+            page,
+            f"← {UI_TEXT['back_to_menu']}",
+            16,
+            24,
+            160,
+            36,
+            self._keep(lambda: self._show_page(PAGE_MENU)),
+            bezel=NSBezelStyleRounded,
+        )
+        _static_label(page, UI_TEXT["menu_pnd1"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
+
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 138)
+        sy = 8
+        _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
+        self.pnd1_folder_field = _edit_field(settings, 120, sy, 248)
+        _button(
+            settings,
+            UI_TEXT["choose_folder"],
+            376,
+            sy - 2,
+            108,
+            28,
+            self._keep(self._choose_pnd1_folder),
+            bezel=NSBezelStyleRounded,
+        )
+        sy += 26
+        self.pnd1_folder_summary_field = _static_label(
+            settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
+        )
+        sy += 28
+        _static_label(settings, UI_TEXT["pnd1_period"], 8, sy, 110, 22)
+        self.pnd1_period_field = self._period_field(settings, 120, sy)
+
+        _button(
+            page,
+            f"▶ {UI_TEXT['start']}",
+            16,
+            226,
+            160,
+            36,
+            self._keep(self._start_pnd1),
+            bezel=NSBezelStyleRounded,
+        )
+
+        y = 276
+        _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, PND1_WIN_H - y - 12)
+        self.pnd1_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
+        self.pnd1_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
+        self.pnd1_progress_bar.setIndeterminate_(False)
+        self.pnd1_progress_bar.setMinValue_(0)
+        self.pnd1_progress_bar.setMaxValue_(100)
+        self.pnd1_progress_bar.setDoubleValue_(0)
+        status.addSubview_(self.pnd1_progress_bar)
+        self.pnd1_progress_field = _static_label(
+            status, UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0), 376, 4, 140, 22
+        )
+        _button(status, UI_TEXT["copy_log"], 376, 28, 120, 28, self._keep(self._copy_pnd1_log), bezel=NSBezelStyleRounded)
+        self.pnd1_log_view = _log_view(status, 8, 60, WIN_W - 56, PND1_WIN_H - y - 100)
+        self.pnd1_log_view.setString_(UI_TEXT["pnd1_welcome_log"] + "\n")
+        del _settings_box, _status_box
+
+
+    def _build_pnd2_page(self, page) -> None:
+        _button(
+            page,
+            f"← {UI_TEXT['back_to_menu']}",
+            16,
+            24,
+            160,
+            36,
+            self._keep(lambda: self._show_page(PAGE_MENU)),
+            bezel=NSBezelStyleRounded,
+        )
+        _static_label(page, UI_TEXT["menu_pnd2"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
+
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 138)
+        sy = 8
+        _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
+        self.pnd2_folder_field = _edit_field(settings, 120, sy, 248)
+        _button(
+            settings,
+            UI_TEXT["choose_folder"],
+            376,
+            sy - 2,
+            108,
+            28,
+            self._keep(self._choose_pnd2_folder),
+            bezel=NSBezelStyleRounded,
+        )
+        sy += 26
+        self.pnd2_folder_summary_field = _static_label(
+            settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
+        )
+        sy += 28
+        _static_label(settings, UI_TEXT["pnd2_period"], 8, sy, 110, 22)
+        self.pnd2_period_field = self._period_field(settings, 120, sy)
+
+        _button(
+            page,
+            f"▶ {UI_TEXT['start']}",
+            16,
+            226,
+            160,
+            36,
+            self._keep(self._start_pnd2),
+            bezel=NSBezelStyleRounded,
+        )
+
+        y = 276
+        _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, PND2_WIN_H - y - 12)
+        self.pnd2_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
+        self.pnd2_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
+        self.pnd2_progress_bar.setIndeterminate_(False)
+        self.pnd2_progress_bar.setMinValue_(0)
+        self.pnd2_progress_bar.setMaxValue_(100)
+        self.pnd2_progress_bar.setDoubleValue_(0)
+        status.addSubview_(self.pnd2_progress_bar)
+        self.pnd2_progress_field = _static_label(
+            status, UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0), 376, 4, 140, 22
+        )
+        _button(status, UI_TEXT["copy_log"], 376, 28, 120, 28, self._keep(self._copy_pnd2_log), bezel=NSBezelStyleRounded)
+        self.pnd2_log_view = _log_view(status, 8, 60, WIN_W - 56, PND2_WIN_H - y - 100)
+        self.pnd2_log_view.setString_(UI_TEXT["pnd2_welcome_log"] + "\n")
+        del _settings_box, _status_box
+
+
+
     def _build_income_page(self, page) -> None:
         _button(
             page,
@@ -698,6 +846,12 @@ class MainWindow:
             return
         if item.page_route == PAGE_PND3:
             self._show_page(PAGE_PND3)
+            return
+        if item.page_route == PAGE_PND1:
+            self._show_page(PAGE_PND1)
+            return
+        if item.page_route == PAGE_PND2:
+            self._show_page(PAGE_PND2)
             return
         if item.page_route == PAGE_INCOME:
             self._show_page(PAGE_INCOME)
@@ -1061,6 +1215,176 @@ class MainWindow:
         board.clearContents()
         board.setString_forType_(text, NSPasteboardTypeString)
 
+
+    def _choose_pnd1_folder(self) -> None:
+        selected = _pick_folder()
+        if not selected:
+            return
+        self.pnd1_folder_field.setStringValue_(selected)
+        self._load_pnd1_folder()
+
+    def _load_pnd1_folder(self) -> None:
+        folder = Path(str(self.pnd1_folder_field.stringValue() or "")).expanduser()
+        self.pnd1_pdf_files = Pp30FolderService.list_pdfs(folder)
+        if self.pnd1_pdf_files:
+            self.pnd1_folder_summary_field.setStringValue_(
+                UI_TEXT["pp30_pdf_total"].format(count=len(self.pnd1_pdf_files))
+            )
+        else:
+            self.pnd1_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
+
+    def _pnd1_form_config(self) -> Pnd1FormConfig:
+        return Pnd1FormConfig(
+            pdf_folder=Path(str(self.pnd1_folder_field.stringValue() or "")).expanduser(),
+            period=MonthYearPeriod.parse(str(self.pnd1_period_field.stringValue() or "")),
+            pdf_files=list(self.pnd1_pdf_files),
+        )
+
+    def _start_pnd1(self) -> None:
+        if self._pnd1_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_pnd1_folder()
+        errors = self.app_config.validate()
+        errors.extend(self._pnd1_form_config().validate())
+        if errors:
+            _alert(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = len(self.pnd1_pdf_files)
+        self._set_pnd1_progress(0, total)
+        self._append_pnd1_log(UI_TEXT["pp30_pdf_total"].format(count=total))
+        form_config = self._pnd1_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._pnd1_running = True
+        threading.Thread(target=self._run_pnd1, args=(form_config, express_data_dir), daemon=True).start()
+
+    def _run_pnd1(self, form_config: Pnd1FormConfig, express_data_dir: Path) -> None:
+        try:
+            Pnd1MatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: AppHelper.callAfter(lambda m=message: self._append_pnd1_log(m)),
+                on_progress=lambda done, total: AppHelper.callAfter(
+                    lambda d=done, t=total: self._set_pnd1_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        finally:
+            AppHelper.callAfter(self._pnd1_finished)
+
+    def _pnd1_finished(self) -> None:
+        self._pnd1_running = False
+
+    def _set_pnd1_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.pnd1_progress_bar.setDoubleValue_(percent)
+        self.pnd1_progress_field.setStringValue_(
+            UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent)
+        )
+
+    def _append_pnd1_log(self, message: str) -> None:
+        current = str(self.pnd1_log_view.string() or "")
+        current += message + "\n"
+        self.pnd1_log_view.setString_(current)
+        self.pnd1_log_view.scrollRangeToVisible_((len(current), 0))
+
+    def _copy_pnd1_log(self) -> None:
+        text = str(self.pnd1_log_view.string() or "")
+        if not text.strip():
+            return
+        board = NSPasteboard.generalPasteboard()
+        board.clearContents()
+        board.setString_forType_(text, NSPasteboardTypeString)
+
+
+    def _choose_pnd2_folder(self) -> None:
+        selected = _pick_folder()
+        if not selected:
+            return
+        self.pnd2_folder_field.setStringValue_(selected)
+        self._load_pnd2_folder()
+
+    def _load_pnd2_folder(self) -> None:
+        folder = Path(str(self.pnd2_folder_field.stringValue() or "")).expanduser()
+        self.pnd2_pdf_files = Pp30FolderService.list_pdfs(folder)
+        if self.pnd2_pdf_files:
+            self.pnd2_folder_summary_field.setStringValue_(
+                UI_TEXT["pp30_pdf_total"].format(count=len(self.pnd2_pdf_files))
+            )
+        else:
+            self.pnd2_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
+
+    def _pnd2_form_config(self) -> Pnd2FormConfig:
+        return Pnd2FormConfig(
+            pdf_folder=Path(str(self.pnd2_folder_field.stringValue() or "")).expanduser(),
+            period=MonthYearPeriod.parse(str(self.pnd2_period_field.stringValue() or "")),
+            pdf_files=list(self.pnd2_pdf_files),
+        )
+
+    def _start_pnd2(self) -> None:
+        if self._pnd2_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_pnd2_folder()
+        errors = self.app_config.validate()
+        errors.extend(self._pnd2_form_config().validate())
+        if errors:
+            _alert(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = len(self.pnd2_pdf_files)
+        self._set_pnd2_progress(0, total)
+        self._append_pnd2_log(UI_TEXT["pp30_pdf_total"].format(count=total))
+        form_config = self._pnd2_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._pnd2_running = True
+        threading.Thread(target=self._run_pnd2, args=(form_config, express_data_dir), daemon=True).start()
+
+    def _run_pnd2(self, form_config: Pnd2FormConfig, express_data_dir: Path) -> None:
+        try:
+            Pnd2MatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: AppHelper.callAfter(lambda m=message: self._append_pnd2_log(m)),
+                on_progress=lambda done, total: AppHelper.callAfter(
+                    lambda d=done, t=total: self._set_pnd2_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        finally:
+            AppHelper.callAfter(self._pnd2_finished)
+
+    def _pnd2_finished(self) -> None:
+        self._pnd2_running = False
+
+    def _set_pnd2_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.pnd2_progress_bar.setDoubleValue_(percent)
+        self.pnd2_progress_field.setStringValue_(
+            UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent)
+        )
+
+    def _append_pnd2_log(self, message: str) -> None:
+        current = str(self.pnd2_log_view.string() or "")
+        current += message + "\n"
+        self.pnd2_log_view.setString_(current)
+        self.pnd2_log_view.scrollRangeToVisible_((len(current), 0))
+
+    def _copy_pnd2_log(self) -> None:
+        text = str(self.pnd2_log_view.string() or "")
+        if not text.strip():
+            return
+        board = NSPasteboard.generalPasteboard()
+        board.clearContents()
+        board.setString_forType_(text, NSPasteboardTypeString)
+
+
+
     def _choose_income_folder(self) -> None:
         selected = _pick_folder()
         if not selected:
@@ -1189,6 +1513,8 @@ class MainWindow:
         self._ka_tam_view.setHidden_(page_route != PAGE_KA_TAM)
         self._pnd30_view.setHidden_(page_route != PAGE_PND30)
         self._pnd3_view.setHidden_(page_route != PAGE_PND3)
+        self._pnd1_view.setHidden_(page_route != PAGE_PND1)
+        self._pnd2_view.setHidden_(page_route != PAGE_PND2)
         self._income_view.setHidden_(page_route != PAGE_INCOME)
         heights = {
             PAGE_MENU: MENU_WIN_H,
@@ -1197,6 +1523,8 @@ class MainWindow:
             PAGE_KA_TAM: KA_TAM_WIN_H,
             PAGE_PND30: PND30_WIN_H,
             PAGE_PND3: PND3_WIN_H,
+            PAGE_PND1: PND1_WIN_H,
+            PAGE_PND2: PND2_WIN_H,
             PAGE_INCOME: INCOME_WIN_H,
         }
         height = heights.get(page_route, MENU_WIN_H)
@@ -1213,6 +1541,10 @@ class MainWindow:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd30']} v{__version__}")
         elif page_route == PAGE_PND3:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd3']} v{__version__}")
+        elif page_route == PAGE_PND1:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd1']} v{__version__}")
+        elif page_route == PAGE_PND2:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd2']} v{__version__}")
         elif page_route == PAGE_INCOME:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_income']} v{__version__}")
         else:

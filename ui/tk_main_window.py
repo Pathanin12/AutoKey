@@ -12,6 +12,8 @@ from constants.routes import (
     PAGE_INCOME,
     PAGE_KA_TAM,
     PAGE_MENU,
+    PAGE_PND1,
+    PAGE_PND2,
     PAGE_PND3,
     PAGE_PND30,
     PAGE_PP30,
@@ -28,6 +30,8 @@ from models.income_form_config import IncomeFormConfig
 from models.income_lock_mode import IncomeLockMode
 from models.ka_tam_form_config import KaTamFormConfig
 from models.month_year_period import MonthYearPeriod
+from models.pnd1_form_config import Pnd1FormConfig
+from models.pnd2_form_config import Pnd2FormConfig
 from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd30_form_config import Pnd30FormConfig
 from models.pp30_form_config import Pp30FormConfig
@@ -38,6 +42,8 @@ from services.express_shop_index_service import ExpressShopIndexService
 from services.ka_tam_excel_service import KaTamExcelService
 from services.income_match_run_service import IncomeMatchRunService
 from services.ka_tam_match_run_service import KaTamMatchRunService
+from services.pnd1_match_run_service import Pnd1MatchRunService
+from services.pnd2_match_run_service import Pnd2MatchRunService
 from services.pnd3_match_run_service import Pnd3MatchRunService
 from services.pnd30_match_run_service import Pnd30MatchRunService
 from services.pp30_folder_service import Pp30FolderService
@@ -45,12 +51,14 @@ from services.pp30_match_run_service import Pp30MatchRunService
 from ui.app_icon import apply_window_icon, load_title_photo
 
 WIN_W = 560
-MENU_WIN_H = 720
+MENU_WIN_H = 900
 CONFIG_WIN_H = 320
 PP30_WIN_H = 660
 KA_TAM_WIN_H = 660
 PND30_WIN_H = 600
 PND3_WIN_H = 600
+PND1_WIN_H = 600
+PND2_WIN_H = 600
 INCOME_WIN_H = 720
 
 
@@ -105,6 +113,18 @@ class MainWindow:
         self.pnd3_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.pnd3_pdf_files: list[Path] = []
         self._pnd3_running = False
+        self.pnd1_pdf_folder = tk.StringVar(value="")
+        self.pnd1_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
+        self.pnd1_period = tk.StringVar(value="")
+        self.pnd1_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
+        self.pnd1_pdf_files: list[Path] = []
+        self._pnd1_running = False
+        self.pnd2_pdf_folder = tk.StringVar(value="")
+        self.pnd2_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
+        self.pnd2_period = tk.StringVar(value="")
+        self.pnd2_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
+        self.pnd2_pdf_files: list[Path] = []
+        self._pnd2_running = False
         self.income_lock = tk.StringVar(value=INCOME_LOCK_NONE)
         self.income_pdf_folder = tk.StringVar(value="")
         self.income_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
@@ -124,6 +144,8 @@ class MainWindow:
         self.ka_tam_frame = ttk.Frame(self.root)
         self.pnd30_frame = ttk.Frame(self.root)
         self.pnd3_frame = ttk.Frame(self.root)
+        self.pnd1_frame = ttk.Frame(self.root)
+        self.pnd2_frame = ttk.Frame(self.root)
         self.income_frame = ttk.Frame(self.root)
         self._build_menu_page(self.menu_frame)
         self._build_config_page(self.config_frame)
@@ -131,6 +153,8 @@ class MainWindow:
         self._build_ka_tam_page(self.ka_tam_frame)
         self._build_pnd30_page(self.pnd30_frame)
         self._build_pnd3_page(self.pnd3_frame)
+        self._build_pnd1_page(self.pnd1_frame)
+        self._build_pnd2_page(self.pnd2_frame)
         self._build_income_page(self.income_frame)
 
     def _build_menu_page(self, page: ttk.Frame) -> None:
@@ -385,6 +409,96 @@ class MainWindow:
         scroll.grid(row=0, column=1, sticky="ns")
         self.pnd3_log_box.insert("end", UI_TEXT["pnd3_welcome_log"] + "\n")
 
+
+    def _build_pnd1_page(self, page: ttk.Frame) -> None:
+        header = ttk.Frame(page)
+        header.pack(fill="x", padx=12, pady=(10, 0))
+        ttk.Button(header, text=f"← {UI_TEXT['back_to_menu']}", command=lambda: self._show_page(PAGE_MENU)).pack(
+            side="left"
+        )
+        ttk.Label(header, text=UI_TEXT["menu_pnd1"], font=("Tahoma", 12, "bold")).pack(side="left", padx=12)
+
+        form = ttk.Frame(page)
+        form.pack(fill="x", padx=20, pady=(16, 0))
+        ttk.Label(form, text=UI_TEXT["pp30_pdf_folder"]).grid(row=0, column=0, sticky="w")
+        ttk.Entry(form, textvariable=self.pnd1_pdf_folder, width=42).grid(row=0, column=1, sticky="ew", padx=(8, 8))
+        ttk.Button(form, text=UI_TEXT["choose_folder"], command=self._choose_pnd1_folder).grid(row=0, column=2)
+        ttk.Label(form, textvariable=self.pnd1_pdf_summary, wraplength=500).grid(
+            row=1, column=0, columnspan=3, sticky="w", pady=(4, 0)
+        )
+        ttk.Label(form, text=UI_TEXT["pnd1_period"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        period_entry = ttk.Entry(form, textvariable=self.pnd1_period, width=14)
+        period_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        _bind_period_mask(self.pnd1_period, period_entry)
+        form.columnconfigure(1, weight=1)
+
+        ttk.Button(page, text=f"▶ {UI_TEXT['start']}", command=self._start_pnd1).pack(anchor="w", padx=20, pady=12)
+
+        status = ttk.LabelFrame(page, text=UI_TEXT["status_frame"])
+        status.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        progress_row = ttk.Frame(status)
+        progress_row.pack(fill="x", padx=8, pady=(8, 4))
+        self.pnd1_progress = ttk.Progressbar(progress_row, maximum=100)
+        self.pnd1_progress.pack(side="left", fill="x", expand=True)
+        ttk.Label(progress_row, textvariable=self.pnd1_progress_text, width=16).pack(side="left", padx=(8, 0))
+        ttk.Button(status, text=UI_TEXT["copy_log"], command=self._copy_pnd1_log).pack(anchor="e", padx=8)
+        log_row = ttk.Frame(status)
+        log_row.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        log_row.rowconfigure(0, weight=1)
+        log_row.columnconfigure(0, weight=1)
+        self.pnd1_log_box = tk.Text(log_row, height=10, wrap="word")
+        scroll = ttk.Scrollbar(log_row, orient="vertical", command=self.pnd1_log_box.yview)
+        self.pnd1_log_box.configure(yscrollcommand=scroll.set)
+        self.pnd1_log_box.grid(row=0, column=0, sticky="nsew")
+        scroll.grid(row=0, column=1, sticky="ns")
+        self.pnd1_log_box.insert("end", UI_TEXT["pnd1_welcome_log"] + "\n")
+
+
+    def _build_pnd2_page(self, page: ttk.Frame) -> None:
+        header = ttk.Frame(page)
+        header.pack(fill="x", padx=12, pady=(10, 0))
+        ttk.Button(header, text=f"← {UI_TEXT['back_to_menu']}", command=lambda: self._show_page(PAGE_MENU)).pack(
+            side="left"
+        )
+        ttk.Label(header, text=UI_TEXT["menu_pnd2"], font=("Tahoma", 12, "bold")).pack(side="left", padx=12)
+
+        form = ttk.Frame(page)
+        form.pack(fill="x", padx=20, pady=(16, 0))
+        ttk.Label(form, text=UI_TEXT["pp30_pdf_folder"]).grid(row=0, column=0, sticky="w")
+        ttk.Entry(form, textvariable=self.pnd2_pdf_folder, width=42).grid(row=0, column=1, sticky="ew", padx=(8, 8))
+        ttk.Button(form, text=UI_TEXT["choose_folder"], command=self._choose_pnd2_folder).grid(row=0, column=2)
+        ttk.Label(form, textvariable=self.pnd2_pdf_summary, wraplength=500).grid(
+            row=1, column=0, columnspan=3, sticky="w", pady=(4, 0)
+        )
+        ttk.Label(form, text=UI_TEXT["pnd2_period"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        period_entry = ttk.Entry(form, textvariable=self.pnd2_period, width=14)
+        period_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        _bind_period_mask(self.pnd2_period, period_entry)
+        form.columnconfigure(1, weight=1)
+
+        ttk.Button(page, text=f"▶ {UI_TEXT['start']}", command=self._start_pnd2).pack(anchor="w", padx=20, pady=12)
+
+        status = ttk.LabelFrame(page, text=UI_TEXT["status_frame"])
+        status.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        progress_row = ttk.Frame(status)
+        progress_row.pack(fill="x", padx=8, pady=(8, 4))
+        self.pnd2_progress = ttk.Progressbar(progress_row, maximum=100)
+        self.pnd2_progress.pack(side="left", fill="x", expand=True)
+        ttk.Label(progress_row, textvariable=self.pnd2_progress_text, width=16).pack(side="left", padx=(8, 0))
+        ttk.Button(status, text=UI_TEXT["copy_log"], command=self._copy_pnd2_log).pack(anchor="e", padx=8)
+        log_row = ttk.Frame(status)
+        log_row.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        log_row.rowconfigure(0, weight=1)
+        log_row.columnconfigure(0, weight=1)
+        self.pnd2_log_box = tk.Text(log_row, height=10, wrap="word")
+        scroll = ttk.Scrollbar(log_row, orient="vertical", command=self.pnd2_log_box.yview)
+        self.pnd2_log_box.configure(yscrollcommand=scroll.set)
+        self.pnd2_log_box.grid(row=0, column=0, sticky="nsew")
+        scroll.grid(row=0, column=1, sticky="ns")
+        self.pnd2_log_box.insert("end", UI_TEXT["pnd2_welcome_log"] + "\n")
+
+
+
     def _build_income_page(self, page: ttk.Frame) -> None:
         header = ttk.Frame(page)
         header.pack(fill="x", padx=12, pady=(10, 0))
@@ -466,6 +580,12 @@ class MainWindow:
             return
         if item.page_route == PAGE_PND3:
             self._show_page(PAGE_PND3)
+            return
+        if item.page_route == PAGE_PND1:
+            self._show_page(PAGE_PND1)
+            return
+        if item.page_route == PAGE_PND2:
+            self._show_page(PAGE_PND2)
             return
         if item.page_route == PAGE_INCOME:
             self._show_page(PAGE_INCOME)
@@ -767,6 +887,170 @@ class MainWindow:
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
 
+
+    def _choose_pnd1_folder(self) -> None:
+        selected = filedialog.askdirectory(title=UI_TEXT["pp30_pdf_folder"])
+        if not selected:
+            return
+        self.pnd1_pdf_folder.set(selected)
+        self._load_pnd1_folder()
+
+    def _load_pnd1_folder(self) -> None:
+        folder = Path(self.pnd1_pdf_folder.get().strip()).expanduser()
+        self.pnd1_pdf_files = Pp30FolderService.list_pdfs(folder)
+        if self.pnd1_pdf_files:
+            self.pnd1_pdf_summary.set(UI_TEXT["pp30_pdf_total"].format(count=len(self.pnd1_pdf_files)))
+        else:
+            self.pnd1_pdf_summary.set(UI_TEXT["pp30_pdf_summary_empty"])
+
+    def _pnd1_form_config(self) -> Pnd1FormConfig:
+        return Pnd1FormConfig(
+            pdf_folder=Path(self.pnd1_pdf_folder.get().strip()).expanduser(),
+            period=MonthYearPeriod.parse(self.pnd1_period.get()),
+            pdf_files=list(self.pnd1_pdf_files),
+        )
+
+    def _start_pnd1(self) -> None:
+        if self._pnd1_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_pnd1_folder()
+        errors = self.app_config.validate()
+        errors.extend(self._pnd1_form_config().validate())
+        if errors:
+            messagebox.showwarning(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = len(self.pnd1_pdf_files)
+        self._set_pnd1_progress(0, total)
+        self._append_pnd1_log(UI_TEXT["pp30_pdf_total"].format(count=total))
+        form_config = self._pnd1_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._pnd1_running = True
+        threading.Thread(
+            target=self._run_pnd1,
+            args=(form_config, express_data_dir),
+            daemon=True,
+        ).start()
+
+    def _run_pnd1(self, form_config: Pnd1FormConfig, express_data_dir: Path) -> None:
+        try:
+            Pnd1MatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: self.root.after(0, lambda m=message: self._append_pnd1_log(m)),
+                on_progress=lambda done, total: self.root.after(
+                    0, lambda d=done, t=total: self._set_pnd1_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showwarning(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showerror(UI_TEXT["app_title"], text))
+        finally:
+            self.root.after(0, self._pnd1_finished)
+
+    def _pnd1_finished(self) -> None:
+        self._pnd1_running = False
+
+    def _set_pnd1_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.pnd1_progress["value"] = percent
+        self.pnd1_progress_text.set(UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent))
+
+    def _append_pnd1_log(self, message: str) -> None:
+        self.pnd1_log_box.insert("end", message + "\n")
+        self.pnd1_log_box.see("end")
+
+    def _copy_pnd1_log(self) -> None:
+        text = self.pnd1_log_box.get("1.0", "end-1c")
+        if not text.strip():
+            return
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+
+
+    def _choose_pnd2_folder(self) -> None:
+        selected = filedialog.askdirectory(title=UI_TEXT["pp30_pdf_folder"])
+        if not selected:
+            return
+        self.pnd2_pdf_folder.set(selected)
+        self._load_pnd2_folder()
+
+    def _load_pnd2_folder(self) -> None:
+        folder = Path(self.pnd2_pdf_folder.get().strip()).expanduser()
+        self.pnd2_pdf_files = Pp30FolderService.list_pdfs(folder)
+        if self.pnd2_pdf_files:
+            self.pnd2_pdf_summary.set(UI_TEXT["pp30_pdf_total"].format(count=len(self.pnd2_pdf_files)))
+        else:
+            self.pnd2_pdf_summary.set(UI_TEXT["pp30_pdf_summary_empty"])
+
+    def _pnd2_form_config(self) -> Pnd2FormConfig:
+        return Pnd2FormConfig(
+            pdf_folder=Path(self.pnd2_pdf_folder.get().strip()).expanduser(),
+            period=MonthYearPeriod.parse(self.pnd2_period.get()),
+            pdf_files=list(self.pnd2_pdf_files),
+        )
+
+    def _start_pnd2(self) -> None:
+        if self._pnd2_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_pnd2_folder()
+        errors = self.app_config.validate()
+        errors.extend(self._pnd2_form_config().validate())
+        if errors:
+            messagebox.showwarning(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = len(self.pnd2_pdf_files)
+        self._set_pnd2_progress(0, total)
+        self._append_pnd2_log(UI_TEXT["pp30_pdf_total"].format(count=total))
+        form_config = self._pnd2_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._pnd2_running = True
+        threading.Thread(
+            target=self._run_pnd2,
+            args=(form_config, express_data_dir),
+            daemon=True,
+        ).start()
+
+    def _run_pnd2(self, form_config: Pnd2FormConfig, express_data_dir: Path) -> None:
+        try:
+            Pnd2MatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: self.root.after(0, lambda m=message: self._append_pnd2_log(m)),
+                on_progress=lambda done, total: self.root.after(
+                    0, lambda d=done, t=total: self._set_pnd2_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showwarning(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showerror(UI_TEXT["app_title"], text))
+        finally:
+            self.root.after(0, self._pnd2_finished)
+
+    def _pnd2_finished(self) -> None:
+        self._pnd2_running = False
+
+    def _set_pnd2_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.pnd2_progress["value"] = percent
+        self.pnd2_progress_text.set(UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent))
+
+    def _append_pnd2_log(self, message: str) -> None:
+        self.pnd2_log_box.insert("end", message + "\n")
+        self.pnd2_log_box.see("end")
+
+    def _copy_pnd2_log(self) -> None:
+        text = self.pnd2_log_box.get("1.0", "end-1c")
+        if not text.strip():
+            return
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+
+
+
     def _choose_income_folder(self) -> None:
         selected = filedialog.askdirectory(title=UI_TEXT["pp30_pdf_folder"])
         if not selected:
@@ -957,6 +1241,8 @@ class MainWindow:
         self.ka_tam_frame.pack_forget()
         self.pnd30_frame.pack_forget()
         self.pnd3_frame.pack_forget()
+        self.pnd1_frame.pack_forget()
+        self.pnd2_frame.pack_forget()
         self.income_frame.pack_forget()
         if page_route == PAGE_CONFIG:
             self.root.geometry(f"{WIN_W}x{CONFIG_WIN_H}")
@@ -984,6 +1270,16 @@ class MainWindow:
             self.root.geometry(f"{WIN_W}x{PND3_WIN_H}")
             self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd3']} v{__version__}")
             self.pnd3_frame.pack(fill="both", expand=True)
+            return
+        if page_route == PAGE_PND1:
+            self.root.geometry(f"{WIN_W}x{PND1_WIN_H}")
+            self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd1']} v{__version__}")
+            self.pnd1_frame.pack(fill="both", expand=True)
+            return
+        if page_route == PAGE_PND2:
+            self.root.geometry(f"{WIN_W}x{PND2_WIN_H}")
+            self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd2']} v{__version__}")
+            self.pnd2_frame.pack(fill="both", expand=True)
             return
         if page_route == PAGE_INCOME:
             self.root.geometry(f"{WIN_W}x{INCOME_WIN_H}")

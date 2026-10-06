@@ -30,6 +30,8 @@ PAGE_KA_TAM = "ka_tam"
 PAGE_PP30 = "pp30"
 PAGE_PND30 = "pnd30"
 PAGE_PND3 = "pnd3"
+PAGE_PND1 = "pnd1"
+PAGE_PND2 = "pnd2"
 PAGE_INCOME = "income"
 PERIOD_EXAMPLE = "MM/YY"
 KA_TAM_DESCRIPTION = "บจก.เอ็นอาร์จี แอคเคาท์ ค่าทำบัญชี ด.{period}"
@@ -37,6 +39,8 @@ PP30_JV_DESCRIPTION = "ปิดภาษีซื้อ-ขาย เดือ�
 PP30_PV_DESCRIPTION = "กรมสรรพากร-ภ.พ.30 เดือน{period}"
 PND30_DESCRIPTION = "กรมสรรพากร-ภ.ง.ด.53 เดือน{period}"
 PND3_DESCRIPTION = "กรมสรรพากร-ภ.ง.ด.3 เดือน{period}"
+PND1_DESCRIPTION = "กรมสรรพากร ภ.ง.ด.1 เดือน {period}"
+PND2_DESCRIPTION = "กรมสรรพากร-ภ.ง.ด.2 เดือน{period}"
 EKO_HTTP_URL = "https://cpall-h1.ekoapp.com"
 EKO_LOGIN_PATH = "/api/v1/auth/login"
 EKO_ORIGIN_URL = "https://cpall.ekoapp.com"
@@ -92,6 +96,8 @@ ACCOUNT_SERVICE = "5330-05"
 ACCOUNT_VAT = "1154-00"
 ACCOUNT_WT = "2132-02"
 ACCOUNT_WT_PND3 = "2132-02"
+ACCOUNT_WT_PND1 = "2132-01"
+ACCOUNT_WT_PND2 = ACCOUNT_WT_PND3
 ACCOUNT_PP30_VAT_SALE = "2135-00"
 ACCOUNT_PP30_VAT_PURCHASE = ACCOUNT_VAT
 ACCOUNT_PP30_VAT_PAYABLE = "2137-00"
@@ -231,6 +237,24 @@ UI_TEXT = {
     "pnd30_insert_log": "สรุป — {shop}: {detail}",
     "menu_pnd3": "ภ.ง.ด.3",
     "menu_pnd3_hint": "ภาษีเงินได้หัก ณ ที่จ่าย — อ่าน PDF แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
+    "menu_pnd1": "ภ.ง.ด.1",
+    "menu_pnd1_hint": "ภาษีเงินได้หัก ณ ที่จ่าย — อ่าน PDF แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
+    "pnd1_period": "เดือน/ปี รายละเอียด",
+    "pnd1_period_invalid": "กรุณากรอกเดือน/ปี รายละเอียด ให้ครบ แบบ MM/YY",
+    "pnd1_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",
+    "pnd1_pdf_none": "ไม่พบไฟล์ PDF ในโฟลเดอร์นี้",
+    "pnd1_welcome_log": "เลือกโฟลเดอร์ PDF กรอกเดือน/ปี แล้วกดเริ่ม",
+    "pnd1_skip_zero_log": "ข้าม — {name} ไม่มียอดภาษี",
+    "pnd1_insert_log": "สรุป — {shop}: {detail}",
+    "menu_pnd2": "ภ.ง.ด.2",
+    "menu_pnd2_hint": "ภาษีเงินได้หัก ณ ที่จ่าย — อ่าน PDF แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
+    "pnd2_period": "เดือน/ปี รายละเอียด",
+    "pnd2_period_invalid": "กรุณากรอกเดือน/ปี รายละเอียด ให้ครบ แบบ MM/YY",
+    "pnd2_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",
+    "pnd2_pdf_none": "ไม่พบไฟล์ PDF ในโฟลเดอร์นี้",
+    "pnd2_welcome_log": "เลือกโฟลเดอร์ PDF กรอกเดือน/ปี แล้วกดเริ่ม",
+    "pnd2_skip_zero_log": "ข้าม — {name} ไม่มียอดภาษี",
+    "pnd2_insert_log": "สรุป — {shop}: {detail}",
     "pnd3_period": "เดือน/ปี รายละเอียด",
     "pnd3_period_invalid": "กรุณากรอกเดือน/ปี รายละเอียด ให้ครบ แบบ MM/YY",
     "pnd3_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",
