@@ -134,8 +134,8 @@ class Pnd2InsertLinesTests(unittest.TestCase):
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in voucher.lines],
             [
-                (ACCOUNT_WT_PND2, 5000.00, True),
-                (ACCOUNT_CASH, 5000.00, False),
+                (ACCOUNT_WT_PND2, 5000.00, False),
+                (ACCOUNT_CASH, 5000.00, True),
             ],
         )
 
@@ -152,9 +152,9 @@ class Pnd2InsertLinesTests(unittest.TestCase):
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in voucher.lines],
             [
-                (ACCOUNT_WT_PND2, 5000.00, True),
+                (ACCOUNT_WT_PND2, 5000.00, False),
                 (ACCOUNT_PP30_PENALTY, 15.0, False),
-                (ACCOUNT_CASH, 4985.00, False),
+                (ACCOUNT_CASH, 5015.00, True),
             ],
         )
 
