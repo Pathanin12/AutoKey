@@ -9,6 +9,7 @@ from models.pnd2_matched_job import Pnd2MatchedJob
 from services.express_journal_date_service import ExpressJournalDateService
 from services.express_shop_index_service import ExpressShopIndexService
 from services.name_match_service import tidy_name
+from services.express_journal_service import ExpressJournalService
 from services.pnd2_insert_service import Pnd2InsertService
 from services.pnd2_pdf_service import Pnd2PdfService
 from services.pp30_match_service import Pp30MatchService
@@ -74,31 +75,35 @@ class Pnd2MatchRunService:
                 on_status(UI_TEXT["pp30_values_missing"].format(path=pdf_path.name))
                 on_progress(index, total)
                 continue
-            if not record.form_values.has_tax and not record.form_values.has_surcharge:
-                on_status(UI_TEXT["pnd2_skip_zero_log"].format(name=record.company_name))
-                on_progress(index, total)
-                continue
             try:
-                voucher = Pnd2InsertService.voucher(record.form_values, form_config)
-                existing_date = ExpressJournalDateService.first_existing_voucher_date(
-                    company.folder, [voucher]
-                )
-                if existing_date:
-                    on_status(
-                        UI_TEXT["pp30_skip_date_exists_log"].format(
-                            name=record.company_name,
-                            date=existing_date,
-                        )
-                    )
+                vouchers = Pnd2InsertService.vouchers(record.form_values, form_config)
+                if not vouchers:
+                    on_status(UI_TEXT["pnd2_skip_zero_log"].format(name=record.company_name))
                     on_progress(index, total)
                     continue
-                name = Pnd2InsertService.insert(company.folder, record.form_values, form_config)
-                if name:
+                names: list[str] = []
+                skipped_date = ""
+                for voucher in vouchers:
+                    existing_date = ExpressJournalDateService.first_existing_voucher_date(
+                        company.folder, [voucher]
+                    )
+                    if existing_date:
+                        skipped_date = existing_date
+                        continue
+                    names.append(ExpressJournalService.insert(company.folder, voucher))
+                if names:
                     inserted += 1
                     on_status(
                         UI_TEXT["pnd2_insert_log"].format(
                             shop=tidy_name(company.shop_name),
-                            detail=name,
+                            detail=" ".join(names),
+                        )
+                    )
+                elif skipped_date:
+                    on_status(
+                        UI_TEXT["pp30_skip_date_exists_log"].format(
+                            name=record.company_name,
+                            date=skipped_date,
                         )
                     )
             except Exception as exc:

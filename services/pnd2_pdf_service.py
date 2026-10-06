@@ -5,7 +5,7 @@ from pathlib import Path
 from models.pnd2_form_values import Pnd2FormValues
 from models.pnd2_pdf_record import Pnd2PdfRecord
 from services.name_match_service import tidy_name
-from services.pnd2_extract_service import extract_line_2_and_3
+from services.pnd2_extract_service import extract_income_period, extract_line_6_and_7
 from services.pnd30_extract_service import extract_pv_date
 
 _COMPANY_PREFIXES = (
@@ -72,12 +72,18 @@ class Pnd2PdfService:
 
     @staticmethod
     def extract_form_values(text: str) -> Pnd2FormValues | None:
-        pv_date = extract_pv_date(text)
-        lines = extract_line_2_and_3(text)
-        if lines is None or not pv_date:
+        lines = extract_line_6_and_7(text)
+        if lines is None:
             return None
-        tax_withheld, surcharge = lines
-        return Pnd2FormValues(tax_withheld=tax_withheld, surcharge=surcharge, pv_date=pv_date)
+        people_count, income_amount, tax_withheld, surcharge = lines
+        return Pnd2FormValues(
+            people_count=people_count,
+            income_amount=income_amount,
+            tax_withheld=tax_withheld,
+            surcharge=surcharge,
+            pv_date=extract_pv_date(text),
+            period=extract_income_period(text),
+        )
 
     @staticmethod
     def load_record(pdf_path: Path) -> Pnd2PdfRecord:

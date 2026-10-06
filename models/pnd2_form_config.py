@@ -3,19 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from constants.routes import PND2_DESCRIPTION, UI_TEXT
-from models.month_year_period import MonthYearPeriod
+from constants.date_utils import is_complete_express_date
+from constants.routes import UI_TEXT
 
 
 @dataclass
 class Pnd2FormConfig:
     pdf_folder: Path
-    period: MonthYearPeriod
+    pv_date: str
     pdf_files: list[Path] = field(default_factory=list)
-
-    @property
-    def description(self) -> str:
-        return PND2_DESCRIPTION.format(period=self.period.text)
 
     def validate(self) -> list[str]:
         errors: list[str] = []
@@ -24,6 +20,6 @@ class Pnd2FormConfig:
             errors.append(UI_TEXT["pnd2_pdf_invalid"])
         elif not self.pdf_files:
             errors.append(UI_TEXT["pnd2_pdf_none"])
-        if not self.period.is_valid:
-            errors.append(UI_TEXT["pnd2_period_invalid"])
+        if not is_complete_express_date(self.pv_date):
+            errors.append(UI_TEXT["pnd2_pv_date_invalid"])
         return errors

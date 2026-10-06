@@ -1,6 +1,13 @@
 from __future__ import annotations
 
-from constants.routes import ACCOUNT_CASH, ACCOUNT_PP30_PENALTY, ACCOUNT_WT_PND2, JNLTYP_PV, VOUCHER_PV_PREFIX
+from constants.routes import (
+    ACCOUNT_CASH,
+    ACCOUNT_PP30_PENALTY,
+    ACCOUNT_PND2_PARTNER,
+    ACCOUNT_WT_PND2,
+    JNLTYP_PV,
+    VOUCHER_PV_PREFIX,
+)
 from models.journal_voucher import JournalLine, JournalVoucher
 from models.pnd2_form_values import Pnd2FormValues
 from services.pp30_amount_service import has_amount
@@ -14,12 +21,7 @@ def _credit(account: str, amount: float) -> JournalLine:
     return JournalLine(account=account, amount=round(amount, 2), is_credit=True)
 
 
-def pv_pnd2(values: Pnd2FormValues, date: str, description: str) -> JournalVoucher:
-    debits: list[JournalLine] = []
-    if has_amount(values.tax_withheld):
-        debits.append(_debit(ACCOUNT_WT_PND2, values.tax_withheld))
-    if has_amount(values.surcharge):
-        debits.append(_debit(ACCOUNT_PP30_PENALTY, values.surcharge))
+def _pv(date: str, description: str, debits: list[JournalLine]) -> JournalVoucher:
     rest = round(sum(line.amount for line in debits), 2)
     lines = list(debits)
     if has_amount(rest):
@@ -31,3 +33,23 @@ def pv_pnd2(values: Pnd2FormValues, date: str, description: str) -> JournalVouch
         description=description,
         lines=[line for line in lines if has_amount(line.amount)],
     )
+
+
+def pv_pnd2(values: Pnd2FormValues, date: str, description: str) -> JournalVoucher:
+    debits: list[JournalLine] = []
+    if has_amount(values.income_amount):
+        debits.append(_debit(ACCOUNT_PND2_PARTNER, values.income_amount))
+    if has_amount(values.tax_withheld):
+        debits.append(_debit(ACCOUNT_WT_PND2, values.tax_withheld))
+    if has_amount(values.surcharge):
+        debits.append(_debit(ACCOUNT_PP30_PENALTY, values.surcharge))
+    return _pv(date, description, debits)
+
+
+def pv_pnd2_tax(values: Pnd2FormValues, date: str, description: str) -> JournalVoucher:
+    debits: list[JournalLine] = []
+    if has_amount(values.tax_withheld):
+        debits.append(_debit(ACCOUNT_WT_PND2, values.tax_withheld))
+    if has_amount(values.surcharge):
+        debits.append(_debit(ACCOUNT_PP30_PENALTY, values.surcharge))
+    return _pv(date, description, debits)
