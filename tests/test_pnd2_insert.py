@@ -1,18 +1,12 @@
 import unittest
 from pathlib import Path
 
-from constants.routes import (
-    ACCOUNT_CASH,
-    ACCOUNT_PND2_PARTNER,
-    ACCOUNT_PP30_PENALTY,
-    ACCOUNT_WT_PND2,
-    UI_TEXT,
-)
+from constants.routes import ACCOUNT_CASH, ACCOUNT_PP30_PENALTY, ACCOUNT_WT_PND2, UI_TEXT
 from models.month_year_period import MonthYearPeriod
 from models.pnd2_form_config import Pnd2FormConfig
 from models.pnd2_form_values import Pnd2FormValues
 from services.pnd2_extract_service import extract_income_period, extract_line_6_and_7
-from services.pnd2_insert_lines_service import pv_pnd2, pv_pnd2_tax
+from services.pnd2_insert_lines_service import pv_pnd2
 from services.pnd2_insert_service import Pnd2InsertService
 from services.pnd2_pdf_service import Pnd2PdfService
 
@@ -75,12 +69,11 @@ class Pnd2ExtractTests(unittest.TestCase):
         self.assertEqual(values.income_amount, 50000.00)
         self.assertEqual(values.tax_withheld, 5000.00)
         self.assertFalse(values.has_surcharge)
-        self.assertEqual(values.description, "จ่ายเงินปันผลหุ้นส่วน 2 คน")
         self.assertEqual(values.pv_date, "12/06/69")
         self.assertIsNotNone(values.period)
         assert values.period is not None
         self.assertEqual(values.period.text, "5/69")
-        self.assertEqual(values.tax_description, "กรมสรรพากร ภ.ง.ด.2 เดือน 5/69")
+        self.assertEqual(values.description, "กรมสรรพากร ภ.ง.ด.2 เดือน 5/69")
 
     @unittest.skipUnless(SAMPLE_PDF.exists(), "sample ภ.ง.ด.2 pdf")
     def test_reads_uploaded_pdf(self) -> None:
@@ -99,36 +92,8 @@ class Pnd2ExtractTests(unittest.TestCase):
 
 
 class Pnd2InsertLinesTests(unittest.TestCase):
-    def test_income_tax_then_cash(self) -> None:
-        voucher = pv_pnd2(_VALUES, "25/07/69", _VALUES.description)
-        self.assertEqual(voucher.voudat_express, "25/07/69")
-        self.assertEqual(voucher.description, "จ่ายเงินปันผลหุ้นส่วน 2 คน")
-        self.assertEqual(
-            [(line.account, line.amount, line.is_credit) for line in voucher.lines],
-            [
-                (ACCOUNT_PND2_PARTNER, 50000.00, False),
-                (ACCOUNT_WT_PND2, 5000.00, True),
-                (ACCOUNT_CASH, 45000.00, True),
-            ],
-        )
-
-    def test_surcharge_before_cash(self) -> None:
-        values = Pnd2FormValues(
-            people_count=2, income_amount=50000.00, tax_withheld=5000.00, surcharge=15.0
-        )
-        voucher = pv_pnd2(values, "25/07/69", values.description)
-        self.assertEqual(
-            [(line.account, line.amount, line.is_credit) for line in voucher.lines],
-            [
-                (ACCOUNT_PND2_PARTNER, 50000.00, False),
-                (ACCOUNT_WT_PND2, 5000.00, True),
-                (ACCOUNT_PP30_PENALTY, 15.0, False),
-                (ACCOUNT_CASH, 45015.00, True),
-            ],
-        )
-
-    def test_tax_pv_from_pdf_date(self) -> None:
-        voucher = pv_pnd2_tax(_VALUES, _VALUES.pv_date, _VALUES.tax_description)
+    def test_tax_then_cash(self) -> None:
+        voucher = pv_pnd2(_VALUES, _VALUES.pv_date, _VALUES.description)
         self.assertEqual(voucher.voudat_express, "12/06/69")
         self.assertEqual(voucher.description, "กรมสรรพากร ภ.ง.ด.2 เดือน 5/69")
         self.assertEqual(
@@ -139,7 +104,7 @@ class Pnd2InsertLinesTests(unittest.TestCase):
             ],
         )
 
-    def test_tax_pv_includes_surcharge(self) -> None:
+    def test_surcharge_before_cash(self) -> None:
         values = Pnd2FormValues(
             people_count=2,
             income_amount=50000.00,
@@ -148,7 +113,7 @@ class Pnd2InsertLinesTests(unittest.TestCase):
             pv_date="12/06/69",
             period=MonthYearPeriod(month=5, year=69),
         )
-        voucher = pv_pnd2_tax(values, values.pv_date, values.tax_description)
+        voucher = pv_pnd2(values, values.pv_date, values.description)
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in voucher.lines],
             [
@@ -158,37 +123,27 @@ class Pnd2InsertLinesTests(unittest.TestCase):
             ],
         )
 
-    def test_insert_builds_both_pvs(self) -> None:
-        form = Pnd2FormConfig(pdf_folder=Path("."), pv_date="25/07/69")
-        vouchers = Pnd2InsertService.vouchers(_VALUES, form)
-        self.assertEqual(
-            [(item.voudat_express, item.description, item.lines[0].account) for item in vouchers],
-            [
-                ("25/07/69", "จ่ายเงินปันผลหุ้นส่วน 2 คน", ACCOUNT_PND2_PARTNER),
-                ("12/06/69", "กรมสรรพากร ภ.ง.ด.2 เดือน 5/69", ACCOUNT_WT_PND2),
-            ],
-        )
+    def test_insert_builds_one_pv(self) -> None:
+        form = Pnd2FormConfig(pdf_folder=Path("."))
+        voucher = Pnd2InsertService.voucher(_VALUES, form)
+        self.assertEqual(voucher.voudat_express, "12/06/69")
+        self.assertEqual(voucher.description, "กรมสรรพากร ภ.ง.ด.2 เดือน 5/69")
+        self.assertEqual(voucher.lines[0].account, ACCOUNT_WT_PND2)
 
     def test_tax_isvat_uses_pdf_month(self) -> None:
-        form = Pnd2FormConfig(pdf_folder=Path("."), pv_date="25/07/69")
-        dividend, tax = Pnd2InsertService.vouchers(_VALUES, form)
-        record = Pnd2InsertService.tax_vat_record(_VALUES, tax, "PV6906-0001")
+        form = Pnd2FormConfig(pdf_folder=Path("."))
+        voucher = Pnd2InsertService.voucher(_VALUES, form)
+        record = Pnd2InsertService.tax_vat_record(_VALUES, voucher, "PV6906-0001")
         self.assertIsNotNone(record)
         assert record is not None
         self.assertEqual(record.vatprd, "20260501")
         self.assertEqual(record.vatdat, "20260612")
         self.assertEqual(record.amt01, 50000.00)
         self.assertEqual(record.vat01, 5000.00)
-        self.assertIsNone(Pnd2InsertService.tax_vat_record(_VALUES, dividend, "PV6907-0001"))
 
     def test_form_needs_pdf_folder(self) -> None:
-        errors = Pnd2FormConfig(pdf_folder=Path("/no-folder"), pv_date="25/07/69").validate()
+        errors = Pnd2FormConfig(pdf_folder=Path("/no-folder")).validate()
         self.assertTrue(any("โฟลเดอร์" in item for item in errors))
-        self.assertNotIn(UI_TEXT["pnd2_pv_date_invalid"], errors)
-
-    def test_form_needs_pv_date(self) -> None:
-        errors = Pnd2FormConfig(pdf_folder=Path("/no-folder"), pv_date="").validate()
-        self.assertIn(UI_TEXT["pnd2_pv_date_invalid"], errors)
 
 
 if __name__ == "__main__":

@@ -40,7 +40,6 @@ PP30_PV_DESCRIPTION = "กรมสรรพากร-ภ.พ.30 เดือน
 PND30_DESCRIPTION = "กรมสรรพากร-ภ.ง.ด.53 เดือน{period}"
 PND3_DESCRIPTION = "กรมสรรพากร-ภ.ง.ด.3 เดือน{period}"
 PND1_DESCRIPTION = "กรมสรรพากร ภ.ง.ด.1 เดือน {period}"
-PND2_DESCRIPTION = "จ่ายเงินปันผลหุ้นส่วน {count} คน"
 PND2_TAX_DESCRIPTION = "กรมสรรพากร ภ.ง.ด.2 เดือน {period}"
 EKO_HTTP_URL = "https://cpall-h1.ekoapp.com"
 EKO_LOGIN_PATH = "/api/v1/auth/login"
@@ -250,11 +249,9 @@ UI_TEXT = {
     "pnd1_insert_log": "สรุป — {shop}: {detail}",
     "menu_pnd2": "ภ.ง.ด.2",
     "menu_pnd2_hint": "ภาษีเงินได้หัก ณ ที่จ่าย — อ่าน PDF แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
-    "pnd2_pv_date": "วันที่ PV",
-    "pnd2_pv_date_invalid": "กรุณากรอกวันที่ PV ให้ครบ เช่น 25/07/69",
     "pnd2_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",
     "pnd2_pdf_none": "ไม่พบไฟล์ PDF ในโฟลเดอร์นี้",
-    "pnd2_welcome_log": "เลือกโฟลเดอร์ PDF กรอกวันที่ แล้วกดเริ่ม",
+    "pnd2_welcome_log": "เลือกโฟลเดอร์ PDF แล้วกดเริ่ม",
     "pnd2_skip_zero_log": "ข้าม — {name} ไม่มียอดภาษี",
     "pnd2_insert_log": "สรุป — {shop}: {detail}",
     "pnd3_period": "เดือน/ปี รายละเอียด",

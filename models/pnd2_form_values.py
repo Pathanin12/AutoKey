@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from constants.routes import PND2_DESCRIPTION, PND2_TAX_DESCRIPTION
+from constants.routes import PND2_TAX_DESCRIPTION
 from models.month_year_period import MonthYearPeriod
 from services.pp30_amount_service import has_amount
 
@@ -18,10 +18,6 @@ class Pnd2FormValues:
 
     @property
     def description(self) -> str:
-        return PND2_DESCRIPTION.format(count=self.people_count)
-
-    @property
-    def tax_description(self) -> str:
         period = self.period.text if self.period and self.period.is_valid else ""
         return PND2_TAX_DESCRIPTION.format(period=period)
 

@@ -685,13 +685,6 @@ class MainWindow:
         self.pnd2_folder_summary_field = _static_label(
             settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
         )
-        sy += 28
-        _static_label(settings, UI_TEXT["pnd2_pv_date"], 8, sy, 110, 22)
-        self.pnd2_pv_date_field = _edit_field(settings, 120, sy, 120)
-        self.pnd2_pv_date_field.setPlaceholderString_(PV_DATE_EXAMPLE)
-        date_delegate = _DateFieldDelegate.alloc().init()
-        self.pnd2_pv_date_field.setDelegate_(date_delegate)
-        self._pnd2_date_delegate = date_delegate
 
         _button(
             page,
@@ -1324,7 +1317,6 @@ class MainWindow:
     def _pnd2_form_config(self) -> Pnd2FormConfig:
         return Pnd2FormConfig(
             pdf_folder=Path(str(self.pnd2_folder_field.stringValue() or "")).expanduser(),
-            pv_date=format_express_pv_date(str(self.pnd2_pv_date_field.stringValue() or "")),
             pdf_files=list(self.pnd2_pdf_files),
         )
 

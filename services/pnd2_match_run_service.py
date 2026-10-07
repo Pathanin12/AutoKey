@@ -74,39 +74,31 @@ class Pnd2MatchRunService:
                 on_status(UI_TEXT["pp30_values_missing"].format(path=pdf_path.name))
                 on_progress(index, total)
                 continue
+            if not record.form_values.has_tax and not record.form_values.has_surcharge:
+                on_status(UI_TEXT["pnd2_skip_zero_log"].format(name=record.company_name))
+                on_progress(index, total)
+                continue
             try:
-                vouchers = Pnd2InsertService.vouchers(record.form_values, form_config)
-                if not vouchers:
-                    on_status(UI_TEXT["pnd2_skip_zero_log"].format(name=record.company_name))
-                    on_progress(index, total)
-                    continue
-                names: list[str] = []
-                skipped_date = ""
-                for voucher in vouchers:
-                    existing_date = ExpressJournalDateService.first_existing_voucher_date(
-                        company.folder, [voucher]
-                    )
-                    if existing_date:
-                        skipped_date = existing_date
-                        continue
-                    names.append(
-                        Pnd2InsertService.insert_voucher(
-                            company.folder, voucher, record.form_values
+                voucher = Pnd2InsertService.voucher(record.form_values, form_config)
+                existing_date = ExpressJournalDateService.first_existing_voucher_date(
+                    company.folder, [voucher]
+                )
+                if existing_date:
+                    on_status(
+                        UI_TEXT["pp30_skip_date_exists_log"].format(
+                            name=record.company_name,
+                            date=existing_date,
                         )
                     )
-                if names:
+                    on_progress(index, total)
+                    continue
+                name = Pnd2InsertService.insert(company.folder, record.form_values, form_config)
+                if name:
                     inserted += 1
                     on_status(
                         UI_TEXT["pnd2_insert_log"].format(
                             shop=tidy_name(company.shop_name),
-                            detail=" ".join(names),
-                        )
-                    )
-                elif skipped_date:
-                    on_status(
-                        UI_TEXT["pp30_skip_date_exists_log"].format(
-                            name=record.company_name,
-                            date=skipped_date,
+                            detail=name,
                         )
                     )
             except Exception as exc:
