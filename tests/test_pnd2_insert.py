@@ -73,7 +73,7 @@ class Pnd2ExtractTests(unittest.TestCase):
         self.assertIsNotNone(values.period)
         assert values.period is not None
         self.assertEqual(values.period.text, "5/69")
-        self.assertEqual(values.description, "กรมสรรพากร ภ.ง.ด.2 เดือน 5/69")
+        self.assertEqual(values.description, "กรมสรรพากร-ภ.ง.ด.2 เดือน 5/69")
 
     @unittest.skipUnless(SAMPLE_PDF.exists(), "sample ภ.ง.ด.2 pdf")
     def test_reads_uploaded_pdf(self) -> None:
@@ -95,7 +95,7 @@ class Pnd2InsertLinesTests(unittest.TestCase):
     def test_tax_then_cash(self) -> None:
         voucher = pv_pnd2(_VALUES, _VALUES.pv_date, _VALUES.description)
         self.assertEqual(voucher.voudat_express, "12/06/69")
-        self.assertEqual(voucher.description, "กรมสรรพากร ภ.ง.ด.2 เดือน 5/69")
+        self.assertEqual(voucher.description, "กรมสรรพากร-ภ.ง.ด.2 เดือน 5/69")
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in voucher.lines],
             [
@@ -127,7 +127,7 @@ class Pnd2InsertLinesTests(unittest.TestCase):
         form = Pnd2FormConfig(pdf_folder=Path("."))
         voucher = Pnd2InsertService.voucher(_VALUES, form)
         self.assertEqual(voucher.voudat_express, "12/06/69")
-        self.assertEqual(voucher.description, "กรมสรรพากร ภ.ง.ด.2 เดือน 5/69")
+        self.assertEqual(voucher.description, "กรมสรรพากร-ภ.ง.ด.2 เดือน 5/69")
         self.assertEqual(voucher.lines[0].account, ACCOUNT_WT_PND2)
 
     def test_tax_isvat_uses_pdf_month(self) -> None:

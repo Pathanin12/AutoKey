@@ -101,7 +101,7 @@ class Pnd1InsertLinesTests(unittest.TestCase):
 
     def test_description_from_month_and_year(self) -> None:
         form = Pnd1FormConfig(pdf_folder=Path("."), period=MonthYearPeriod.parse("08/69"))
-        self.assertEqual(form.description, "กรมสรรพากร ภ.ง.ด.1 เดือน 8/69")
+        self.assertEqual(form.description, "กรมสรรพากร-ภ.ง.ด.1 เดือน 8/69")
 
 
 if __name__ == "__main__":
