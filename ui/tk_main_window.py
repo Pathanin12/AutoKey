@@ -17,6 +17,9 @@ from constants.routes import (
     PAGE_PND3,
     PAGE_PND30,
     PAGE_PP30,
+    PAGE_SSO,
+    PAGE_WCF,
+    PAGE_PAYROLL,
     INCOME_LOCK_NONE,
     INCOME_LOCK_PASSWORD,
     PP30_MODE_NORMAL,
@@ -35,6 +38,9 @@ from models.pnd2_form_config import Pnd2FormConfig
 from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd30_form_config import Pnd30FormConfig
 from models.pp30_form_config import Pp30FormConfig
+from models.sso_form_config import SsoFormConfig
+from models.wcf_form_config import WcfFormConfig
+from models.payroll_form_config import PayrollFormConfig
 from models.pp30_run_mode import Pp30RunMode
 from models.topic_menu_item import TopicMenuItem
 from services.app_config_service import AppConfigService
@@ -48,10 +54,15 @@ from services.pnd3_match_run_service import Pnd3MatchRunService
 from services.pnd30_match_run_service import Pnd30MatchRunService
 from services.pp30_folder_service import Pp30FolderService
 from services.pp30_match_run_service import Pp30MatchRunService
+from services.sso_match_run_service import SsoMatchRunService
+from services.wcf_excel_service import WcfExcelService
+from services.wcf_match_run_service import WcfMatchRunService
+from services.payroll_excel_service import PayrollExcelService
+from services.payroll_match_run_service import PayrollMatchRunService
 from ui.app_icon import apply_window_icon, load_title_photo
 
 WIN_W = 560
-MENU_WIN_H = 900
+MENU_WIN_H = 720
 CONFIG_WIN_H = 320
 PP30_WIN_H = 660
 KA_TAM_WIN_H = 660
@@ -59,6 +70,9 @@ PND30_WIN_H = 600
 PND3_WIN_H = 600
 PND1_WIN_H = 600
 PND2_WIN_H = 600
+SSO_WIN_H = 600
+WCF_WIN_H = 560
+PAYROLL_WIN_H = 640
 INCOME_WIN_H = 720
 
 
@@ -124,6 +138,24 @@ class MainWindow:
         self.pnd2_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.pnd2_pdf_files: list[Path] = []
         self._pnd2_running = False
+        self.sso_pdf_folder = tk.StringVar(value="")
+        self.sso_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
+        self.sso_period = tk.StringVar(value="")
+        self.sso_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
+        self.sso_pdf_files: list[Path] = []
+        self._sso_running = False
+        self.wcf_excel_path = tk.StringVar(value="")
+        self.wcf_excel_summary = tk.StringVar(value=UI_TEXT["wcf_excel_empty"])
+        self.wcf_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
+        self.wcf_rows_count = 0
+        self._wcf_running = False
+        self.payroll_excel_path = tk.StringVar(value="")
+        self.payroll_excel_summary = tk.StringVar(value=UI_TEXT["payroll_excel_empty"])
+        self.payroll_pv_date = tk.StringVar(value="")
+        self.payroll_period = tk.StringVar(value="")
+        self.payroll_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
+        self.payroll_rows_count = 0
+        self._payroll_running = False
         self.income_lock = tk.StringVar(value=INCOME_LOCK_NONE)
         self.income_pdf_folder = tk.StringVar(value="")
         self.income_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
@@ -145,6 +177,9 @@ class MainWindow:
         self.pnd3_frame = ttk.Frame(self.root)
         self.pnd1_frame = ttk.Frame(self.root)
         self.pnd2_frame = ttk.Frame(self.root)
+        self.sso_frame = ttk.Frame(self.root)
+        self.wcf_frame = ttk.Frame(self.root)
+        self.payroll_frame = ttk.Frame(self.root)
         self.income_frame = ttk.Frame(self.root)
         self._build_menu_page(self.menu_frame)
         self._build_config_page(self.config_frame)
@@ -154,6 +189,9 @@ class MainWindow:
         self._build_pnd3_page(self.pnd3_frame)
         self._build_pnd1_page(self.pnd1_frame)
         self._build_pnd2_page(self.pnd2_frame)
+        self._build_sso_page(self.sso_frame)
+        self._build_wcf_page(self.wcf_frame)
+        self._build_payroll_page(self.payroll_frame)
         self._build_income_page(self.income_frame)
 
     def _build_menu_page(self, page: ttk.Frame) -> None:
@@ -174,15 +212,44 @@ class MainWindow:
         ).pack(side="right")
 
         ttk.Label(page, text=UI_TEXT["menu_title"], font=("Tahoma", 12, "bold")).pack(
-            anchor="w", padx=20, pady=(24, 16)
+            anchor="w", padx=20, pady=(16, 8)
         )
 
+        body = ttk.Frame(page)
+        body.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+        canvas = tk.Canvas(body, highlightthickness=0, borderwidth=0)
+        scroll = ttk.Scrollbar(body, orient="vertical", command=canvas.yview)
+        inner = ttk.Frame(canvas)
+        window_id = canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.configure(yscrollcommand=scroll.set)
+
+        def _sync_scroll(_event=None) -> None:
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            canvas.itemconfigure(window_id, width=max(canvas.winfo_width(), 1))
+
+        inner.bind("<Configure>", _sync_scroll)
+        canvas.bind("<Configure>", _sync_scroll)
+
+        def _wheel(event) -> None:
+            if self._current_page != PAGE_MENU:
+                return
+            steps = int(-event.delta) if event.delta else 0
+            if steps:
+                canvas.yview_scroll(steps, "units")
+
+        canvas.bind("<MouseWheel>", _wheel)
+        inner.bind("<MouseWheel>", _wheel)
+        canvas.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
         for item in TOPIC_MENU_ITEMS:
-            ttk.Button(
-                page,
+            button = ttk.Button(
+                inner,
                 text=item.title,
                 command=lambda selected=item: self._open_topic(selected),
-            ).pack(fill="x", padx=24, pady=(0, 12), ipady=MENU_BUTTON_IPADY)
+            )
+            button.pack(fill="x", pady=(0, 8), ipady=MENU_BUTTON_IPADY)
+            button.bind("<MouseWheel>", _wheel)
+        self._menu_canvas = canvas
 
     def _build_config_page(self, page: ttk.Frame) -> None:
         header = ttk.Frame(page)
@@ -492,7 +559,134 @@ class MainWindow:
         scroll.grid(row=0, column=1, sticky="ns")
         self.pnd2_log_box.insert("end", UI_TEXT["pnd2_welcome_log"] + "\n")
 
+    def _build_sso_page(self, page: ttk.Frame) -> None:
+        header = ttk.Frame(page)
+        header.pack(fill="x", padx=12, pady=(10, 0))
+        ttk.Button(header, text=f"← {UI_TEXT['back_to_menu']}", command=lambda: self._show_page(PAGE_MENU)).pack(
+            side="left"
+        )
+        ttk.Label(header, text=UI_TEXT["menu_sso"], font=("Tahoma", 12, "bold")).pack(side="left", padx=12)
 
+        form = ttk.Frame(page)
+        form.pack(fill="x", padx=20, pady=(16, 0))
+        ttk.Label(form, text=UI_TEXT["pp30_pdf_folder"]).grid(row=0, column=0, sticky="w")
+        ttk.Entry(form, textvariable=self.sso_pdf_folder, width=42).grid(row=0, column=1, sticky="ew", padx=(8, 8))
+        ttk.Button(form, text=UI_TEXT["choose_folder"], command=self._choose_sso_folder).grid(row=0, column=2)
+        ttk.Label(form, textvariable=self.sso_pdf_summary, wraplength=500).grid(
+            row=1, column=0, columnspan=3, sticky="w", pady=(4, 0)
+        )
+        ttk.Label(form, text=UI_TEXT["sso_period"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        period_entry = ttk.Entry(form, textvariable=self.sso_period, width=14)
+        period_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        _bind_period_mask(self.sso_period, period_entry)
+        form.columnconfigure(1, weight=1)
+
+        ttk.Button(page, text=f"▶ {UI_TEXT['start']}", command=self._start_sso).pack(anchor="w", padx=20, pady=12)
+
+        status = ttk.LabelFrame(page, text=UI_TEXT["status_frame"])
+        status.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        progress_row = ttk.Frame(status)
+        progress_row.pack(fill="x", padx=8, pady=(8, 4))
+        self.sso_progress = ttk.Progressbar(progress_row, maximum=100)
+        self.sso_progress.pack(side="left", fill="x", expand=True)
+        ttk.Label(progress_row, textvariable=self.sso_progress_text, width=16).pack(side="left", padx=(8, 0))
+        ttk.Button(status, text=UI_TEXT["copy_log"], command=self._copy_sso_log).pack(anchor="e", padx=8)
+        log_row = ttk.Frame(status)
+        log_row.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        log_row.rowconfigure(0, weight=1)
+        log_row.columnconfigure(0, weight=1)
+        self.sso_log_box = tk.Text(log_row, height=10, wrap="word")
+        scroll = ttk.Scrollbar(log_row, orient="vertical", command=self.sso_log_box.yview)
+        self.sso_log_box.configure(yscrollcommand=scroll.set)
+        self.sso_log_box.grid(row=0, column=0, sticky="nsew")
+        scroll.grid(row=0, column=1, sticky="ns")
+        self.sso_log_box.insert("end", UI_TEXT["sso_welcome_log"] + "\n")
+
+    def _build_wcf_page(self, page: ttk.Frame) -> None:
+        header = ttk.Frame(page)
+        header.pack(fill="x", padx=12, pady=(10, 0))
+        ttk.Button(header, text=f"← {UI_TEXT['back_to_menu']}", command=lambda: self._show_page(PAGE_MENU)).pack(
+            side="left"
+        )
+        ttk.Label(header, text=UI_TEXT["menu_wcf"], font=("Tahoma", 12, "bold")).pack(side="left", padx=12)
+
+        form = ttk.Frame(page)
+        form.pack(fill="x", padx=20, pady=(16, 0))
+        ttk.Label(form, text=UI_TEXT["wcf_excel"]).grid(row=0, column=0, sticky="w")
+        ttk.Entry(form, textvariable=self.wcf_excel_path, width=42).grid(row=0, column=1, sticky="ew", padx=(8, 8))
+        ttk.Button(form, text=UI_TEXT["choose_file"], command=self._choose_wcf_excel).grid(row=0, column=2)
+        ttk.Label(form, textvariable=self.wcf_excel_summary, wraplength=500).grid(
+            row=1, column=0, columnspan=3, sticky="w", pady=(4, 0)
+        )
+        form.columnconfigure(1, weight=1)
+
+        ttk.Button(page, text=f"▶ {UI_TEXT['start']}", command=self._start_wcf).pack(anchor="w", padx=20, pady=12)
+
+        status = ttk.LabelFrame(page, text=UI_TEXT["status_frame"])
+        status.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        progress_row = ttk.Frame(status)
+        progress_row.pack(fill="x", padx=8, pady=(8, 4))
+        self.wcf_progress = ttk.Progressbar(progress_row, maximum=100)
+        self.wcf_progress.pack(side="left", fill="x", expand=True)
+        ttk.Label(progress_row, textvariable=self.wcf_progress_text, width=16).pack(side="left", padx=(8, 0))
+        ttk.Button(status, text=UI_TEXT["copy_log"], command=self._copy_wcf_log).pack(anchor="e", padx=8)
+        log_row = ttk.Frame(status)
+        log_row.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        log_row.rowconfigure(0, weight=1)
+        log_row.columnconfigure(0, weight=1)
+        self.wcf_log_box = tk.Text(log_row, height=10, wrap="word")
+        scroll = ttk.Scrollbar(log_row, orient="vertical", command=self.wcf_log_box.yview)
+        self.wcf_log_box.configure(yscrollcommand=scroll.set)
+        self.wcf_log_box.grid(row=0, column=0, sticky="nsew")
+        scroll.grid(row=0, column=1, sticky="ns")
+        self.wcf_log_box.insert("end", UI_TEXT["wcf_welcome_log"] + "\n")
+
+    def _build_payroll_page(self, page: ttk.Frame) -> None:
+        header = ttk.Frame(page)
+        header.pack(fill="x", padx=12, pady=(10, 0))
+        ttk.Button(header, text=f"← {UI_TEXT['back_to_menu']}", command=lambda: self._show_page(PAGE_MENU)).pack(
+            side="left"
+        )
+        ttk.Label(header, text=UI_TEXT["menu_payroll"], font=("Tahoma", 12, "bold")).pack(side="left", padx=12)
+
+        form = ttk.Frame(page)
+        form.pack(fill="x", padx=20, pady=(16, 0))
+        ttk.Label(form, text=UI_TEXT["payroll_excel"]).grid(row=0, column=0, sticky="w")
+        ttk.Entry(form, textvariable=self.payroll_excel_path, width=42).grid(row=0, column=1, sticky="ew", padx=(8, 8))
+        ttk.Button(form, text=UI_TEXT["choose_file"], command=self._choose_payroll_excel).grid(row=0, column=2)
+        ttk.Label(form, textvariable=self.payroll_excel_summary, wraplength=500).grid(
+            row=1, column=0, columnspan=3, sticky="w", pady=(4, 0)
+        )
+        ttk.Label(form, text=UI_TEXT["payroll_pv_date"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        date_entry = ttk.Entry(form, textvariable=self.payroll_pv_date, width=14)
+        date_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        date_entry.bind("<FocusOut>", self._format_payroll_pv_date)
+        ttk.Label(form, text=UI_TEXT["payroll_period"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
+        period_entry = ttk.Entry(form, textvariable=self.payroll_period, width=14)
+        period_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        _bind_period_mask(self.payroll_period, period_entry)
+        form.columnconfigure(1, weight=1)
+
+        ttk.Button(page, text=f"▶ {UI_TEXT['start']}", command=self._start_payroll).pack(anchor="w", padx=20, pady=12)
+
+        status = ttk.LabelFrame(page, text=UI_TEXT["status_frame"])
+        status.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        progress_row = ttk.Frame(status)
+        progress_row.pack(fill="x", padx=8, pady=(8, 4))
+        self.payroll_progress = ttk.Progressbar(progress_row, maximum=100)
+        self.payroll_progress.pack(side="left", fill="x", expand=True)
+        ttk.Label(progress_row, textvariable=self.payroll_progress_text, width=16).pack(side="left", padx=(8, 0))
+        ttk.Button(status, text=UI_TEXT["copy_log"], command=self._copy_payroll_log).pack(anchor="e", padx=8)
+        log_row = ttk.Frame(status)
+        log_row.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        log_row.rowconfigure(0, weight=1)
+        log_row.columnconfigure(0, weight=1)
+        self.payroll_log_box = tk.Text(log_row, height=10, wrap="word")
+        scroll = ttk.Scrollbar(log_row, orient="vertical", command=self.payroll_log_box.yview)
+        self.payroll_log_box.configure(yscrollcommand=scroll.set)
+        self.payroll_log_box.grid(row=0, column=0, sticky="nsew")
+        scroll.grid(row=0, column=1, sticky="ns")
+        self.payroll_log_box.insert("end", UI_TEXT["payroll_welcome_log"] + "\n")
 
     def _build_income_page(self, page: ttk.Frame) -> None:
         header = ttk.Frame(page)
@@ -581,6 +775,15 @@ class MainWindow:
             return
         if item.page_route == PAGE_PND2:
             self._show_page(PAGE_PND2)
+            return
+        if item.page_route == PAGE_SSO:
+            self._show_page(PAGE_SSO)
+            return
+        if item.page_route == PAGE_WCF:
+            self._show_page(PAGE_WCF)
+            return
+        if item.page_route == PAGE_PAYROLL:
+            self._show_page(PAGE_PAYROLL)
             return
         if item.page_route == PAGE_INCOME:
             self._show_page(PAGE_INCOME)
@@ -963,6 +1166,272 @@ class MainWindow:
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
 
+    def _choose_sso_folder(self) -> None:
+        selected = filedialog.askdirectory(title=UI_TEXT["pp30_pdf_folder"])
+        if not selected:
+            return
+        self.sso_pdf_folder.set(selected)
+        self._load_sso_folder()
+
+    def _load_sso_folder(self) -> None:
+        folder = Path(self.sso_pdf_folder.get().strip()).expanduser()
+        self.sso_pdf_files = Pp30FolderService.list_pdfs(folder)
+        if self.sso_pdf_files:
+            self.sso_pdf_summary.set(UI_TEXT["pp30_pdf_total"].format(count=len(self.sso_pdf_files)))
+        else:
+            self.sso_pdf_summary.set(UI_TEXT["pp30_pdf_summary_empty"])
+
+    def _sso_form_config(self) -> SsoFormConfig:
+        return SsoFormConfig(
+            pdf_folder=Path(self.sso_pdf_folder.get().strip()).expanduser(),
+            period=MonthYearPeriod.parse(self.sso_period.get()),
+            pdf_files=list(self.sso_pdf_files),
+        )
+
+    def _start_sso(self) -> None:
+        if self._sso_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_sso_folder()
+        errors = self.app_config.validate()
+        errors.extend(self._sso_form_config().validate())
+        if errors:
+            messagebox.showwarning(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = len(self.sso_pdf_files)
+        self._set_sso_progress(0, total)
+        self._append_sso_log(UI_TEXT["pp30_pdf_total"].format(count=total))
+        form_config = self._sso_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._sso_running = True
+        threading.Thread(
+            target=self._run_sso,
+            args=(form_config, express_data_dir),
+            daemon=True,
+        ).start()
+
+    def _run_sso(self, form_config: SsoFormConfig, express_data_dir: Path) -> None:
+        try:
+            SsoMatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: self.root.after(0, lambda m=message: self._append_sso_log(m)),
+                on_progress=lambda done, total: self.root.after(
+                    0, lambda d=done, t=total: self._set_sso_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showwarning(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showerror(UI_TEXT["app_title"], text))
+        finally:
+            self.root.after(0, self._sso_finished)
+
+    def _sso_finished(self) -> None:
+        self._sso_running = False
+
+    def _set_sso_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.sso_progress["value"] = percent
+        self.sso_progress_text.set(UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent))
+
+    def _append_sso_log(self, message: str) -> None:
+        self.sso_log_box.insert("end", message + "\n")
+        self.sso_log_box.see("end")
+
+    def _copy_sso_log(self) -> None:
+        text = self.sso_log_box.get("1.0", "end-1c")
+        if not text.strip():
+            return
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+
+    def _choose_wcf_excel(self) -> None:
+        selected = filedialog.askopenfilename(
+            title=UI_TEXT["wcf_excel"],
+            filetypes=[("Excel", "*.xlsx *.xls"), ("All", "*.*")],
+        )
+        if not selected:
+            return
+        self.wcf_excel_path.set(selected)
+        self._load_wcf_excel()
+
+    def _load_wcf_excel(self) -> None:
+        path = Path(self.wcf_excel_path.get().strip()).expanduser()
+        if not path.exists():
+            self.wcf_rows_count = 0
+            self.wcf_excel_summary.set(UI_TEXT["wcf_excel_empty"])
+            return
+        try:
+            rows = WcfExcelService.load_rows(path)
+        except Exception as exc:
+            self.wcf_rows_count = 0
+            self.wcf_excel_summary.set(str(exc))
+            return
+        self.wcf_rows_count = len(rows)
+        self.wcf_excel_summary.set(UI_TEXT["wcf_excel_total"].format(count=len(rows)))
+
+    def _wcf_form_config(self) -> WcfFormConfig:
+        return WcfFormConfig(
+            excel_path=Path(self.wcf_excel_path.get().strip()).expanduser(),
+            row_count=self.wcf_rows_count,
+        )
+
+    def _start_wcf(self) -> None:
+        if self._wcf_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_wcf_excel()
+        errors = self.app_config.validate()
+        errors.extend(self._wcf_form_config().validate())
+        if errors:
+            messagebox.showwarning(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = self.wcf_rows_count
+        self._set_wcf_progress(0, total)
+        self._append_wcf_log(UI_TEXT["wcf_excel_total"].format(count=total))
+        form_config = self._wcf_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._wcf_running = True
+        threading.Thread(
+            target=self._run_wcf,
+            args=(form_config, express_data_dir),
+            daemon=True,
+        ).start()
+
+    def _run_wcf(self, form_config: WcfFormConfig, express_data_dir: Path) -> None:
+        try:
+            WcfMatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: self.root.after(0, lambda m=message: self._append_wcf_log(m)),
+                on_progress=lambda done, total: self.root.after(
+                    0, lambda d=done, t=total: self._set_wcf_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showwarning(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showerror(UI_TEXT["app_title"], text))
+        finally:
+            self.root.after(0, self._wcf_finished)
+
+    def _wcf_finished(self) -> None:
+        self._wcf_running = False
+
+    def _set_wcf_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.wcf_progress["value"] = percent
+        self.wcf_progress_text.set(UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent))
+
+    def _append_wcf_log(self, message: str) -> None:
+        self.wcf_log_box.insert("end", message + "\n")
+        self.wcf_log_box.see("end")
+
+    def _copy_wcf_log(self) -> None:
+        text = self.wcf_log_box.get("1.0", "end-1c")
+        if not text.strip():
+            return
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+
+    def _choose_payroll_excel(self) -> None:
+        selected = filedialog.askopenfilename(
+            title=UI_TEXT["payroll_excel"],
+            filetypes=[("Excel", "*.xlsx *.xls"), ("All", "*.*")],
+        )
+        if not selected:
+            return
+        self.payroll_excel_path.set(selected)
+        self._load_payroll_excel()
+
+    def _load_payroll_excel(self) -> None:
+        path = Path(self.payroll_excel_path.get().strip()).expanduser()
+        if not path.exists():
+            self.payroll_rows_count = 0
+            self.payroll_excel_summary.set(UI_TEXT["payroll_excel_empty"])
+            return
+        try:
+            self.payroll_rows_count = PayrollExcelService.count_rows(path)
+        except Exception as exc:
+            self.payroll_rows_count = 0
+            self.payroll_excel_summary.set(str(exc))
+            return
+        if self.payroll_rows_count:
+            self.payroll_excel_summary.set(UI_TEXT["payroll_excel_total"].format(count=self.payroll_rows_count))
+        else:
+            self.payroll_excel_summary.set(UI_TEXT["payroll_excel_empty"])
+
+    def _payroll_form_config(self) -> PayrollFormConfig:
+        return PayrollFormConfig(
+            excel_path=Path(self.payroll_excel_path.get().strip()).expanduser(),
+            pv_date=format_express_pv_date(self.payroll_pv_date.get()),
+            period=MonthYearPeriod.parse(self.payroll_period.get()),
+            row_count=self.payroll_rows_count,
+        )
+
+    def _format_payroll_pv_date(self, _event=None) -> None:
+        current = self.payroll_pv_date.get()
+        if is_complete_express_date(current):
+            self.payroll_pv_date.set(format_express_pv_date(current))
+
+    def _start_payroll(self) -> None:
+        if self._payroll_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_payroll_excel()
+        errors = self.app_config.validate()
+        errors.extend(self._payroll_form_config().validate())
+        if errors:
+            messagebox.showwarning(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = self.payroll_rows_count
+        self._set_payroll_progress(0, total)
+        self._append_payroll_log(UI_TEXT["payroll_excel_total"].format(count=total))
+        form_config = self._payroll_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._payroll_running = True
+        threading.Thread(
+            target=self._run_payroll,
+            args=(form_config, express_data_dir),
+            daemon=True,
+        ).start()
+
+    def _run_payroll(self, form_config: PayrollFormConfig, express_data_dir: Path) -> None:
+        try:
+            PayrollMatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: self.root.after(0, lambda m=message: self._append_payroll_log(m)),
+                on_progress=lambda done, total: self.root.after(
+                    0, lambda d=done, t=total: self._set_payroll_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showwarning(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            self.root.after(0, lambda text=str(exc): messagebox.showerror(UI_TEXT["app_title"], text))
+        finally:
+            self.root.after(0, self._payroll_finished)
+
+    def _payroll_finished(self) -> None:
+        self._payroll_running = False
+
+    def _set_payroll_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.payroll_progress["value"] = percent
+        self.payroll_progress_text.set(UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent))
+
+    def _append_payroll_log(self, message: str) -> None:
+        self.payroll_log_box.insert("end", message + "\n")
+        self.payroll_log_box.see("end")
+
+    def _copy_payroll_log(self) -> None:
+        text = self.payroll_log_box.get("1.0", "end-1c")
+        if not text.strip():
+            return
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
 
     def _choose_pnd2_folder(self) -> None:
         selected = filedialog.askdirectory(title=UI_TEXT["pp30_pdf_folder"])
@@ -1237,6 +1706,9 @@ class MainWindow:
         self.pnd3_frame.pack_forget()
         self.pnd1_frame.pack_forget()
         self.pnd2_frame.pack_forget()
+        self.sso_frame.pack_forget()
+        self.wcf_frame.pack_forget()
+        self.payroll_frame.pack_forget()
         self.income_frame.pack_forget()
         if page_route == PAGE_CONFIG:
             self.root.geometry(f"{WIN_W}x{CONFIG_WIN_H}")
@@ -1274,6 +1746,21 @@ class MainWindow:
             self.root.geometry(f"{WIN_W}x{PND2_WIN_H}")
             self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd2']} v{__version__}")
             self.pnd2_frame.pack(fill="both", expand=True)
+            return
+        if page_route == PAGE_SSO:
+            self.root.geometry(f"{WIN_W}x{SSO_WIN_H}")
+            self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_sso']} v{__version__}")
+            self.sso_frame.pack(fill="both", expand=True)
+            return
+        if page_route == PAGE_WCF:
+            self.root.geometry(f"{WIN_W}x{WCF_WIN_H}")
+            self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_wcf']} v{__version__}")
+            self.wcf_frame.pack(fill="both", expand=True)
+            return
+        if page_route == PAGE_PAYROLL:
+            self.root.geometry(f"{WIN_W}x{PAYROLL_WIN_H}")
+            self.root.title(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_payroll']} v{__version__}")
+            self.payroll_frame.pack(fill="both", expand=True)
             return
         if page_route == PAGE_INCOME:
             self.root.geometry(f"{WIN_W}x{INCOME_WIN_H}")

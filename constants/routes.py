@@ -32,6 +32,9 @@ PAGE_PND30 = "pnd30"
 PAGE_PND3 = "pnd3"
 PAGE_PND1 = "pnd1"
 PAGE_PND2 = "pnd2"
+PAGE_SSO = "sso"
+PAGE_WCF = "wcf"
+PAGE_PAYROLL = "payroll"
 PAGE_INCOME = "income"
 PERIOD_EXAMPLE = "MM/YY"
 KA_TAM_DESCRIPTION = "บจก.เอ็นอาร์จี แอคเคาท์ ค่าทำบัญชี ด.{period}"
@@ -41,6 +44,9 @@ PND30_DESCRIPTION = "กรมสรรพากร-ภ.ง.ด.53 เดือ�
 PND3_DESCRIPTION = "กรมสรรพากร-ภ.ง.ด.3 เดือน{period}"
 PND1_DESCRIPTION = "กรมสรรพากร ภ.ง.ด.1 เดือน {period}"
 PND2_TAX_DESCRIPTION = "กรมสรรพากร ภ.ง.ด.2 เดือน {period}"
+SSO_DESCRIPTION = "สำนักงานประกันสังคม เดือน {period}"
+WCF_DESCRIPTION = "สำนักงานประกันสังคม-กองทุนเงินทดแทน {period}"
+PAYROLL_DESCRIPTION = "จ่ายเงินเดือนและประกันสังคม เดือน {period}"
 EKO_HTTP_URL = "https://cpall-h1.ekoapp.com"
 EKO_LOGIN_PATH = "/api/v1/auth/login"
 EKO_ORIGIN_URL = "https://cpall.ekoapp.com"
@@ -75,8 +81,8 @@ INCOME_WANTED_REPORT_NAMES = (
     "รายงานอากรแสตมป์",
 )
 INCOME_PRINT_ALL_NAME = "{shop}.pdf"
-MENU_BUTTON_HEIGHT = 75
-MENU_BUTTON_IPADY = 26
+MENU_BUTTON_HEIGHT = 44
+MENU_BUTTON_IPADY = 8
 PDF_OPEN_EXTENSIONS = ("pdf",)
 DBF_ENCODING = "cp874"
 ISINFO_FILE_NAMES = ("ISINFO.DBF", "isinfo.dbf")
@@ -104,6 +110,15 @@ ACCOUNT_PP30_VAT_PURCHASE = ACCOUNT_VAT
 ACCOUNT_PP30_VAT_PAYABLE = "2137-00"
 ACCOUNT_PP30_NEW_SHOP = "1156-00"
 ACCOUNT_PP30_PENALTY = "5390-01"
+ACCOUNT_SSO_CONTRIB = "2031-04"
+ACCOUNT_SSO_PENALTY = "5370-06"
+ACCOUNT_WCF_CONTRIB = "5310-10"
+ACCOUNT_WCF_PENALTY = "5370-06"
+ACCOUNT_PAYROLL_SALARY = "5310-01"
+ACCOUNT_PAYROLL_SSO5 = "5310-09"
+ACCOUNT_PAYROLL_WELFARE025 = "5310-20"
+ACCOUNT_PAYROLL_SSO10 = "2131-04"
+ACCOUNT_PAYROLL_WELFARE = "2131-13"
 ACCOUNT_PP30_DECIMAL = "4200-03"
 ACCOUNT_INCOME_RECEIVABLE = "1113-01"
 ACCOUNT_INCOME_WHT = "1151-02"
@@ -261,6 +276,47 @@ UI_TEXT = {
     "pnd3_welcome_log": "เลือกโฟลเดอร์ PDF กรอกเดือน/ปี แล้วกดเริ่ม",
     "pnd3_skip_zero_log": "ข้าม — {name} ไม่มียอดภาษี",
     "pnd3_insert_log": "สรุป — {shop}: {detail}",
+    "menu_sso": "จ่ายประกันสังคม",
+    "menu_sso_hint": "ใบเสร็จรับเงินสมทบ — อ่าน PDF แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
+    "sso_period": "เดือน/ปี รายละเอียด",
+    "sso_period_invalid": "กรุณากรอกเดือน/ปี รายละเอียด ให้ครบ แบบ MM/YY",
+    "sso_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",
+    "sso_pdf_none": "ไม่พบไฟล์ PDF ในโฟลเดอร์นี้",
+    "sso_welcome_log": "เลือกโฟลเดอร์ PDF กรอกเดือน/ปี แล้วกดเริ่ม",
+    "sso_skip_zero_log": "ข้าม — {name} ไม่มียอดสมทบ",
+    "sso_skip_receipt_log": "ข้าม — {name} ใบเสร็จ {number} ซ้ำ",
+    "sso_insert_log": "สรุป — {shop}: {detail}",
+    "menu_wcf": "กองทุนเงินทดแทน",
+    "menu_wcf_hint": "ใบเสร็จกองทุนเงินทดแทน — อ่าน Excel แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
+    "wcf_excel": "ไฟล์ Excel",
+    "wcf_excel_empty": "ยังไม่ได้เลือกไฟล์ Excel",
+    "wcf_excel_total": "พบ {count} แถว",
+    "wcf_excel_invalid": "กรุณาเลือกไฟล์ Excel",
+    "wcf_excel_none": "ไม่พบรายการในไฟล์ Excel",
+    "wcf_welcome_log": "เลือกไฟล์ Excel แล้วกดเริ่ม",
+    "wcf_unmatched": "ไม่ตรง — Excel: {name}",
+    "wcf_match_log": "ตรง — Excel: {excel_name} → {shop_name}",
+    "wcf_skip_zero_log": "ข้าม — {name} ไม่มียอดสมทบ",
+    "wcf_skip_date_log": "ข้าม — {name} ไม่มีวันที่ชำระ",
+    "wcf_skip_receipt_log": "ข้าม — {name} ใบเสร็จ {number} ซ้ำ",
+    "wcf_insert_log": "สรุป — {shop}: {detail}",
+    "menu_payroll": "เงินเดือน",
+    "menu_payroll_hint": "จ่ายเงินเดือนและประกันสังคม — อ่าน Excel ตามเดือนที่เลือก",
+    "payroll_excel": "ไฟล์ Excel",
+    "payroll_excel_empty": "ยังไม่ได้เลือกไฟล์ Excel",
+    "payroll_excel_total": "พบ {count} แถว",
+    "payroll_excel_invalid": "กรุณาเลือกไฟล์ Excel",
+    "payroll_excel_none": "ไม่พบรายการในไฟล์ Excel",
+    "payroll_pv_date": "วันที่ PV",
+    "payroll_pv_date_invalid": "กรุณากรอกวันที่ PV ให้ครบ เช่น 25/07/69",
+    "payroll_period": "เดือน/ปี",
+    "payroll_period_invalid": "กรุณากรอกเดือน/ปี ให้ครบ แบบ MM/YY",
+    "payroll_period_missing": "ไม่พบเดือน {period} ในไฟล์ Excel",
+    "payroll_welcome_log": "เลือกไฟล์ Excel กรอกวันที่กับเดือน/ปี แล้วกดเริ่ม",
+    "payroll_unmatched": "ไม่ตรง — Excel: {name}",
+    "payroll_match_log": "ตรง — Excel: {excel_name} → {shop_name}",
+    "payroll_skip_zero_log": "ข้าม — {name} ไม่มียอดเงินเดือน",
+    "payroll_insert_log": "สรุป — {shop}: {detail}",
     "menu_income": "รายได้",
     "menu_income_hint": "รายได้",
     "income_excel": "ไฟล์ Excel",

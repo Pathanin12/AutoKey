@@ -48,6 +48,9 @@ from constants.routes import (
     PAGE_PND3,
     PAGE_PND30,
     PAGE_PP30,
+    PAGE_SSO,
+    PAGE_WCF,
+    PAGE_PAYROLL,
     INCOME_LOCK_NONE,
     INCOME_LOCK_PASSWORD,
     PERIOD_EXAMPLE,
@@ -67,6 +70,9 @@ from models.pnd2_form_config import Pnd2FormConfig
 from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd30_form_config import Pnd30FormConfig
 from models.pp30_form_config import Pp30FormConfig
+from models.sso_form_config import SsoFormConfig
+from models.wcf_form_config import WcfFormConfig
+from models.payroll_form_config import PayrollFormConfig
 from models.pp30_run_mode import Pp30RunMode
 from models.topic_menu_item import TopicMenuItem
 from services.app_config_service import AppConfigService
@@ -80,10 +86,15 @@ from services.pnd3_match_run_service import Pnd3MatchRunService
 from services.pnd30_match_run_service import Pnd30MatchRunService
 from services.pp30_folder_service import Pp30FolderService
 from services.pp30_match_run_service import Pp30MatchRunService
+from services.sso_match_run_service import SsoMatchRunService
+from services.wcf_excel_service import WcfExcelService
+from services.wcf_match_run_service import WcfMatchRunService
+from services.payroll_excel_service import PayrollExcelService
+from services.payroll_match_run_service import PayrollMatchRunService
 from ui.app_icon import icon_dir
 
 WIN_W = 560
-MENU_WIN_H = 920
+MENU_WIN_H = 740
 CONFIG_WIN_H = 360
 PP30_WIN_H = 680
 KA_TAM_WIN_H = 680
@@ -91,6 +102,9 @@ PND30_WIN_H = 620
 PND3_WIN_H = 620
 PND1_WIN_H = 620
 PND2_WIN_H = 620
+SSO_WIN_H = 620
+WCF_WIN_H = 580
+PAYROLL_WIN_H = 660
 INCOME_WIN_H = 684
 
 
@@ -150,6 +164,12 @@ class MainWindow:
         self._pnd1_running = False
         self.pnd2_pdf_files: list[Path] = []
         self._pnd2_running = False
+        self.sso_pdf_files: list[Path] = []
+        self._sso_running = False
+        self.wcf_rows_count = 0
+        self._wcf_running = False
+        self.payroll_rows_count = 0
+        self._payroll_running = False
         self.income_pdf_files: list[Path] = []
         self._income_running = False
         self._period_delegate = _PeriodFieldDelegate.alloc().init()
@@ -205,6 +225,9 @@ class MainWindow:
         self._pnd3_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PND3_WIN_H))
         self._pnd1_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PND1_WIN_H))
         self._pnd2_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PND2_WIN_H))
+        self._sso_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, SSO_WIN_H))
+        self._wcf_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, WCF_WIN_H))
+        self._payroll_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PAYROLL_WIN_H))
         self._income_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, INCOME_WIN_H))
         root.addSubview_(self._menu_view)
         root.addSubview_(self._config_view)
@@ -214,6 +237,9 @@ class MainWindow:
         root.addSubview_(self._pnd3_view)
         root.addSubview_(self._pnd1_view)
         root.addSubview_(self._pnd2_view)
+        root.addSubview_(self._sso_view)
+        root.addSubview_(self._wcf_view)
+        root.addSubview_(self._payroll_view)
         root.addSubview_(self._income_view)
         self._build_menu_page(self._menu_view)
         self._build_config_page(self._config_view)
@@ -223,6 +249,9 @@ class MainWindow:
         self._build_pnd3_page(self._pnd3_view)
         self._build_pnd1_page(self._pnd1_view)
         self._build_pnd2_page(self._pnd2_view)
+        self._build_sso_page(self._sso_view)
+        self._build_wcf_page(self._wcf_view)
+        self._build_payroll_page(self._payroll_view)
         self._build_income_page(self._income_view)
         self.window.makeKeyAndOrderFront_(None)
 
@@ -242,21 +271,35 @@ class MainWindow:
         )
         y = 36
         _static_label(page, UI_TEXT["menu_title"], margin, y, content_w - 120, 28, size=18, bold=True)
-        y = 80
         button_h = MENU_BUTTON_HEIGHT
-        gap = 16
+        gap = 8
+        inner_h = max(len(TOPIC_MENU_ITEMS) * (button_h + gap), 1)
+        scroll_y = 80
+        scroll_h = MENU_WIN_H - scroll_y - 16
+        scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(margin, scroll_y, content_w, scroll_h))
+        scroll.setHasVerticalScroller_(True)
+        scroll.setHasHorizontalScroller_(False)
+        scroll.setAutohidesScrollers_(True)
+        scroll.setDrawsBackground_(False)
+        scroll.setBorderType_(0)
+        inner = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, content_w, inner_h))
+        y = 0
         for item in TOPIC_MENU_ITEMS:
             _button(
-                page,
+                inner,
                 item.title,
-                margin,
+                0,
                 y,
-                content_w,
+                content_w - 18,
                 button_h,
                 self._keep(lambda selected=item: self._open_topic(selected)),
-                font_size=17,
+                font_size=15,
             )
             y += button_h + gap
+        inner.setFrame_(NSMakeRect(0, 0, content_w, max(y, scroll_h)))
+        scroll.setDocumentView_(inner)
+        page.addSubview_(scroll)
+        self._menu_scroll = scroll
 
     def _build_config_page(self, page) -> None:
         _button(
@@ -714,7 +757,198 @@ class MainWindow:
         self.pnd2_log_view.setString_(UI_TEXT["pnd2_welcome_log"] + "\n")
         del _settings_box, _status_box
 
+    def _build_sso_page(self, page) -> None:
+        _button(
+            page,
+            f"← {UI_TEXT['back_to_menu']}",
+            16,
+            24,
+            160,
+            36,
+            self._keep(lambda: self._show_page(PAGE_MENU)),
+            bezel=NSBezelStyleRounded,
+        )
+        _static_label(page, UI_TEXT["menu_sso"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
 
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 138)
+        sy = 8
+        _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
+        self.sso_folder_field = _edit_field(settings, 120, sy, 248)
+        _button(
+            settings,
+            UI_TEXT["choose_folder"],
+            376,
+            sy - 2,
+            108,
+            28,
+            self._keep(self._choose_sso_folder),
+            bezel=NSBezelStyleRounded,
+        )
+        sy += 26
+        self.sso_folder_summary_field = _static_label(
+            settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
+        )
+        sy += 28
+        _static_label(settings, UI_TEXT["sso_period"], 8, sy, 110, 22)
+        self.sso_period_field = self._period_field(settings, 120, sy)
+
+        _button(
+            page,
+            f"▶ {UI_TEXT['start']}",
+            16,
+            226,
+            160,
+            36,
+            self._keep(self._start_sso),
+            bezel=NSBezelStyleRounded,
+        )
+
+        y = 276
+        _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, SSO_WIN_H - y - 12)
+        self.sso_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
+        self.sso_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
+        self.sso_progress_bar.setIndeterminate_(False)
+        self.sso_progress_bar.setMinValue_(0)
+        self.sso_progress_bar.setMaxValue_(100)
+        self.sso_progress_bar.setDoubleValue_(0)
+        status.addSubview_(self.sso_progress_bar)
+        self.sso_progress_field = _static_label(
+            status, UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0), 376, 4, 140, 22
+        )
+        _button(status, UI_TEXT["copy_log"], 376, 28, 120, 28, self._keep(self._copy_sso_log), bezel=NSBezelStyleRounded)
+        self.sso_log_view = _log_view(status, 8, 60, WIN_W - 56, SSO_WIN_H - y - 100)
+        self.sso_log_view.setString_(UI_TEXT["sso_welcome_log"] + "\n")
+        del _settings_box, _status_box
+
+    def _build_wcf_page(self, page) -> None:
+        _button(
+            page,
+            f"← {UI_TEXT['back_to_menu']}",
+            16,
+            24,
+            160,
+            36,
+            self._keep(lambda: self._show_page(PAGE_MENU)),
+            bezel=NSBezelStyleRounded,
+        )
+        _static_label(page, UI_TEXT["menu_wcf"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
+
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 90)
+        sy = 8
+        _static_label(settings, UI_TEXT["wcf_excel"], 8, sy, 110, 22)
+        self.wcf_excel_field = _edit_field(settings, 120, sy, 248)
+        _button(
+            settings,
+            UI_TEXT["choose_file"],
+            376,
+            sy - 2,
+            108,
+            28,
+            self._keep(self._choose_wcf_excel),
+            bezel=NSBezelStyleRounded,
+        )
+        sy += 26
+        self.wcf_excel_summary_field = _static_label(
+            settings, UI_TEXT["wcf_excel_empty"], 8, sy, 500, 20, size=11, gray=True
+        )
+
+        _button(
+            page,
+            f"▶ {UI_TEXT['start']}",
+            16,
+            180,
+            160,
+            36,
+            self._keep(self._start_wcf),
+            bezel=NSBezelStyleRounded,
+        )
+
+        y = 230
+        _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, WCF_WIN_H - y - 12)
+        self.wcf_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
+        self.wcf_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
+        self.wcf_progress_bar.setIndeterminate_(False)
+        self.wcf_progress_bar.setMinValue_(0)
+        self.wcf_progress_bar.setMaxValue_(100)
+        self.wcf_progress_bar.setDoubleValue_(0)
+        status.addSubview_(self.wcf_progress_bar)
+        self.wcf_progress_field = _static_label(
+            status, UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0), 376, 4, 140, 22
+        )
+        _button(status, UI_TEXT["copy_log"], 376, 28, 120, 28, self._keep(self._copy_wcf_log), bezel=NSBezelStyleRounded)
+        self.wcf_log_view = _log_view(status, 8, 60, WIN_W - 56, WCF_WIN_H - y - 100)
+        self.wcf_log_view.setString_(UI_TEXT["wcf_welcome_log"] + "\n")
+        del _settings_box, _status_box
+
+    def _build_payroll_page(self, page) -> None:
+        _button(
+            page,
+            f"← {UI_TEXT['back_to_menu']}",
+            16,
+            24,
+            160,
+            36,
+            self._keep(lambda: self._show_page(PAGE_MENU)),
+            bezel=NSBezelStyleRounded,
+        )
+        _static_label(page, UI_TEXT["menu_payroll"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
+
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 168)
+        sy = 8
+        _static_label(settings, UI_TEXT["payroll_excel"], 8, sy, 110, 22)
+        self.payroll_excel_field = _edit_field(settings, 120, sy, 248)
+        _button(
+            settings,
+            UI_TEXT["choose_file"],
+            376,
+            sy - 2,
+            108,
+            28,
+            self._keep(self._choose_payroll_excel),
+            bezel=NSBezelStyleRounded,
+        )
+        sy += 26
+        self.payroll_excel_summary_field = _static_label(
+            settings, UI_TEXT["payroll_excel_empty"], 8, sy, 500, 20, size=11, gray=True
+        )
+        sy += 28
+        _static_label(settings, UI_TEXT["payroll_pv_date"], 8, sy, 110, 22)
+        self.payroll_pv_date_field = _edit_field(settings, 120, sy, 120)
+        self.payroll_pv_date_field.setPlaceholderString_(PV_DATE_EXAMPLE)
+        date_delegate = _DateFieldDelegate.alloc().init()
+        self.payroll_pv_date_field.setDelegate_(date_delegate)
+        self._payroll_date_delegate = date_delegate
+        sy += 30
+        _static_label(settings, UI_TEXT["payroll_period"], 8, sy, 110, 22)
+        self.payroll_period_field = self._period_field(settings, 120, sy)
+
+        _button(
+            page,
+            f"▶ {UI_TEXT['start']}",
+            16,
+            256,
+            160,
+            36,
+            self._keep(self._start_payroll),
+            bezel=NSBezelStyleRounded,
+        )
+
+        y = 306
+        _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, PAYROLL_WIN_H - y - 12)
+        self.payroll_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
+        self.payroll_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
+        self.payroll_progress_bar.setIndeterminate_(False)
+        self.payroll_progress_bar.setMinValue_(0)
+        self.payroll_progress_bar.setMaxValue_(100)
+        self.payroll_progress_bar.setDoubleValue_(0)
+        status.addSubview_(self.payroll_progress_bar)
+        self.payroll_progress_field = _static_label(
+            status, UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0), 376, 4, 140, 22
+        )
+        _button(status, UI_TEXT["copy_log"], 376, 28, 120, 28, self._keep(self._copy_payroll_log), bezel=NSBezelStyleRounded)
+        self.payroll_log_view = _log_view(status, 8, 60, WIN_W - 56, PAYROLL_WIN_H - y - 100)
+        self.payroll_log_view.setString_(UI_TEXT["payroll_welcome_log"] + "\n")
+        del _settings_box, _status_box
 
     def _build_income_page(self, page) -> None:
         _button(
@@ -849,6 +1083,15 @@ class MainWindow:
             return
         if item.page_route == PAGE_PND2:
             self._show_page(PAGE_PND2)
+            return
+        if item.page_route == PAGE_SSO:
+            self._show_page(PAGE_SSO)
+            return
+        if item.page_route == PAGE_WCF:
+            self._show_page(PAGE_WCF)
+            return
+        if item.page_route == PAGE_PAYROLL:
+            self._show_page(PAGE_PAYROLL)
             return
         if item.page_route == PAGE_INCOME:
             self._show_page(PAGE_INCOME)
@@ -1296,6 +1539,280 @@ class MainWindow:
         board.clearContents()
         board.setString_forType_(text, NSPasteboardTypeString)
 
+    def _choose_sso_folder(self) -> None:
+        selected = _pick_folder()
+        if not selected:
+            return
+        self.sso_folder_field.setStringValue_(selected)
+        self._load_sso_folder()
+
+    def _load_sso_folder(self) -> None:
+        folder = Path(str(self.sso_folder_field.stringValue() or "")).expanduser()
+        self.sso_pdf_files = Pp30FolderService.list_pdfs(folder)
+        if self.sso_pdf_files:
+            self.sso_folder_summary_field.setStringValue_(
+                UI_TEXT["pp30_pdf_total"].format(count=len(self.sso_pdf_files))
+            )
+        else:
+            self.sso_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
+
+    def _sso_form_config(self) -> SsoFormConfig:
+        return SsoFormConfig(
+            pdf_folder=Path(str(self.sso_folder_field.stringValue() or "")).expanduser(),
+            period=MonthYearPeriod.parse(str(self.sso_period_field.stringValue() or "")),
+            pdf_files=list(self.sso_pdf_files),
+        )
+
+    def _start_sso(self) -> None:
+        if self._sso_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_sso_folder()
+        errors = self.app_config.validate()
+        errors.extend(self._sso_form_config().validate())
+        if errors:
+            _alert(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = len(self.sso_pdf_files)
+        self._set_sso_progress(0, total)
+        self._append_sso_log(UI_TEXT["pp30_pdf_total"].format(count=total))
+        form_config = self._sso_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._sso_running = True
+        threading.Thread(
+            target=self._run_sso,
+            args=(form_config, express_data_dir),
+            daemon=True,
+        ).start()
+
+    def _run_sso(self, form_config: SsoFormConfig, express_data_dir: Path) -> None:
+        try:
+            SsoMatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: AppHelper.callAfter(lambda m=message: self._append_sso_log(m)),
+                on_progress=lambda done, total: AppHelper.callAfter(
+                    lambda d=done, t=total: self._set_sso_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        finally:
+            AppHelper.callAfter(self._sso_finished)
+
+    def _sso_finished(self) -> None:
+        self._sso_running = False
+
+    def _set_sso_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.sso_progress_bar.setDoubleValue_(percent)
+        self.sso_progress_field.setStringValue_(
+            UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent)
+        )
+
+    def _append_sso_log(self, message: str) -> None:
+        current = str(self.sso_log_view.string() or "")
+        current = current + message + "\n"
+        self.sso_log_view.setString_(current)
+        self.sso_log_view.scrollRangeToVisible_((len(current), 0))
+
+    def _copy_sso_log(self) -> None:
+        text = str(self.sso_log_view.string() or "")
+        if not text.strip():
+            return
+        board = NSPasteboard.generalPasteboard()
+        board.clearContents()
+        board.setString_forType_(text, NSPasteboardTypeString)
+
+    def _choose_wcf_excel(self) -> None:
+        selected = _pick_file(("xlsx", "xls"))
+        if not selected:
+            return
+        self.wcf_excel_field.setStringValue_(selected)
+        self._load_wcf_excel()
+
+    def _load_wcf_excel(self) -> None:
+        path = Path(str(self.wcf_excel_field.stringValue() or "")).expanduser()
+        if not path.exists():
+            self.wcf_rows_count = 0
+            self.wcf_excel_summary_field.setStringValue_(UI_TEXT["wcf_excel_empty"])
+            return
+        try:
+            rows = WcfExcelService.load_rows(path)
+        except Exception as exc:
+            self.wcf_rows_count = 0
+            self.wcf_excel_summary_field.setStringValue_(str(exc))
+            return
+        self.wcf_rows_count = len(rows)
+        self.wcf_excel_summary_field.setStringValue_(UI_TEXT["wcf_excel_total"].format(count=len(rows)))
+
+    def _wcf_form_config(self) -> WcfFormConfig:
+        return WcfFormConfig(
+            excel_path=Path(str(self.wcf_excel_field.stringValue() or "")).expanduser(),
+            row_count=self.wcf_rows_count,
+        )
+
+    def _start_wcf(self) -> None:
+        if self._wcf_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_wcf_excel()
+        errors = self.app_config.validate()
+        errors.extend(self._wcf_form_config().validate())
+        if errors:
+            _alert(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = self.wcf_rows_count
+        self._set_wcf_progress(0, total)
+        self._append_wcf_log(UI_TEXT["wcf_excel_total"].format(count=total))
+        form_config = self._wcf_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._wcf_running = True
+        threading.Thread(
+            target=self._run_wcf,
+            args=(form_config, express_data_dir),
+            daemon=True,
+        ).start()
+
+    def _run_wcf(self, form_config: WcfFormConfig, express_data_dir: Path) -> None:
+        try:
+            WcfMatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: AppHelper.callAfter(lambda m=message: self._append_wcf_log(m)),
+                on_progress=lambda done, total: AppHelper.callAfter(
+                    lambda d=done, t=total: self._set_wcf_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        finally:
+            AppHelper.callAfter(self._wcf_finished)
+
+    def _wcf_finished(self) -> None:
+        self._wcf_running = False
+
+    def _set_wcf_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.wcf_progress_bar.setDoubleValue_(percent)
+        self.wcf_progress_field.setStringValue_(
+            UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent)
+        )
+
+    def _append_wcf_log(self, message: str) -> None:
+        current = str(self.wcf_log_view.string() or "")
+        current = current + message + "\n"
+        self.wcf_log_view.setString_(current)
+        self.wcf_log_view.scrollRangeToVisible_((len(current), 0))
+
+    def _copy_wcf_log(self) -> None:
+        text = str(self.wcf_log_view.string() or "")
+        if not text.strip():
+            return
+        board = NSPasteboard.generalPasteboard()
+        board.clearContents()
+        board.setString_forType_(text, NSPasteboardTypeString)
+
+    def _choose_payroll_excel(self) -> None:
+        selected = _pick_file(("xlsx", "xls"))
+        if not selected:
+            return
+        self.payroll_excel_field.setStringValue_(selected)
+        self._load_payroll_excel()
+
+    def _load_payroll_excel(self) -> None:
+        path = Path(str(self.payroll_excel_field.stringValue() or "")).expanduser()
+        if not path.exists():
+            self.payroll_rows_count = 0
+            self.payroll_excel_summary_field.setStringValue_(UI_TEXT["payroll_excel_empty"])
+            return
+        try:
+            self.payroll_rows_count = PayrollExcelService.count_rows(path)
+        except Exception as exc:
+            self.payroll_rows_count = 0
+            self.payroll_excel_summary_field.setStringValue_(str(exc))
+            return
+        if self.payroll_rows_count:
+            self.payroll_excel_summary_field.setStringValue_(
+                UI_TEXT["payroll_excel_total"].format(count=self.payroll_rows_count)
+            )
+        else:
+            self.payroll_excel_summary_field.setStringValue_(UI_TEXT["payroll_excel_empty"])
+
+    def _payroll_form_config(self) -> PayrollFormConfig:
+        return PayrollFormConfig(
+            excel_path=Path(str(self.payroll_excel_field.stringValue() or "")).expanduser(),
+            pv_date=format_express_pv_date(str(self.payroll_pv_date_field.stringValue() or "")),
+            period=MonthYearPeriod.parse(str(self.payroll_period_field.stringValue() or "")),
+            row_count=self.payroll_rows_count,
+        )
+
+    def _start_payroll(self) -> None:
+        if self._payroll_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_payroll_excel()
+        errors = self.app_config.validate()
+        errors.extend(self._payroll_form_config().validate())
+        if errors:
+            _alert(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = self.payroll_rows_count
+        self._set_payroll_progress(0, total)
+        self._append_payroll_log(UI_TEXT["payroll_excel_total"].format(count=total))
+        form_config = self._payroll_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._payroll_running = True
+        threading.Thread(
+            target=self._run_payroll,
+            args=(form_config, express_data_dir),
+            daemon=True,
+        ).start()
+
+    def _run_payroll(self, form_config: PayrollFormConfig, express_data_dir: Path) -> None:
+        try:
+            PayrollMatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: AppHelper.callAfter(lambda m=message: self._append_payroll_log(m)),
+                on_progress=lambda done, total: AppHelper.callAfter(
+                    lambda d=done, t=total: self._set_payroll_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        finally:
+            AppHelper.callAfter(self._payroll_finished)
+
+    def _payroll_finished(self) -> None:
+        self._payroll_running = False
+
+    def _set_payroll_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.payroll_progress_bar.setDoubleValue_(percent)
+        self.payroll_progress_field.setStringValue_(
+            UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent)
+        )
+
+    def _append_payroll_log(self, message: str) -> None:
+        current = str(self.payroll_log_view.string() or "")
+        current = current + message + "\n"
+        self.payroll_log_view.setString_(current)
+        self.payroll_log_view.scrollRangeToVisible_((len(current), 0))
+
+    def _copy_payroll_log(self) -> None:
+        text = str(self.payroll_log_view.string() or "")
+        if not text.strip():
+            return
+        board = NSPasteboard.generalPasteboard()
+        board.clearContents()
+        board.setString_forType_(text, NSPasteboardTypeString)
 
     def _choose_pnd2_folder(self) -> None:
         selected = _pick_folder()
@@ -1511,6 +2028,9 @@ class MainWindow:
         self._pnd3_view.setHidden_(page_route != PAGE_PND3)
         self._pnd1_view.setHidden_(page_route != PAGE_PND1)
         self._pnd2_view.setHidden_(page_route != PAGE_PND2)
+        self._sso_view.setHidden_(page_route != PAGE_SSO)
+        self._wcf_view.setHidden_(page_route != PAGE_WCF)
+        self._payroll_view.setHidden_(page_route != PAGE_PAYROLL)
         self._income_view.setHidden_(page_route != PAGE_INCOME)
         heights = {
             PAGE_MENU: MENU_WIN_H,
@@ -1521,11 +2041,17 @@ class MainWindow:
             PAGE_PND3: PND3_WIN_H,
             PAGE_PND1: PND1_WIN_H,
             PAGE_PND2: PND2_WIN_H,
+            PAGE_SSO: SSO_WIN_H,
+            PAGE_WCF: WCF_WIN_H,
+            PAGE_PAYROLL: PAYROLL_WIN_H,
             PAGE_INCOME: INCOME_WIN_H,
         }
         height = heights.get(page_route, MENU_WIN_H)
         self.window.setContentSize_((WIN_W, height))
         self._root.setFrame_(NSMakeRect(0, 0, WIN_W, height))
+        if page_route == PAGE_MENU:
+            self._menu_view.setFrame_(NSMakeRect(0, 0, WIN_W, height))
+            self._menu_scroll.setFrame_(NSMakeRect(24, 80, WIN_W - 48, height - 96))
         if page_route == PAGE_CONFIG:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['config_title']} v{__version__}")
             self._refresh_config_fields()
@@ -1541,6 +2067,12 @@ class MainWindow:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd1']} v{__version__}")
         elif page_route == PAGE_PND2:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd2']} v{__version__}")
+        elif page_route == PAGE_SSO:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_sso']} v{__version__}")
+        elif page_route == PAGE_WCF:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_wcf']} v{__version__}")
+        elif page_route == PAGE_PAYROLL:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_payroll']} v{__version__}")
         elif page_route == PAGE_INCOME:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_income']} v{__version__}")
         else:
