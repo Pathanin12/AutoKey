@@ -50,7 +50,7 @@ class WcfInsertLinesTests(unittest.TestCase):
             paid_amount=5200.00,
             period="1/69",
         )
-        voucher = pv_wcf(row, "05/01/69", "สำนักงานประกันสังคม-กองทุนเงินทดแทน 1/69")
+        voucher = pv_wcf(row, "05/01/69", "สำนักงานประกันสังคม-กองทุนเงินทดแทน")
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in voucher.lines],
             [
@@ -72,7 +72,7 @@ class WcfInsertLinesTests(unittest.TestCase):
             paid_amount=5050.00,
             period="1/69",
         )
-        voucher = pv_wcf(row, "05/01/69", "สำนักงานประกันสังคม-กองทุนเงินทดแทน 1/69 *1")
+        voucher = pv_wcf(row, "05/01/69", "สำนักงานประกันสังคม-กองทุนเงินทดแทน *1")
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in voucher.lines],
             [
@@ -84,8 +84,8 @@ class WcfInsertLinesTests(unittest.TestCase):
 
     def test_form_description_and_duplicate_suffix(self) -> None:
         form = WcfFormConfig(excel_path=Path("."), row_count=1)
-        self.assertEqual(form.description_for("1/69"), "สำนักงานประกันสังคม-กองทุนเงินทดแทน 1/69")
-        self.assertEqual(form.description_for("1/69", 1), "สำนักงานประกันสังคม-กองทุนเงินทดแทน 1/69 *1")
+        self.assertEqual(form.description_for(), "สำนักงานประกันสังคม-กองทุนเงินทดแทน")
+        self.assertEqual(form.description_for(1), "สำนักงานประกันสังคม-กองทุนเงินทดแทน *1")
         row = WcfRow(
             row_number=2,
             shop_name="กษิดิศเกรียงไกร",
@@ -97,7 +97,7 @@ class WcfInsertLinesTests(unittest.TestCase):
             period="1/69",
         )
         voucher = WcfInsertService.voucher(row, form, dup_n=1)
-        self.assertEqual(voucher.description, "สำนักงานประกันสังคม-กองทุนเงินทดแทน 1/69 *1")
+        self.assertEqual(voucher.description, "สำนักงานประกันสังคม-กองทุนเงินทดแทน *1")
         self.assertEqual(voucher.voudat_express, "05/01/69")
         self.assertEqual(WcfMatchRunService.dup_star(2, 2), 2)
 

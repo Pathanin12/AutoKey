@@ -11,11 +11,10 @@ class WcfFormConfig:
     excel_path: Path
     row_count: int = 0
 
-    def description_for(self, period: str, dup_n: int | None = None) -> str:
-        text = WCF_DESCRIPTION.format(period=period)
+    def description_for(self, dup_n: int | None = None) -> str:
         if dup_n:
-            return f"{text} *{dup_n}"
-        return text
+            return f"{WCF_DESCRIPTION} *{dup_n}"
+        return WCF_DESCRIPTION
 
     def validate(self) -> list[str]:
         errors: list[str] = []

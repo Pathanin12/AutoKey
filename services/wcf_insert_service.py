@@ -13,7 +13,7 @@ class WcfInsertService:
     @staticmethod
     def voucher(row: WcfRow, form: WcfFormConfig, *, dup_n: int | None = None):
         date = format_express_pv_date(row.pv_date)
-        return pv_wcf(row, date, form.description_for(row.period, dup_n))
+        return pv_wcf(row, date, form.description_for(dup_n))
 
     @staticmethod
     def insert(
