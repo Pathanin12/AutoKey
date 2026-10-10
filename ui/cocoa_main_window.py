@@ -44,6 +44,7 @@ from constants.routes import (
     PAGE_KA_TAM,
     PAGE_MENU,
     PAGE_PND1,
+    PAGE_BT40,
     PAGE_PND2,
     PAGE_PND3,
     PAGE_PND30,
@@ -66,6 +67,7 @@ from models.income_lock_mode import IncomeLockMode
 from models.ka_tam_form_config import KaTamFormConfig
 from models.month_year_period import MonthYearPeriod
 from models.pnd1_form_config import Pnd1FormConfig
+from models.bt40_form_config import Bt40FormConfig
 from models.pnd2_form_config import Pnd2FormConfig
 from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd30_form_config import Pnd30FormConfig
@@ -81,6 +83,7 @@ from services.ka_tam_excel_service import KaTamExcelService
 from services.income_match_run_service import IncomeMatchRunService
 from services.ka_tam_match_run_service import KaTamMatchRunService
 from services.pnd1_match_run_service import Pnd1MatchRunService
+from services.bt40_match_run_service import Bt40MatchRunService
 from services.pnd2_match_run_service import Pnd2MatchRunService
 from services.pnd3_match_run_service import Pnd3MatchRunService
 from services.pnd30_match_run_service import Pnd30MatchRunService
@@ -102,6 +105,7 @@ PND30_WIN_H = 620
 PND3_WIN_H = 620
 PND1_WIN_H = 620
 PND2_WIN_H = 620
+BT40_WIN_H = 660
 SSO_WIN_H = 620
 WCF_WIN_H = 580
 PAYROLL_WIN_H = 660
@@ -164,6 +168,8 @@ class MainWindow:
         self._pnd1_running = False
         self.pnd2_pdf_files: list[Path] = []
         self._pnd2_running = False
+        self.bt40_pdf_files: list[Path] = []
+        self._bt40_running = False
         self.sso_pdf_files: list[Path] = []
         self._sso_running = False
         self.wcf_rows_count = 0
@@ -225,6 +231,7 @@ class MainWindow:
         self._pnd3_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PND3_WIN_H))
         self._pnd1_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PND1_WIN_H))
         self._pnd2_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PND2_WIN_H))
+        self._bt40_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, BT40_WIN_H))
         self._sso_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, SSO_WIN_H))
         self._wcf_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, WCF_WIN_H))
         self._payroll_view = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, WIN_W, PAYROLL_WIN_H))
@@ -237,6 +244,7 @@ class MainWindow:
         root.addSubview_(self._pnd3_view)
         root.addSubview_(self._pnd1_view)
         root.addSubview_(self._pnd2_view)
+        root.addSubview_(self._bt40_view)
         root.addSubview_(self._sso_view)
         root.addSubview_(self._wcf_view)
         root.addSubview_(self._payroll_view)
@@ -249,6 +257,7 @@ class MainWindow:
         self._build_pnd3_page(self._pnd3_view)
         self._build_pnd1_page(self._pnd1_view)
         self._build_pnd2_page(self._pnd2_view)
+        self._build_bt40_page(self._bt40_view)
         self._build_sso_page(self._sso_view)
         self._build_wcf_page(self._wcf_view)
         self._build_payroll_page(self._payroll_view)
@@ -757,6 +766,76 @@ class MainWindow:
         self.pnd2_log_view.setString_(UI_TEXT["pnd2_welcome_log"] + "\n")
         del _settings_box, _status_box
 
+    def _build_bt40_page(self, page) -> None:
+        _button(
+            page,
+            f"← {UI_TEXT['back_to_menu']}",
+            16,
+            24,
+            160,
+            36,
+            self._keep(lambda: self._show_page(PAGE_MENU)),
+            bezel=NSBezelStyleRounded,
+        )
+        _static_label(page, UI_TEXT["menu_bt40"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
+
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 168)
+        sy = 8
+        _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
+        self.bt40_folder_field = _edit_field(settings, 120, sy, 248)
+        _button(
+            settings,
+            UI_TEXT["choose_folder"],
+            376,
+            sy - 2,
+            108,
+            28,
+            self._keep(self._choose_bt40_folder),
+            bezel=NSBezelStyleRounded,
+        )
+        sy += 26
+        self.bt40_folder_summary_field = _static_label(
+            settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
+        )
+        sy += 28
+        _static_label(settings, UI_TEXT["bt40_rv_date"], 8, sy, 110, 22)
+        self.bt40_rv_date_field = _edit_field(settings, 120, sy, 120)
+        self.bt40_rv_date_field.setPlaceholderString_(PV_DATE_EXAMPLE)
+        date_delegate = _DateFieldDelegate.alloc().init()
+        self.bt40_rv_date_field.setDelegate_(date_delegate)
+        self._bt40_date_delegate = date_delegate
+        sy += 30
+        _static_label(settings, UI_TEXT["bt40_period"], 8, sy, 110, 22)
+        self.bt40_period_field = self._period_field(settings, 120, sy)
+
+        _button(
+            page,
+            f"▶ {UI_TEXT['start']}",
+            16,
+            256,
+            160,
+            36,
+            self._keep(self._start_bt40),
+            bezel=NSBezelStyleRounded,
+        )
+
+        y = 306
+        _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, BT40_WIN_H - y - 12)
+        self.bt40_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
+        self.bt40_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
+        self.bt40_progress_bar.setIndeterminate_(False)
+        self.bt40_progress_bar.setMinValue_(0)
+        self.bt40_progress_bar.setMaxValue_(100)
+        self.bt40_progress_bar.setDoubleValue_(0)
+        status.addSubview_(self.bt40_progress_bar)
+        self.bt40_progress_field = _static_label(
+            status, UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0), 376, 4, 140, 22
+        )
+        _button(status, UI_TEXT["copy_log"], 376, 28, 120, 28, self._keep(self._copy_bt40_log), bezel=NSBezelStyleRounded)
+        self.bt40_log_view = _log_view(status, 8, 60, WIN_W - 56, BT40_WIN_H - y - 100)
+        self.bt40_log_view.setString_(UI_TEXT["bt40_welcome_log"] + "\n")
+        del _settings_box, _status_box
+
     def _build_sso_page(self, page) -> None:
         _button(
             page,
@@ -1083,6 +1162,9 @@ class MainWindow:
             return
         if item.page_route == PAGE_PND2:
             self._show_page(PAGE_PND2)
+            return
+        if item.page_route == PAGE_BT40:
+            self._show_page(PAGE_BT40)
             return
         if item.page_route == PAGE_SSO:
             self._show_page(PAGE_SSO)
@@ -1814,6 +1896,90 @@ class MainWindow:
         board.clearContents()
         board.setString_forType_(text, NSPasteboardTypeString)
 
+    def _choose_bt40_folder(self) -> None:
+        selected = _pick_folder()
+        if not selected:
+            return
+        self.bt40_folder_field.setStringValue_(selected)
+        self._load_bt40_folder()
+
+    def _load_bt40_folder(self) -> None:
+        folder = Path(str(self.bt40_folder_field.stringValue() or "")).expanduser()
+        self.bt40_pdf_files = Pp30FolderService.list_pdfs(folder)
+        if self.bt40_pdf_files:
+            self.bt40_folder_summary_field.setStringValue_(
+                UI_TEXT["pp30_pdf_total"].format(count=len(self.bt40_pdf_files))
+            )
+        else:
+            self.bt40_folder_summary_field.setStringValue_(UI_TEXT["pp30_pdf_summary_empty"])
+
+    def _bt40_form_config(self) -> Bt40FormConfig:
+        return Bt40FormConfig(
+            pdf_folder=Path(str(self.bt40_folder_field.stringValue() or "")).expanduser(),
+            rv_date=format_express_pv_date(str(self.bt40_rv_date_field.stringValue() or "")),
+            period=MonthYearPeriod.parse(str(self.bt40_period_field.stringValue() or "")),
+            pdf_files=list(self.bt40_pdf_files),
+        )
+
+    def _start_bt40(self) -> None:
+        if self._bt40_running:
+            return
+        self.app_config = self.app_config_service.load()
+        self._load_bt40_folder()
+        errors = self.app_config.validate()
+        errors.extend(self._bt40_form_config().validate())
+        if errors:
+            _alert(UI_TEXT["app_title"], "\n".join(errors))
+            return
+        total = len(self.bt40_pdf_files)
+        self._set_bt40_progress(0, total)
+        self._append_bt40_log(UI_TEXT["pp30_pdf_total"].format(count=total))
+        form_config = self._bt40_form_config()
+        express_data_dir = self.app_config.express_data_dir
+        self._bt40_running = True
+        threading.Thread(target=self._run_bt40, args=(form_config, express_data_dir), daemon=True).start()
+
+    def _run_bt40(self, form_config: Bt40FormConfig, express_data_dir: Path) -> None:
+        try:
+            Bt40MatchRunService.run(
+                form_config,
+                express_data_dir,
+                on_status=lambda message: AppHelper.callAfter(lambda m=message: self._append_bt40_log(m)),
+                on_progress=lambda done, total: AppHelper.callAfter(
+                    lambda d=done, t=total: self._set_bt40_progress(d, t)
+                ),
+            )
+        except ValueError as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        except Exception as exc:
+            AppHelper.callAfter(lambda text=str(exc): _alert(UI_TEXT["app_title"], text))
+        finally:
+            AppHelper.callAfter(self._bt40_finished)
+
+    def _bt40_finished(self) -> None:
+        self._bt40_running = False
+
+    def _set_bt40_progress(self, done: int, total: int) -> None:
+        percent = 0 if total <= 0 else int(round(done * 100 / total))
+        self.bt40_progress_bar.setDoubleValue_(percent)
+        self.bt40_progress_field.setStringValue_(
+            UI_TEXT["pp30_progress"].format(done=done, total=total, percent=percent)
+        )
+
+    def _append_bt40_log(self, message: str) -> None:
+        current = str(self.bt40_log_view.string() or "")
+        current = current + message + "\n"
+        self.bt40_log_view.setString_(current)
+        self.bt40_log_view.scrollRangeToVisible_((len(current), 0))
+
+    def _copy_bt40_log(self) -> None:
+        text = str(self.bt40_log_view.string() or "")
+        if not text.strip():
+            return
+        board = NSPasteboard.generalPasteboard()
+        board.clearContents()
+        board.setString_forType_(text, NSPasteboardTypeString)
+
     def _choose_pnd2_folder(self) -> None:
         selected = _pick_folder()
         if not selected:
@@ -2028,6 +2194,7 @@ class MainWindow:
         self._pnd3_view.setHidden_(page_route != PAGE_PND3)
         self._pnd1_view.setHidden_(page_route != PAGE_PND1)
         self._pnd2_view.setHidden_(page_route != PAGE_PND2)
+        self._bt40_view.setHidden_(page_route != PAGE_BT40)
         self._sso_view.setHidden_(page_route != PAGE_SSO)
         self._wcf_view.setHidden_(page_route != PAGE_WCF)
         self._payroll_view.setHidden_(page_route != PAGE_PAYROLL)
@@ -2041,6 +2208,7 @@ class MainWindow:
             PAGE_PND3: PND3_WIN_H,
             PAGE_PND1: PND1_WIN_H,
             PAGE_PND2: PND2_WIN_H,
+            PAGE_BT40: BT40_WIN_H,
             PAGE_SSO: SSO_WIN_H,
             PAGE_WCF: WCF_WIN_H,
             PAGE_PAYROLL: PAYROLL_WIN_H,
@@ -2067,6 +2235,8 @@ class MainWindow:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd1']} v{__version__}")
         elif page_route == PAGE_PND2:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_pnd2']} v{__version__}")
+        elif page_route == PAGE_BT40:
+            self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_bt40']} v{__version__}")
         elif page_route == PAGE_SSO:
             self.window.setTitle_(f"{UI_TEXT['app_title']} — {UI_TEXT['menu_sso']} v{__version__}")
         elif page_route == PAGE_WCF:

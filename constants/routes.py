@@ -32,6 +32,7 @@ PAGE_PND30 = "pnd30"
 PAGE_PND3 = "pnd3"
 PAGE_PND1 = "pnd1"
 PAGE_PND2 = "pnd2"
+PAGE_BT40 = "bt40"
 PAGE_SSO = "sso"
 PAGE_WCF = "wcf"
 PAGE_PAYROLL = "payroll"
@@ -44,6 +45,8 @@ PND30_DESCRIPTION = "กรมสรรพากร-ภ.ง.ด.53 เดือ�
 PND3_DESCRIPTION = "กรมสรรพากร-ภ.ง.ด.3 เดือน{period}"
 PND1_DESCRIPTION = "กรมสรรพากร-ภ.ง.ด.1 เดือน {period}"
 PND2_TAX_DESCRIPTION = "กรมสรรพากร-ภ.ง.ด.2 เดือน {period}"
+BT40_RV_DESCRIPTION = "รับดอกเบี้ย-เงินกู้ยืมกรรมการ"
+BT40_PV_DESCRIPTION = "กรมสรรพากร-ภ.ธ.40 เดือน {period}"
 SSO_DESCRIPTION = "สำนักงานประกันสังคม เดือน {period}"
 WCF_DESCRIPTION = "สำนักงานประกันสังคม-กองทุนเงินทดแทน"
 PAYROLL_DESCRIPTION = "จ่ายเงินเดือนและประกันสังคม เดือน {period}"
@@ -120,6 +123,8 @@ ACCOUNT_PAYROLL_WELFARE025 = "5310-20"
 ACCOUNT_PAYROLL_SSO10 = "2131-04"
 ACCOUNT_PAYROLL_WELFARE = "2131-13"
 ACCOUNT_PP30_DECIMAL = "4200-03"
+ACCOUNT_BT40_LOAN = "1210-01"
+ACCOUNT_BT40_TAX = "5360-08"
 ACCOUNT_INCOME_RECEIVABLE = "1113-01"
 ACCOUNT_INCOME_WHT = "1151-02"
 ACCOUNT_INCOME_GOODS = "1153-01"
@@ -269,6 +274,18 @@ UI_TEXT = {
     "pnd2_welcome_log": "เลือกโฟลเดอร์ PDF แล้วกดเริ่ม",
     "pnd2_skip_zero_log": "ข้าม — {name} ไม่มียอดภาษี",
     "pnd2_insert_log": "สรุป — {shop}: {detail}",
+    "menu_bt40": "ภ.ธ.40",
+    "menu_bt40_hint": "ภาษีธุรกิจเฉพาะ — อ่าน PDF แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
+    "bt40_rv_date": "วันที่ RV",
+    "bt40_rv_date_invalid": "กรุณากรอกวันที่ RV ให้ครบ เช่น 25/07/69",
+    "bt40_period": "เดือน/ปี รายละเอียด",
+    "bt40_period_invalid": "กรุณากรอกเดือน/ปี รายละเอียด ให้ครบ แบบ MM/YY",
+    "bt40_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",
+    "bt40_pdf_none": "ไม่พบไฟล์ PDF ในโฟลเดอร์นี้",
+    "bt40_welcome_log": "เลือกโฟลเดอร์ PDF กรอกวันที่กับเดือน/ปี แล้วกดเริ่ม",
+    "bt40_skip_zero_log": "ข้าม — {name} ไม่มียอด",
+    "bt40_skip_date_log": "ข้าม — {name} ไม่มีวันที่จาก PDF",
+    "bt40_insert_log": "สรุป — {shop}: {detail}",
     "pnd3_period": "เดือน/ปี รายละเอียด",
     "pnd3_period_invalid": "กรุณากรอกเดือน/ปี รายละเอียด ให้ครบ แบบ MM/YY",
     "pnd3_pdf_invalid": "กรุณาเลือกโฟลเดอร์ PDF",

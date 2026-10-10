@@ -4,6 +4,7 @@ from constants.routes import (
     PAGE_INCOME,
     PAGE_KA_TAM,
     PAGE_PND1,
+    PAGE_BT40,
     PAGE_PND2,
     PAGE_PND3,
     PAGE_PND30,
@@ -21,6 +22,7 @@ TOPIC_PND30_ID = "pnd30"
 TOPIC_PND3_ID = "pnd3"
 TOPIC_PND1_ID = "pnd1"
 TOPIC_PND2_ID = "pnd2"
+TOPIC_BT40_ID = "bt40"
 TOPIC_SSO_ID = "sso"
 TOPIC_WCF_ID = "wcf"
 TOPIC_PAYROLL_ID = "payroll"
@@ -67,6 +69,13 @@ TOPIC_MENU_ITEMS = (
         title=UI_TEXT["menu_pnd3"],
         hint=UI_TEXT["menu_pnd3_hint"],
         page_route=PAGE_PND3,
+        enabled=True,
+    ),
+    TopicMenuItem(
+        id=TOPIC_BT40_ID,
+        title=UI_TEXT["menu_bt40"],
+        hint=UI_TEXT["menu_bt40_hint"],
+        page_route=PAGE_BT40,
         enabled=True,
     ),
     TopicMenuItem(

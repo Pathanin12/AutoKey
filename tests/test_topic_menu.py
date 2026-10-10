@@ -1,7 +1,8 @@
 import unittest
 
-from constants.routes import PAGE_CONFIG, PAGE_INCOME, PAGE_KA_TAM, PAGE_PND1, PAGE_PND2, PAGE_PND3, PAGE_PND30, PAGE_PP30, PAGE_SSO, PAGE_WCF, PAGE_PAYROLL, UI_TEXT
+from constants.routes import PAGE_BT40, PAGE_CONFIG, PAGE_INCOME, PAGE_KA_TAM, PAGE_PND1, PAGE_PND2, PAGE_PND3, PAGE_PND30, PAGE_PP30, PAGE_SSO, PAGE_WCF, PAGE_PAYROLL, UI_TEXT
 from constants.topic_menu import (
+    TOPIC_BT40_ID,
     TOPIC_INCOME_ID,
     TOPIC_KA_TAM_ID,
     TOPIC_MENU_ITEMS,
@@ -17,7 +18,7 @@ from constants.topic_menu import (
 
 
 class TopicMenuTests(unittest.TestCase):
-    def test_first_menu_has_ten_topics(self) -> None:
+    def test_first_menu_has_eleven_topics(self) -> None:
         ids = [item.id for item in TOPIC_MENU_ITEMS]
         self.assertEqual(
             ids,
@@ -28,6 +29,7 @@ class TopicMenuTests(unittest.TestCase):
                 TOPIC_PND1_ID,
                 TOPIC_PND2_ID,
                 TOPIC_PND3_ID,
+                TOPIC_BT40_ID,
                 TOPIC_INCOME_ID,
                 TOPIC_SSO_ID,
                 TOPIC_WCF_ID,
@@ -46,14 +48,16 @@ class TopicMenuTests(unittest.TestCase):
         self.assertEqual(TOPIC_MENU_ITEMS[4].page_route, PAGE_PND2)
         self.assertEqual(TOPIC_MENU_ITEMS[5].title, UI_TEXT["menu_pnd3"])
         self.assertEqual(TOPIC_MENU_ITEMS[5].page_route, PAGE_PND3)
-        self.assertEqual(TOPIC_MENU_ITEMS[6].title, UI_TEXT["menu_income"])
-        self.assertEqual(TOPIC_MENU_ITEMS[6].page_route, PAGE_INCOME)
-        self.assertEqual(TOPIC_MENU_ITEMS[7].title, UI_TEXT["menu_sso"])
-        self.assertEqual(TOPIC_MENU_ITEMS[7].page_route, PAGE_SSO)
-        self.assertEqual(TOPIC_MENU_ITEMS[8].title, UI_TEXT["menu_wcf"])
-        self.assertEqual(TOPIC_MENU_ITEMS[8].page_route, PAGE_WCF)
-        self.assertEqual(TOPIC_MENU_ITEMS[9].title, UI_TEXT["menu_payroll"])
-        self.assertEqual(TOPIC_MENU_ITEMS[9].page_route, PAGE_PAYROLL)
+        self.assertEqual(TOPIC_MENU_ITEMS[6].title, UI_TEXT["menu_bt40"])
+        self.assertEqual(TOPIC_MENU_ITEMS[6].page_route, PAGE_BT40)
+        self.assertEqual(TOPIC_MENU_ITEMS[7].title, UI_TEXT["menu_income"])
+        self.assertEqual(TOPIC_MENU_ITEMS[7].page_route, PAGE_INCOME)
+        self.assertEqual(TOPIC_MENU_ITEMS[8].title, UI_TEXT["menu_sso"])
+        self.assertEqual(TOPIC_MENU_ITEMS[8].page_route, PAGE_SSO)
+        self.assertEqual(TOPIC_MENU_ITEMS[9].title, UI_TEXT["menu_wcf"])
+        self.assertEqual(TOPIC_MENU_ITEMS[9].page_route, PAGE_WCF)
+        self.assertEqual(TOPIC_MENU_ITEMS[10].title, UI_TEXT["menu_payroll"])
+        self.assertEqual(TOPIC_MENU_ITEMS[10].page_route, PAGE_PAYROLL)
 
     def test_config_route_is_separate_from_topics(self) -> None:
         self.assertEqual(UI_TEXT["menu_config"], "Config")
