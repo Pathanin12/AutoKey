@@ -50,6 +50,7 @@ class KaTamMatchRunService:
                 UI_TEXT["ka_tam_match_log"].format(
                     excel_name=row.legal_name,
                     shop_name=tidy_name(company.shop_name),
+                    folder=company.folder.name,
                 )
             )
             jobs.append(KaTamMatchedJob(row=row, company=company))

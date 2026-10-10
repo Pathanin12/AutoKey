@@ -60,6 +60,7 @@ class Pnd2MatchRunService:
                 UI_TEXT["pp30_match_log"].format(
                     pdf_name=record.company_name,
                     shop_name=tidy_name(company.shop_name),
+                    folder=company.folder.name,
                 )
             )
             jobs.append(

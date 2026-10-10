@@ -66,6 +66,7 @@ class WcfMatchRunService:
                 UI_TEXT["wcf_match_log"].format(
                     excel_name=row.shop_name,
                     shop_name=tidy_name(company.shop_name),
+                    folder=company.folder.name,
                 )
             )
             job = WcfMatchedJob(row=row, company=company)

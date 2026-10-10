@@ -74,6 +74,11 @@ class ExpressJournalDateTests(unittest.TestCase):
                 dest, {"VOUDAT": "20070202", "VOUCHER": "JV50020099", "DESCRP": "ปิดภาษี"}
             )
             self.assertTrue(ExpressJournalDateService.has_express_date(folder, "02/02/50", "ปิดภาษี"))
+            self.assertFalse(
+                ExpressJournalDateService.has_express_date(
+                    folder, "02/02/50", "รับดอกเบี้ย-เงินกู้ยืมกรรมการ", "RV"
+                )
+            )
             self.assertEqual(ExpressJournalDateService.first_existing_voucher_date(folder, [jv]), "02/02/50")
             other = JournalVoucher(
                 jnltyp="01",

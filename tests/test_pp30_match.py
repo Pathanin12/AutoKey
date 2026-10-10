@@ -92,6 +92,7 @@ class Pp30MatchTests(unittest.TestCase):
     def test_log_strings_exist(self) -> None:
         self.assertIn("{pdf_name}", UI_TEXT["pp30_match_log"])
         self.assertIn("{shop_name}", UI_TEXT["pp30_match_log"])
+        self.assertIn("{folder}", UI_TEXT["pp30_match_log"])
         self.assertEqual(ISINFO_SHOP_NAME_FIELD, "THINAM")
 
 

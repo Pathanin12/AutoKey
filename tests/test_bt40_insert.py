@@ -1,5 +1,7 @@
+import shutil
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from constants.routes import (
     ACCOUNT_BT40_LOAN,
@@ -178,13 +180,20 @@ class Bt40InsertLinesTests(unittest.TestCase):
             rv_date="31/07/69",
             period=MonthYearPeriod.parse("07/69"),
         )
-        vouchers = Bt40InsertService.vouchers(_VALUES, form)
-        folder = Path("/Users/pathanin/Downloads/thassana")
-        if not (folder / "GLJNL.DBF").exists():
+        source = Path("/Users/pathanin/Downloads/thassana")
+        if not (source / "GLJNL.DBF").exists():
             self.skipTest("sample shop folder")
-        ready, skipped = Bt40InsertService.pending(folder, vouchers)
-        self.assertEqual(skipped, [])
-        self.assertEqual([item.prefix for item in ready], ["RV", "PV"])
+        with TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "thassana"
+            shutil.copytree(source, folder)
+            vouchers = Bt40InsertService.vouchers(_VALUES, form)
+            ready, skipped = Bt40InsertService.pending(folder, vouchers)
+            self.assertEqual(skipped, [])
+            self.assertEqual([item.prefix for item in ready], ["RV", "PV"])
+            names, skipped_insert = Bt40InsertService.insert(folder, _VALUES, form)
+            self.assertEqual(skipped_insert, [])
+            self.assertIn("RV", names)
+            self.assertIn("PV", names)
 
 
 if __name__ == "__main__":

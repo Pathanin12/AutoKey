@@ -31,14 +31,21 @@ class ExpressJournalDateService:
         return dates
 
     @staticmethod
-    def has_express_date(folder: Path, voudat_express: str, description: str = "") -> bool:
+    def has_express_date(
+        folder: Path,
+        voudat_express: str,
+        description: str = "",
+        prefix: str = "",
+    ) -> bool:
         if not is_complete_express_date(voudat_express):
             return False
         if not tidy_name(description):
             return False
+        wanted_prefix = (prefix or "").strip().upper()
         return any(
             same_calendar_date(item.voudat, voudat_express)
             and _same_description(item.descrp, description)
+            and (not wanted_prefix or item.voucher.upper().startswith(wanted_prefix))
             for item in ExpressJournalDateService.list_dates(folder)
         )
 
@@ -52,7 +59,9 @@ class ExpressJournalDateService:
             if not voucher.lines:
                 continue
             date = format_express_pv_date(voucher.voudat_express)
-            if ExpressJournalDateService.has_express_date(folder, date, voucher.description):
+            if ExpressJournalDateService.has_express_date(
+                folder, date, voucher.description, voucher.prefix
+            ):
                 skipped.append((date, tidy_name(voucher.description)))
                 continue
             ready.append(voucher)
@@ -69,7 +78,9 @@ class ExpressJournalDateService:
             if not date or key in seen:
                 continue
             seen.append(key)
-            if ExpressJournalDateService.has_express_date(folder, date, voucher.description):
+            if ExpressJournalDateService.has_express_date(
+                folder, date, voucher.description, voucher.prefix
+            ):
                 return date
         return None
 

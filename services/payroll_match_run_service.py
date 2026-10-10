@@ -53,6 +53,7 @@ class PayrollMatchRunService:
                 UI_TEXT["payroll_match_log"].format(
                     excel_name=row.legal_name,
                     shop_name=tidy_name(company.shop_name),
+                    folder=company.folder.name,
                 )
             )
             jobs.append(PayrollMatchedJob(row=row, company=company))
