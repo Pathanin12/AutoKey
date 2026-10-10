@@ -115,7 +115,7 @@ class Bt40InsertLinesTests(unittest.TestCase):
             ],
         )
         self.assertEqual(ACCOUNT_BT40_TAX, "5360-08")
-        self.assertEqual(ACCOUNT_BT40_LOAN, "1210-01")
+        self.assertEqual(ACCOUNT_BT40_LOAN, "1153-01")
 
     def test_pv_skips_penalty_and_zero_decimal(self) -> None:
         values = Bt40FormValues(line7_receipt=10000.00, line17=330.00, pv_date="11/09/69")
