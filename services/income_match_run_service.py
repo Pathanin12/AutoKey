@@ -49,7 +49,11 @@ class IncomeMatchRunService:
         if not form_config.pdf_files:
             raise ValueError(UI_TEXT["income_pdf_none"])
         is_locked = form_config.lock.is_locked
-        lookup = Pp30MatchService.lookup(companies)
+        shop_year: int | None = None
+        try:
+            shop_year = int(express_month_year_label(form_config.start_date)[1])
+        except ValueError:
+            shop_year = None
         total = len(form_config.pdf_files)
         jobs: list[IncomeMatchedJob] = []
         broken_files: list[tuple[str, list[int]]] = []
@@ -103,7 +107,7 @@ class IncomeMatchRunService:
                         )
                     )
                     continue
-                company = Pp30MatchService.match_lookup(values.company_name, lookup)
+                company = Pp30MatchService.match_name(values.company_name, companies, shop_year)
                 if company is None:
                     if values.company_name not in unmatched:
                         unmatched.add(values.company_name)

@@ -33,7 +33,6 @@ class KaTamMatchRunService:
         on_status(UI_TEXT["pp30_shops_total"].format(count=len(companies)))
         if not companies:
             raise ValueError(UI_TEXT["pp30_shops_none"])
-        lookup = Pp30MatchService.lookup(companies)
         total = len(rows)
         jobs: list[KaTamMatchedJob] = []
         inserted = 0
@@ -41,7 +40,9 @@ class KaTamMatchRunService:
             if should_stop and should_stop():
                 break
             on_progress(index - 1, total)
-            company = Pp30MatchService.match_lookup(row.legal_name, lookup)
+            company = Pp30MatchService.match_name(
+                row.legal_name, companies, form_config.period.year
+            )
             if company is None:
                 on_status(UI_TEXT["ka_tam_unmatched"].format(name=row.legal_name))
                 on_progress(index, total)

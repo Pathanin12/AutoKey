@@ -32,7 +32,6 @@ class PayrollMatchRunService:
         on_status(UI_TEXT["pp30_shops_total"].format(count=len(companies)))
         if not companies:
             raise ValueError(UI_TEXT["pp30_shops_none"])
-        lookup = Pp30MatchService.lookup(companies)
         total = len(rows)
         jobs: list[PayrollMatchedJob] = []
         inserted = 0
@@ -40,11 +39,9 @@ class PayrollMatchRunService:
             if should_stop and should_stop():
                 break
             on_progress(index - 1, total)
-            company = None
-            for name in row.match_names:
-                company = Pp30MatchService.match_lookup(name, lookup)
-                if company is not None:
-                    break
+            company = Pp30MatchService.match_names(
+                row.match_names, companies, form_config.period.year
+            )
             if company is None:
                 on_status(UI_TEXT["payroll_unmatched"].format(name=row.legal_name))
                 on_progress(index, total)

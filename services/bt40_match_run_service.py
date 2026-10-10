@@ -27,7 +27,6 @@ class Bt40MatchRunService:
         on_status(UI_TEXT["pp30_shops_total"].format(count=len(companies)))
         if not companies:
             raise ValueError(UI_TEXT["pp30_shops_none"])
-        lookup = Pp30MatchService.lookup(companies)
         total = len(form_config.pdf_files)
         jobs: list[Bt40MatchedJob] = []
         inserted = 0
@@ -45,7 +44,9 @@ class Bt40MatchRunService:
                 on_status(UI_TEXT["pp30_pdf_name_missing"].format(path=pdf_path.name))
                 on_progress(index, total)
                 continue
-            company = Pp30MatchService.match_lookup(record.company_name, lookup)
+            company = Pp30MatchService.match_name(
+                record.company_name, companies, form_config.period.year
+            )
             if company is None:
                 on_status(
                     UI_TEXT["pp30_unmatched"].format(

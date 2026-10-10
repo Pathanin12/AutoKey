@@ -51,6 +51,23 @@ class Pp30MatchTests(unittest.TestCase):
         self.assertIsNotNone(found)
         self.assertEqual(found.folder.name, "pt")
 
+    def test_duplicate_shop_skips_mismatched_year_label(self) -> None:
+        name = "ห้างหุ้นส่วนจำกัด ทัศนาออมทรัพย์กิจรุ่งเรือง"
+        old = ExpressCompany(folder=Path("/tmp/thassa68"), shop_name=name)
+        current = ExpressCompany(folder=Path("/tmp/thassana"), shop_name=name)
+        found = Pp30MatchService.match_name(name, [old, current], 69)
+        self.assertIsNotNone(found)
+        self.assertEqual(found.folder.name, "thassana")
+
+    def test_unique_shop_keeps_year_folder(self) -> None:
+        shop = ExpressCompany(
+            folder=Path("/tmp/thassa68"),
+            shop_name="ห้างหุ้นส่วนจำกัด ทัศนาออมทรัพย์กิจรุ่งเรือง",
+        )
+        found = Pp30MatchService.match_name(shop.shop_name, [shop], 69)
+        self.assertIsNotNone(found)
+        self.assertEqual(found.folder.name, "thassa68")
+
     def test_match_name_finds_shop_ignoring_spaces(self) -> None:
         companies = [
             ExpressCompany(folder=Path("/tmp/kachapor"), shop_name="ห้างหุ้นส่วนจำกัด\xa0กชพรรุ่งเรือง"),
