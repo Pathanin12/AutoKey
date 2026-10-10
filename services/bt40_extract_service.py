@@ -10,6 +10,7 @@ from services.pp30_amount_service import line_money, money_amounts
 _MONTH_NAMES = sorted(THAI_MONTHS, key=len, reverse=True)
 _LINE7_RE = re.compile(r"(?<!\d)7\.")
 _LINE8_RE = re.compile(r"(?<!\d)8\.")
+_LINE12_RE = re.compile(r"(?<!\d)12\.\s*รวมยอดภาษีธุรกิจเฉพาะ")
 _LINE13_RE = re.compile(r"(?<!\d)13\.\s*เงินเพิ่ม")
 _LINE14_RE = re.compile(r"(?<!\d)14\.\s*เบี้ยปรับ")
 _LINE17_RE = re.compile(r"(?<!\d)17\.\s*รวมภาษีทั้งสิ้น")
@@ -20,8 +21,9 @@ _PRINT_DATE_RE = re.compile(
 )
 
 
-def extract_bt40_amounts(text: str) -> tuple[float, float, float, float] | None:
+def extract_bt40_amounts(text: str) -> tuple[float, float, float, float, float] | None:
     line7 = _line7_receipt(text or "")
+    line12 = _labeled_amount(text or "", _LINE12_RE)
     line13 = _labeled_amount(text or "", _LINE13_RE)
     line14 = _labeled_amount(text or "", _LINE14_RE)
     line17 = _labeled_amount(text or "", _LINE17_RE)
@@ -29,6 +31,7 @@ def extract_bt40_amounts(text: str) -> tuple[float, float, float, float] | None:
         return None
     return (
         0.0 if line7 is None else line7,
+        0.0 if line12 is None else line12,
         0.0 if line13 is None else line13,
         0.0 if line14 is None else line14,
         0.0 if line17 is None else line17,

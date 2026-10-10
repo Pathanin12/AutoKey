@@ -42,6 +42,7 @@ _SAMPLE_NO_PENALTY = """
 7. การประกอบกิจการโดย
    ปกติเยี่ยงธนาคารพาณิชย์                          10,000.00           3.0                             300.00
 8. การขายอสังหาริมทรัพย์
+12. รวมยอดภาษีธุรกิจเฉพาะ                                            300.00
 13. เงินเพิ่ม (ถ้ามี)
 14. เบี้ยปรับ (ถ้ามี)
 17. รวมภาษีทั้งสิ้น  (15. + 16.)                                     330.00
@@ -55,6 +56,7 @@ SAMPLE_PDF = Path(
 
 _VALUES = Bt40FormValues(
     line7_receipt=43200.00,
+    line12=1296.00,
     line13=19.44,
     line14=64.80,
     line17=1518.26,
@@ -64,7 +66,7 @@ _VALUES = Bt40FormValues(
 
 class Bt40ExtractTests(unittest.TestCase):
     def test_reads_line_7_col_1_and_13_14_17(self) -> None:
-        self.assertEqual(extract_bt40_amounts(_SAMPLE), (43200.00, 19.44, 64.80, 1518.26))
+        self.assertEqual(extract_bt40_amounts(_SAMPLE), (43200.00, 1296.00, 19.44, 64.80, 1518.26))
 
     def test_reads_print_date(self) -> None:
         self.assertEqual(extract_bt40_pv_date(_SAMPLE), "11/09/69")
@@ -82,6 +84,7 @@ class Bt40ExtractTests(unittest.TestCase):
         self.assertIsNotNone(values)
         assert values is not None
         self.assertEqual(values.line7_receipt, 43200.00)
+        self.assertEqual(values.line12, 1296.00)
         self.assertEqual(values.line13, 19.44)
         self.assertEqual(values.line14, 64.80)
         self.assertEqual(values.line17, 1518.26)
@@ -97,6 +100,7 @@ class Bt40ExtractTests(unittest.TestCase):
         self.assertIsNotNone(record.form_values)
         assert record.form_values is not None
         self.assertEqual(record.form_values.line7_receipt, 43200.00)
+        self.assertEqual(record.form_values.line12, 1296.00)
         self.assertEqual(record.form_values.line13, 19.44)
         self.assertEqual(record.form_values.line14, 64.80)
         self.assertEqual(record.form_values.line17, 1518.26)
@@ -125,8 +129,8 @@ class Bt40InsertLinesTests(unittest.TestCase):
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in voucher.lines],
             [
-                (ACCOUNT_BT40_TAX, 1434.02, False),
-                (ACCOUNT_PP30_PENALTY, 84.24, False),
+                (ACCOUNT_BT40_TAX, 1425.60, False),
+                (ACCOUNT_PP30_PENALTY, 92.66, False),
                 (ACCOUNT_CASH, 1518.00, True),
                 (ACCOUNT_PP30_DECIMAL, 0.26, True),
             ],
@@ -135,7 +139,7 @@ class Bt40InsertLinesTests(unittest.TestCase):
         self.assertEqual(ACCOUNT_BT40_LOAN, "1153-01")
 
     def test_pv_skips_penalty_and_zero_decimal(self) -> None:
-        values = Bt40FormValues(line7_receipt=10000.00, line17=330.00, pv_date="11/09/69")
+        values = Bt40FormValues(line7_receipt=10000.00, line12=300.00, line17=330.00, pv_date="11/09/69")
         voucher = pv_bt40(values, "11/09/69", "กรมสรรพากร-ภ.ธ.40 เดือน 7/69")
         self.assertEqual(
             [(line.account, line.amount, line.is_credit) for line in voucher.lines],
@@ -144,7 +148,7 @@ class Bt40InsertLinesTests(unittest.TestCase):
                 (ACCOUNT_CASH, 330.00, True),
             ],
         )
-        self.assertEqual(extract_bt40_amounts(_SAMPLE_NO_PENALTY), (10000.00, 0.0, 0.0, 330.00))
+        self.assertEqual(extract_bt40_amounts(_SAMPLE_NO_PENALTY), (10000.00, 300.00, 0.0, 0.0, 330.00))
 
     def test_insert_builds_rv_then_pv(self) -> None:
         form = Bt40FormConfig(

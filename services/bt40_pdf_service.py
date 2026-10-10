@@ -73,9 +73,10 @@ class Bt40PdfService:
         amounts = extract_bt40_amounts(text)
         if amounts is None:
             return None
-        line7, line13, line14, line17 = amounts
+        line7, line12, line13, line14, line17 = amounts
         return Bt40FormValues(
             line7_receipt=line7,
+            line12=line12,
             line13=line13,
             line14=line14,
             line17=line17,

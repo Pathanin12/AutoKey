@@ -9,6 +9,7 @@ from services.pp30_amount_service import has_amount
 @dataclass(frozen=True)
 class Bt40FormValues:
     line7_receipt: float
+    line12: float = 0.0
     line13: float = 0.0
     line14: float = 0.0
     line17: float = 0.0
@@ -17,11 +18,11 @@ class Bt40FormValues:
 
     @property
     def penalty_amount(self) -> float:
-        return round(self.line13 + self.line14, 2)
+        return round((self.line13 + self.line14) * 1.10, 2)
 
     @property
     def tax_amount(self) -> float:
-        return round(self.line17 - self.penalty_amount, 2)
+        return round(self.line12 * 1.10, 2)
 
     @property
     def line17_integer(self) -> float:
