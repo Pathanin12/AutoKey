@@ -120,16 +120,16 @@ class SsoMatchRunService:
             dup_n = SsoMatchRunService.dup_star(counts[key], stars[key])
             try:
                 voucher = SsoInsertService.voucher(values, form_config, dup_n=dup_n)
-                existing_date = ExpressJournalDateService.first_existing_voucher_date(
-                    job.company.folder, [voucher]
-                )
-                if existing_date:
+                _ready, skipped = ExpressJournalDateService.pending(job.company.folder, [voucher])
+                for existing_date, detail in skipped:
                     on_status(
                         UI_TEXT["pp30_skip_date_exists_log"].format(
                             name=job.pdf_name,
                             date=existing_date,
+                            detail=detail,
                         )
                     )
+                if not _ready:
                     continue
                 name = SsoInsertService.insert(
                     job.company.folder, values, form_config, dup_n=dup_n

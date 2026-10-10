@@ -80,16 +80,16 @@ class Pnd3MatchRunService:
                 continue
             try:
                 voucher = Pnd3InsertService.voucher(record.form_values, form_config)
-                existing_date = ExpressJournalDateService.first_existing_voucher_date(
-                    company.folder, [voucher]
-                )
-                if existing_date:
+                _ready, skipped = ExpressJournalDateService.pending(company.folder, [voucher])
+                for existing_date, detail in skipped:
                     on_status(
                         UI_TEXT["pp30_skip_date_exists_log"].format(
                             name=record.company_name,
                             date=existing_date,
+                            detail=detail,
                         )
                     )
+                if not _ready:
                     on_progress(index, total)
                     continue
                 name = Pnd3InsertService.insert(company.folder, record.form_values, form_config)

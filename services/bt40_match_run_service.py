@@ -8,7 +8,6 @@ from models.bt40_form_config import Bt40FormConfig
 from models.bt40_matched_job import Bt40MatchedJob
 from services.bt40_insert_service import Bt40InsertService
 from services.bt40_pdf_service import Bt40PdfService
-from services.express_journal_date_service import ExpressJournalDateService
 from services.express_shop_index_service import ExpressShopIndexService
 from services.name_match_service import tidy_name
 from services.pp30_match_service import Pp30MatchService
@@ -105,19 +104,17 @@ class Bt40MatchRunService:
                     on_status(UI_TEXT["bt40_skip_zero_log"].format(name=record.company_name))
                     on_progress(index, total)
                     continue
-                existing_date = ExpressJournalDateService.first_existing_voucher_date(
-                    company.folder, vouchers
+                name, skipped = Bt40InsertService.insert(
+                    company.folder, record.form_values, form_config
                 )
-                if existing_date:
+                for existing_date, detail in skipped:
                     on_status(
                         UI_TEXT["pp30_skip_date_exists_log"].format(
                             name=record.company_name,
                             date=existing_date,
+                            detail=detail,
                         )
                     )
-                    on_progress(index, total)
-                    continue
-                name = Bt40InsertService.insert(company.folder, record.form_values, form_config)
                 if name:
                     inserted += 1
                     on_status(

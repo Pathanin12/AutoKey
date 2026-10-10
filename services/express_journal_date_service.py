@@ -34,11 +34,29 @@ class ExpressJournalDateService:
     def has_express_date(folder: Path, voudat_express: str, description: str = "") -> bool:
         if not is_complete_express_date(voudat_express):
             return False
+        if not tidy_name(description):
+            return False
         return any(
             same_calendar_date(item.voudat, voudat_express)
             and _same_description(item.descrp, description)
             for item in ExpressJournalDateService.list_dates(folder)
         )
+
+    @staticmethod
+    def pending(
+        folder: Path, vouchers: list[JournalVoucher]
+    ) -> tuple[list[JournalVoucher], list[tuple[str, str]]]:
+        ready: list[JournalVoucher] = []
+        skipped: list[tuple[str, str]] = []
+        for voucher in vouchers:
+            if not voucher.lines:
+                continue
+            date = format_express_pv_date(voucher.voudat_express)
+            if ExpressJournalDateService.has_express_date(folder, date, voucher.description):
+                skipped.append((date, tidy_name(voucher.description)))
+                continue
+            ready.append(voucher)
+        return ready, skipped
 
     @staticmethod
     def first_existing_voucher_date(folder: Path, vouchers: list[JournalVoucher]) -> str | None:
@@ -65,7 +83,11 @@ def _is_jv_or_pv(voucher: str) -> bool:
 
 
 def _same_description(stored: str, wanted: str) -> bool:
-    return tidy_name(stored) == tidy_name(wanted)
+    left = tidy_name(stored)
+    right = tidy_name(wanted)
+    if not left or not right:
+        return False
+    return left == right
 
 
 def _gljnl_path(folder: Path) -> Path | None:

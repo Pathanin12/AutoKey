@@ -7,6 +7,7 @@ from models.bt40_form_config import Bt40FormConfig
 from models.bt40_form_values import Bt40FormValues
 from models.journal_voucher import JournalVoucher
 from services.bt40_insert_lines_service import pv_bt40, rv_bt40
+from services.express_journal_date_service import ExpressJournalDateService
 from services.express_journal_service import ExpressJournalService
 
 
@@ -23,8 +24,15 @@ class Bt40InsertService:
         return [voucher for voucher in vouchers if voucher.lines]
 
     @staticmethod
-    def insert(folder: Path, values: Bt40FormValues, form: Bt40FormConfig) -> str:
-        names: list[str] = []
-        for voucher in Bt40InsertService.vouchers(values, form):
-            names.append(ExpressJournalService.insert(folder, voucher))
-        return " ".join(names)
+    def pending(
+        folder: Path, vouchers: list[JournalVoucher]
+    ) -> tuple[list[JournalVoucher], list[tuple[str, str]]]:
+        return ExpressJournalDateService.pending(folder, vouchers)
+
+    @staticmethod
+    def insert(
+        folder: Path, values: Bt40FormValues, form: Bt40FormConfig
+    ) -> tuple[str, list[tuple[str, str]]]:
+        ready, skipped = Bt40InsertService.pending(folder, Bt40InsertService.vouchers(values, form))
+        names = [ExpressJournalService.insert(folder, voucher) for voucher in ready]
+        return " ".join(names), skipped

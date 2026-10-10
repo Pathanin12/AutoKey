@@ -103,20 +103,17 @@ class Pp30MatchRunService:
                 continue
             try:
                 vouchers = Pp30InsertService.vouchers(kind, record.form_values, form_config)
-                existing_date = ExpressJournalDateService.first_existing_voucher_date(
-                    company.folder, vouchers
-                )
-                if existing_date:
+                ready, skipped = ExpressJournalDateService.pending(company.folder, vouchers)
+                for existing_date, detail in skipped:
                     on_status(
                         UI_TEXT["pp30_skip_date_exists_log"].format(
                             name=record.company_name,
                             date=existing_date,
+                            detail=detail,
                         )
                     )
-                    on_progress(index, total)
-                    continue
                 names: list[str] = []
-                for voucher in vouchers:
+                for voucher in ready:
                     if not voucher.lines:
                         continue
                     names.append(ExpressJournalService.insert(company.folder, voucher))
@@ -129,7 +126,7 @@ class Pp30MatchRunService:
                             detail=" ".join(names),
                         )
                     )
-                else:
+                elif not skipped:
                     on_status(UI_TEXT["pp30_skip_mode_log"].format(kind=kind.label))
             except Exception as exc:
                 on_status(f"{record.company_name}: {exc}")

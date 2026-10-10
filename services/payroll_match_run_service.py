@@ -62,16 +62,16 @@ class PayrollMatchRunService:
                 continue
             try:
                 voucher = PayrollInsertService.voucher(row, form_config)
-                existing_date = ExpressJournalDateService.first_existing_voucher_date(
-                    company.folder, [voucher]
-                )
-                if existing_date:
+                _ready, skipped = ExpressJournalDateService.pending(company.folder, [voucher])
+                for existing_date, detail in skipped:
                     on_status(
                         UI_TEXT["pp30_skip_date_exists_log"].format(
                             name=row.legal_name,
                             date=existing_date,
+                            detail=detail,
                         )
                     )
+                if not _ready:
                     on_progress(index, total)
                     continue
                 name = PayrollInsertService.insert(company.folder, row, form_config)

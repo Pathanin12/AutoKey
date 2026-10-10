@@ -61,6 +61,7 @@ class ExpressJournalDateTests(unittest.TestCase):
                 dest, {"VOUDAT": "20070202", "VOUCHER": "PV50020099", "DESCRP": "ค่าทำ"}
             )
             self.assertFalse(ExpressJournalDateService.has_express_date(folder, "02/02/50", "ปิดภาษี"))
+            self.assertFalse(ExpressJournalDateService.has_express_date(folder, "02/02/50", ""))
             jv = JournalVoucher(
                 jnltyp="00",
                 prefix="JV",
@@ -74,6 +75,16 @@ class ExpressJournalDateTests(unittest.TestCase):
             )
             self.assertTrue(ExpressJournalDateService.has_express_date(folder, "02/02/50", "ปิดภาษี"))
             self.assertEqual(ExpressJournalDateService.first_existing_voucher_date(folder, [jv]), "02/02/50")
+            other = JournalVoucher(
+                jnltyp="01",
+                prefix="PV",
+                voudat_express="02/02/50",
+                description="ค่าทำบัญชี",
+                lines=[JournalLine(account="1111-00", amount=1.0, is_credit=True)],
+            )
+            ready, skipped = ExpressJournalDateService.pending(folder, [jv, other])
+            self.assertEqual([item.description for item in ready], ["ค่าทำบัญชี"])
+            self.assertEqual(skipped, [("02/02/50", "ปิดภาษี")])
 
 
 if __name__ == "__main__":

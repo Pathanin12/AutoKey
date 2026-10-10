@@ -163,6 +163,28 @@ class Bt40InsertLinesTests(unittest.TestCase):
             UI_TEXT["bt40_skip_period_log"].format(name="ห้าง", pdf="8/69", ui="7/69"),
             "ข้าม — ห้าง เดือน 8/69 ไม่ตรง 7/69",
         )
+        self.assertEqual(
+            UI_TEXT["pp30_skip_date_exists_log"].format(
+                name="ห้าง",
+                date="31/07/69",
+                detail="รับดอกเบี้ย-เงินกู้ยืมกรรมการ",
+            ),
+            "ข้าม — ห้าง มีวันที่ 31/07/69 รายละเอียด รับดอกเบี้ย-เงินกู้ยืมกรรมการ อยู่แล้ว",
+        )
+
+    def test_pending_keeps_other_voucher_when_date_differs(self) -> None:
+        form = Bt40FormConfig(
+            pdf_folder=Path("/no-folder"),
+            rv_date="31/07/69",
+            period=MonthYearPeriod.parse("07/69"),
+        )
+        vouchers = Bt40InsertService.vouchers(_VALUES, form)
+        folder = Path("/Users/pathanin/Downloads/thassana")
+        if not (folder / "GLJNL.DBF").exists():
+            self.skipTest("sample shop folder")
+        ready, skipped = Bt40InsertService.pending(folder, vouchers)
+        self.assertEqual(skipped, [])
+        self.assertEqual([item.prefix for item in ready], ["RV", "PV"])
 
 
 if __name__ == "__main__":
