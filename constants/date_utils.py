@@ -57,10 +57,10 @@ def format_express_pv_date(value: str) -> str:
 
 
 def is_complete_express_date(value: str) -> bool:
-    digits = "".join(ch for ch in value if ch.isdigit())
-    if len(digits) not in (6, 8):
-        return False
     formatted = format_express_pv_date(value)
+    digits = "".join(ch for ch in formatted if ch.isdigit())
+    if len(digits) != 6:
+        return False
     parts = _date_parts(formatted)
     if parts is None:
         return False
@@ -75,14 +75,20 @@ def _date_parts(text: str) -> tuple[int, int, int] | None:
     chunks = [part for part in _SEPARATORS.split(text) if part]
     if len(chunks) == 3:
         try:
-            return int(chunks[0]), int(chunks[1]), int(chunks[2])
+            first, second, third = int(chunks[0]), int(chunks[1]), int(chunks[2])
         except ValueError:
             return None
+        if first >= 1900:
+            return third, second, first
+        return first, second, third
 
     digits = "".join(ch for ch in text if ch.isdigit())
     if len(digits) == 6:
         return int(digits[:2]), int(digits[2:4]), int(digits[4:6])
     if len(digits) == 8:
+        year, month, day = int(digits[:4]), int(digits[4:6]), int(digits[6:8])
+        if 1900 <= year <= 2700 and 1 <= month <= 12:
+            return day, month, year
         return int(digits[:2]), int(digits[2:4]), int(digits[4:8])
     return None
 

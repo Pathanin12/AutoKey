@@ -5,7 +5,7 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from constants.date_utils import format_express_pv_date, is_complete_express_date
+from constants.date_utils import format_express_pv_date, is_complete_express_date, mask_express_pv_date
 from constants.routes import (
     MENU_BUTTON_IPADY,
     PAGE_CONFIG,
@@ -89,6 +89,24 @@ def _bind_period_mask(variable: tk.StringVar, entry: ttk.Entry) -> None:
             entry.after_idle(lambda: entry.icursor("end"))
 
     variable.trace_add("write", mask)
+
+
+def _bind_date_mask(variable: tk.StringVar, entry: ttk.Entry) -> None:
+    def mask(*_args) -> None:
+        current = variable.get()
+        masked = mask_express_pv_date(current)
+        if masked != current:
+            variable.set(masked)
+            entry.after_idle(lambda: entry.icursor("end"))
+
+    variable.trace_add("write", mask)
+
+
+def _apply_date_var(variable: tk.StringVar) -> None:
+    current = variable.get()
+    formatted = format_express_pv_date(current)
+    if formatted != current:
+        variable.set(formatted)
 
 
 class MainWindow:
@@ -320,6 +338,7 @@ class MainWindow:
         jv_date_entry = ttk.Entry(form, textvariable=self.pp30_jv_date, width=14)
         jv_date_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
         jv_date_entry.bind("<FocusOut>", self._format_pp30_jv_date)
+        _bind_date_mask(self.pp30_jv_date, jv_date_entry)
         ttk.Label(form, text=UI_TEXT["pp30_jv_period"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
         jv_period_entry = ttk.Entry(form, textvariable=self.pp30_jv_period, width=14)
         jv_period_entry.grid(row=4, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
@@ -371,6 +390,7 @@ class MainWindow:
         date_entry = ttk.Entry(form, textvariable=self.ka_tam_pv_date, width=14)
         date_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
         date_entry.bind("<FocusOut>", self._format_ka_tam_pv_date)
+        _bind_date_mask(self.ka_tam_pv_date, date_entry)
         ttk.Label(form, text=UI_TEXT["ka_tam_period"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
         period_entry = ttk.Entry(form, textvariable=self.ka_tam_period, width=14)
         period_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
@@ -592,6 +612,7 @@ class MainWindow:
         date_entry = ttk.Entry(form, textvariable=self.bt40_rv_date, width=14)
         date_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
         date_entry.bind("<FocusOut>", self._format_bt40_rv_date)
+        _bind_date_mask(self.bt40_rv_date, date_entry)
         ttk.Label(form, text=UI_TEXT["bt40_period"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
         period_entry = ttk.Entry(form, textvariable=self.bt40_period, width=14)
         period_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
@@ -721,6 +742,7 @@ class MainWindow:
         date_entry = ttk.Entry(form, textvariable=self.payroll_pv_date, width=14)
         date_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
         date_entry.bind("<FocusOut>", self._format_payroll_pv_date)
+        _bind_date_mask(self.payroll_pv_date, date_entry)
         ttk.Label(form, text=UI_TEXT["payroll_period"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
         period_entry = ttk.Entry(form, textvariable=self.payroll_period, width=14)
         period_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
@@ -794,6 +816,7 @@ class MainWindow:
         start_entry = ttk.Entry(form, textvariable=self.income_start_date, width=14)
         start_entry.grid(row=4, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
         start_entry.bind("<FocusOut>", self._format_income_date)
+        _bind_date_mask(self.income_start_date, start_entry)
         form.columnconfigure(1, weight=1)
 
         ttk.Button(page, text=f"▶ {UI_TEXT['start']}", command=self._start_income).pack(anchor="w", padx=20, pady=12)
@@ -886,9 +909,7 @@ class MainWindow:
         )
 
     def _format_pp30_jv_date(self, _event=None) -> None:
-        current = self.pp30_jv_date.get()
-        if is_complete_express_date(current):
-            self.pp30_jv_date.set(format_express_pv_date(current))
+        _apply_date_var(self.pp30_jv_date)
 
     def _choose_ka_tam_excel(self) -> None:
         selected = filedialog.askopenfilename(
@@ -924,9 +945,7 @@ class MainWindow:
         )
 
     def _format_ka_tam_pv_date(self, _event=None) -> None:
-        current = self.ka_tam_pv_date.get()
-        if is_complete_express_date(current):
-            self.ka_tam_pv_date.set(format_express_pv_date(current))
+        _apply_date_var(self.ka_tam_pv_date)
 
     def _start_ka_tam(self) -> None:
         if self._ka_tam_running:
@@ -1253,9 +1272,7 @@ class MainWindow:
         )
 
     def _format_bt40_rv_date(self, _event=None) -> None:
-        current = self.bt40_rv_date.get()
-        if is_complete_express_date(current):
-            self.bt40_rv_date.set(format_express_pv_date(current))
+        _apply_date_var(self.bt40_rv_date)
 
     def _start_bt40(self) -> None:
         if self._bt40_running:
@@ -1520,9 +1537,7 @@ class MainWindow:
         )
 
     def _format_payroll_pv_date(self, _event=None) -> None:
-        current = self.payroll_pv_date.get()
-        if is_complete_express_date(current):
-            self.payroll_pv_date.set(format_express_pv_date(current))
+        _apply_date_var(self.payroll_pv_date)
 
     def _start_payroll(self) -> None:
         if self._payroll_running:
@@ -1684,9 +1699,7 @@ class MainWindow:
             self.income_pdf_summary.set(UI_TEXT["pp30_pdf_summary_empty"])
 
     def _format_income_date(self, _event=None) -> None:
-        current = self.income_start_date.get()
-        if is_complete_express_date(current):
-            self.income_start_date.set(format_express_pv_date(current))
+        _apply_date_var(self.income_start_date)
 
     def _income_form_config(self) -> IncomeFormConfig:
         return IncomeFormConfig(

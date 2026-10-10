@@ -2,7 +2,7 @@ import unittest
 
 from pathlib import Path
 
-from constants.date_utils import is_complete_express_date
+from constants.date_utils import format_express_pv_date, is_complete_express_date
 from constants.routes import (
     ACCOUNT_CASH,
     ACCOUNT_PP30_DECIMAL,
@@ -44,6 +44,12 @@ class Pp30InsertLinesTests(unittest.TestCase):
         self.assertFalse(is_complete_express_date(""))
         self.assertFalse(is_complete_express_date("31/08"))
         self.assertTrue(is_complete_express_date("31/08/69"))
+        self.assertTrue(is_complete_express_date("25/7/69"))
+        self.assertTrue(is_complete_express_date("250769"))
+        self.assertTrue(is_complete_express_date("2026-10-10"))
+        self.assertEqual(format_express_pv_date("25/7/69"), "25/07/69")
+        self.assertEqual(format_express_pv_date("250769"), "25/07/69")
+        self.assertEqual(format_express_pv_date("2026-10-10"), "10/10/69")
 
     def test_insert_uses_form_jv_date(self) -> None:
         values = _values(vat_sale=14238, vat_purchase=784, amount_due=13454, line_8=13454)
