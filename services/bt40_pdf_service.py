@@ -4,7 +4,7 @@ from pathlib import Path
 
 from models.bt40_form_values import Bt40FormValues
 from models.bt40_pdf_record import Bt40PdfRecord
-from services.bt40_extract_service import extract_bt40_amounts, extract_bt40_pv_date
+from services.bt40_extract_service import extract_bt40_amounts, extract_bt40_period, extract_bt40_pv_date
 from services.name_match_service import tidy_name
 
 _COMPANY_PREFIXES = (
@@ -80,6 +80,7 @@ class Bt40PdfService:
             line14=line14,
             line17=line17,
             pv_date=extract_bt40_pv_date(text),
+            period=extract_bt40_period(text),
         )
 
     @staticmethod

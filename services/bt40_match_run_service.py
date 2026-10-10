@@ -74,6 +74,22 @@ class Bt40MatchRunService:
                 on_status(UI_TEXT["pp30_values_missing"].format(path=pdf_path.name))
                 on_progress(index, total)
                 continue
+            pdf_period = record.form_values.period
+            if (
+                pdf_period is None
+                or not pdf_period.is_valid
+                or pdf_period.month != form_config.period.month
+                or pdf_period.year != form_config.period.year
+            ):
+                on_status(
+                    UI_TEXT["bt40_skip_period_log"].format(
+                        name=record.company_name,
+                        pdf=pdf_period.text if pdf_period and pdf_period.is_valid else "-",
+                        ui=form_config.period.text,
+                    )
+                )
+                on_progress(index, total)
+                continue
             if not record.form_values.has_receipt and not record.form_values.has_tax:
                 on_status(UI_TEXT["bt40_skip_zero_log"].format(name=record.company_name))
                 on_progress(index, total)

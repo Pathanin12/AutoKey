@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from models.month_year_period import MonthYearPeriod
 from services.pp30_amount_service import has_amount
 
 
@@ -12,6 +13,7 @@ class Bt40FormValues:
     line14: float = 0.0
     line17: float = 0.0
     pv_date: str = ""
+    period: MonthYearPeriod | None = None
 
     @property
     def penalty_amount(self) -> float:

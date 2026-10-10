@@ -12,7 +12,7 @@ from constants.routes import (
 from models.bt40_form_config import Bt40FormConfig
 from models.bt40_form_values import Bt40FormValues
 from models.month_year_period import MonthYearPeriod
-from services.bt40_extract_service import extract_bt40_amounts, extract_bt40_pv_date
+from services.bt40_extract_service import extract_bt40_amounts, extract_bt40_period, extract_bt40_pv_date
 from services.bt40_insert_lines_service import pv_bt40, rv_bt40
 from services.bt40_insert_service import Bt40InsertService
 from services.bt40_pdf_service import Bt40PdfService
@@ -22,6 +22,9 @@ _SAMPLE = """
 ภ.ธ.40
 ชื่อผู้ประกอบกิจการ              ห้างหุ้นส่วนจำกัด ทัศนาออมทรัพย์กิจรุ่งเรือง
 พิมพ์ ณ วันที่ 11 กันยายน 2569 เวลา 13:58 น.
+สำหรับ    เดือนภาษี     พ.ศ.................2569
+      (1) มกราคม                       (4) เมษายน                  ü  (7) กรกฎาคม                  (10) ตุลาคม
+ประเภทกิจการ
 7. การประกอบกิจการโดย                                 • ดอกเบี้ย ส่วนลด ค่าธรรมเนียม ค่าบริการฯ
    ปกติเยี่ยงธนาคารพาณิชย์                          43,200.00           3.0                           1,296.00
 8. การขายอสังหาริมทรัพย์
@@ -64,6 +67,12 @@ class Bt40ExtractTests(unittest.TestCase):
     def test_reads_print_date(self) -> None:
         self.assertEqual(extract_bt40_pv_date(_SAMPLE), "11/09/69")
 
+    def test_reads_checked_tax_month(self) -> None:
+        period = extract_bt40_period(_SAMPLE)
+        self.assertIsNotNone(period)
+        assert period is not None
+        self.assertEqual(period.text, "7/69")
+
     def test_reads_company_and_values(self) -> None:
         name = Bt40PdfService.extract_company_name(_SAMPLE)
         values = Bt40PdfService.extract_form_values(_SAMPLE)
@@ -75,6 +84,9 @@ class Bt40ExtractTests(unittest.TestCase):
         self.assertEqual(values.line14, 64.80)
         self.assertEqual(values.line17, 1518.26)
         self.assertEqual(values.pv_date, "11/09/69")
+        self.assertIsNotNone(values.period)
+        assert values.period is not None
+        self.assertEqual(values.period.text, "7/69")
 
     @unittest.skipUnless(SAMPLE_PDF.exists(), "sample ภ.ธ.40 pdf")
     def test_reads_uploaded_pdf(self) -> None:
@@ -87,6 +99,9 @@ class Bt40ExtractTests(unittest.TestCase):
         self.assertEqual(record.form_values.line14, 64.80)
         self.assertEqual(record.form_values.line17, 1518.26)
         self.assertEqual(record.form_values.pv_date, "11/09/69")
+        self.assertIsNotNone(record.form_values.period)
+        assert record.form_values.period is not None
+        self.assertEqual(record.form_values.period.text, "7/69")
 
 
 class Bt40InsertLinesTests(unittest.TestCase):
@@ -144,6 +159,10 @@ class Bt40InsertLinesTests(unittest.TestCase):
         self.assertEqual(vouchers[1].description, "กรมสรรพากร-ภ.ธ.40 เดือน 7/69")
         self.assertEqual(vouchers[1].voudat_express, "11/09/69")
         self.assertEqual(form.validate(), [UI_TEXT["bt40_pdf_invalid"]])
+        self.assertEqual(
+            UI_TEXT["bt40_skip_period_log"].format(name="ห้าง", pdf="8/69", ui="7/69"),
+            "ข้าม — ห้าง เดือน 8/69 ไม่ตรง 7/69",
+        )
 
 
 if __name__ == "__main__":

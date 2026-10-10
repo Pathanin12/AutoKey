@@ -285,6 +285,7 @@ UI_TEXT = {
     "bt40_welcome_log": "เลือกโฟลเดอร์ PDF กรอกวันที่กับเดือน/ปี แล้วกดเริ่ม",
     "bt40_skip_zero_log": "ข้าม — {name} ไม่มียอด",
     "bt40_skip_date_log": "ข้าม — {name} ไม่มีวันที่จาก PDF",
+    "bt40_skip_period_log": "ข้าม — {name} เดือน {pdf} ไม่ตรง {ui}",
     "bt40_insert_log": "สรุป — {shop}: {detail}",
     "pnd3_period": "เดือน/ปี รายละเอียด",
     "pnd3_period_invalid": "กรุณากรอกเดือน/ปี รายละเอียด ให้ครบ แบบ MM/YY",
