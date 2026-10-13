@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from constants.routes import PND2_TAX_DESCRIPTION
 from models.month_year_period import MonthYearPeriod
+from services.pnd30_extract_service import with_amendment
 from services.pp30_amount_service import has_amount
 
 
@@ -15,11 +16,12 @@ class Pnd2FormValues:
     surcharge: float = 0.0
     pv_date: str = ""
     period: MonthYearPeriod | None = None
+    is_amendment: bool = False
 
     @property
     def description(self) -> str:
         period = self.period.text if self.period and self.period.is_valid else ""
-        return PND2_TAX_DESCRIPTION.format(period=period)
+        return with_amendment(PND2_TAX_DESCRIPTION.format(period=period), self.is_amendment)
 
     @property
     def has_surcharge(self) -> bool:

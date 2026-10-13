@@ -7,6 +7,7 @@ from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd3_form_values import Pnd3FormValues
 from services.pnd3_extract_service import extract_line_2_and_3
 from services.pnd3_insert_lines_service import pv_pnd3
+from services.pnd3_insert_service import Pnd3InsertService
 from services.pnd3_pdf_service import Pnd3PdfService
 from services.pnd30_extract_service import extract_pv_date
 
@@ -53,6 +54,18 @@ class Pnd3ExtractTests(unittest.TestCase):
         self.assertEqual(values.tax_withheld, 456.69)
         self.assertFalse(values.has_surcharge)
         self.assertEqual(values.pv_date, "14/09/69")
+        self.assertFalse(values.is_amendment)
+
+    def test_reads_amendment_tick(self) -> None:
+        values = Pnd3PdfService.extract_form_values(_SAMPLE + "\nü    ยื่นเพิ่มเติมครั้งที่ ...........1\n")
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertTrue(values.is_amendment)
+        form = Pnd3FormConfig(pdf_folder=Path("."), period=MonthYearPeriod.parse("07/69"))
+        self.assertEqual(
+            Pnd3InsertService.voucher(values, form).description,
+            "กรมสรรพากร-ภ.ง.ด.3 เดือน7/69 เพิ่มเติม",
+        )
 
     @unittest.skipUnless(SAMPLE_PDF.exists(), "sample ภ.ง.ด.3 pdf")
     def test_reads_uploaded_pdf(self) -> None:

@@ -6,7 +6,7 @@ from models.pnd3_form_values import Pnd3FormValues
 from models.pnd3_pdf_record import Pnd3PdfRecord
 from services.name_match_service import tidy_name
 from services.pnd3_extract_service import extract_line_2_and_3
-from services.pnd30_extract_service import extract_pv_date
+from services.pnd30_extract_service import extract_is_amendment, extract_pv_date
 
 _COMPANY_PREFIXES = (
     "ห้างหุ้นส่วนจำกัด",
@@ -74,7 +74,12 @@ class Pnd3PdfService:
         if lines is None or not pv_date:
             return None
         tax_withheld, surcharge = lines
-        return Pnd3FormValues(tax_withheld=tax_withheld, surcharge=surcharge, pv_date=pv_date)
+        return Pnd3FormValues(
+            tax_withheld=tax_withheld,
+            surcharge=surcharge,
+            pv_date=pv_date,
+            is_amendment=extract_is_amendment(text),
+        )
 
     @staticmethod
     def load_record(pdf_path: Path) -> Pnd3PdfRecord:

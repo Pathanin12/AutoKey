@@ -6,7 +6,7 @@ from models.pnd2_form_values import Pnd2FormValues
 from models.pnd2_pdf_record import Pnd2PdfRecord
 from services.name_match_service import tidy_name
 from services.pnd2_extract_service import extract_income_period, extract_line_6_and_7
-from services.pnd30_extract_service import extract_pv_date
+from services.pnd30_extract_service import extract_is_amendment, extract_pv_date
 
 _COMPANY_PREFIXES = (
     "ห้างหุ้นส่วนจำกัด",
@@ -83,6 +83,7 @@ class Pnd2PdfService:
             surcharge=surcharge,
             pv_date=extract_pv_date(text),
             period=extract_income_period(text),
+            is_amendment=extract_is_amendment(text),
         )
 
     @staticmethod

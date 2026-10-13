@@ -13,6 +13,17 @@ _FILE_DATE_RE = re.compile(
 )
 _LINE3_RE = re.compile(r"(?<!\d)3\.\s*เงินเพิ่ม")
 _LINE4_MARKER = "และเงินเพิ่ม"
+_AMEND_CHECKED_RE = re.compile(r"[ü✓✔☑]\s*ยื่นเพิ่มเติม")
+
+
+def extract_is_amendment(text: str) -> bool:
+    return _AMEND_CHECKED_RE.search(text or "") is not None
+
+
+def with_amendment(text: str, is_amendment: bool) -> str:
+    if is_amendment:
+        return f"{text} เพิ่มเติม"
+    return text
 
 
 def extract_line_2_and_3(text: str) -> tuple[float, float] | None:

@@ -8,6 +8,7 @@ class Pnd1FormValues:
     tax_withheld: float
     surcharge: float
     pv_date: str
+    is_amendment: bool = False
 
     @property
     def has_surcharge(self) -> bool:

@@ -7,13 +7,14 @@ from models.pnd1_form_config import Pnd1FormConfig
 from models.pnd1_form_values import Pnd1FormValues
 from services.express_journal_service import ExpressJournalService
 from services.pnd1_insert_lines_service import pv_pnd1
+from services.pnd30_extract_service import with_amendment
 
 
 class Pnd1InsertService:
     @staticmethod
     def voucher(values: Pnd1FormValues, form: Pnd1FormConfig):
         date = format_express_pv_date(values.pv_date)
-        return pv_pnd1(values, date, form.description)
+        return pv_pnd1(values, date, with_amendment(form.description, values.is_amendment))
 
     @staticmethod
     def insert(folder: Path, values: Pnd1FormValues, form: Pnd1FormConfig) -> str:

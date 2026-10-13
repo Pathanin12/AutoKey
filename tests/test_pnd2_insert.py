@@ -74,6 +74,14 @@ class Pnd2ExtractTests(unittest.TestCase):
         assert values.period is not None
         self.assertEqual(values.period.text, "5/69")
         self.assertEqual(values.description, "กรมสรรพากร-ภ.ง.ด.2 เดือน 5/69")
+        self.assertFalse(values.is_amendment)
+
+    def test_reads_amendment_tick(self) -> None:
+        values = Pnd2PdfService.extract_form_values(_SAMPLE + "\nü    ยื่นเพิ่มเติมครั้งที่ ...........1\n")
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertTrue(values.is_amendment)
+        self.assertEqual(values.description, "กรมสรรพากร-ภ.ง.ด.2 เดือน 5/69 เพิ่มเติม")
 
     @unittest.skipUnless(SAMPLE_PDF.exists(), "sample ภ.ง.ด.2 pdf")
     def test_reads_uploaded_pdf(self) -> None:
