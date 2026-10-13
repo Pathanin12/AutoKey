@@ -13,8 +13,14 @@ from constants.routes import (
 )
 from models.bt40_form_config import Bt40FormConfig
 from models.bt40_form_values import Bt40FormValues
+from models.bt40_voucher_mode import Bt40VoucherMode
 from models.month_year_period import MonthYearPeriod
-from services.bt40_extract_service import extract_bt40_amounts, extract_bt40_period, extract_bt40_pv_date
+from services.bt40_extract_service import (
+    extract_bt40_amounts,
+    extract_bt40_is_amendment,
+    extract_bt40_period,
+    extract_bt40_pv_date,
+)
 from services.bt40_insert_lines_service import pv_bt40, rv_bt40
 from services.bt40_insert_service import Bt40InsertService
 from services.bt40_pdf_service import Bt40PdfService
@@ -53,6 +59,22 @@ SAMPLE_PDF = Path(
     "/Users/pathanin/.cursor/projects/Users-pathanin-job-AutoKey/attachments/"
     "95442e36-2dbc-40d8-8635-d8ec30cd3af5/__.40_7.69__________.pdf"
 )
+AMEND_PDF = Path(
+    "/Users/pathanin/.cursor/projects/Users-pathanin-job-AutoKey/attachments/"
+    "95442e36-2dbc-40d8-8635-d8ec30cd3af5/__.40_7.69___________1_.pdf"
+)
+
+_SAMPLE_AMEND = """
+ยื่นปกติ        ü    ยื่นเพิ่มเติมครั้งที่ ...........1ของ ภ.ธ.40 ซึ่งยื่นไว้           ü    ภายในกำหนดเวลา
+สำหรับ    เดือนภาษี        (ให้ทำเครื่องหมาย       ü   ลงใน           หน้าชื่อเดือน)     พ.ศ.................2569
+      (1) มกราคม                       (4) เมษายน                  ü  (7) กรกฎาคม                  (10) ตุลาคม
+   ปกติเยี่ยงธนาคารพาณิชย์                                    ต้องจดทะเบียนภาษีธุรกิจเฉพาะ                ü  ไม่ต้องจดทะเบียนภาษีธุรกิจเฉพาะ                          43,200.00           3.0                           1,296.00
+12. รวมยอดภาษีธุรกิจเฉพาะ                                          1,296.00
+13. เงินเพิ่ม (ถ้ามี)                                                  19.44
+14. เบี้ยปรับ (ถ้ามี)                                                  64.80
+17. รวมภาษีทั้งสิ้น  (15. + 16.)                                   1,518.26
+พิมพ์ ณ วันที่ 11 กันยายน 2569
+"""
 
 _VALUES = Bt40FormValues(
     line7_receipt=43200.00,
@@ -92,6 +114,22 @@ class Bt40ExtractTests(unittest.TestCase):
         self.assertIsNotNone(values.period)
         assert values.period is not None
         self.assertEqual(values.period.text, "7/69")
+        self.assertFalse(values.is_amendment)
+
+    def test_reads_amendment_tick(self) -> None:
+        self.assertFalse(extract_bt40_is_amendment(_SAMPLE))
+        self.assertTrue(extract_bt40_is_amendment(_SAMPLE_AMEND))
+        values = Bt40PdfService.extract_form_values(_SAMPLE_AMEND)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertTrue(values.is_amendment)
+        form = Bt40FormConfig(
+            pdf_folder=Path("/no-folder"),
+            rv_date="25/07/69",
+            period=MonthYearPeriod.parse("07/69"),
+        )
+        self.assertEqual(form.rv_description(values), "รับดอกเบี้ย-เงินกู้ยืมกรรมการ เพิ่มเติม")
+        self.assertEqual(form.pv_description(values), "กรมสรรพากร-ภ.ธ.40 เดือน 7/69 เพิ่มเติม")
 
     @unittest.skipUnless(SAMPLE_PDF.exists(), "sample ภ.ธ.40 pdf")
     def test_reads_uploaded_pdf(self) -> None:
@@ -108,6 +146,20 @@ class Bt40ExtractTests(unittest.TestCase):
         self.assertIsNotNone(record.form_values.period)
         assert record.form_values.period is not None
         self.assertEqual(record.form_values.period.text, "7/69")
+        self.assertTrue(record.form_values.is_amendment)
+
+    @unittest.skipUnless(AMEND_PDF.exists(), "sample ภ.ธ.40 amend pdf")
+    def test_reads_uploaded_amend_pdf(self) -> None:
+        record = Bt40PdfService.load_record(AMEND_PDF)
+        self.assertEqual(record.company_name, "ห้างหุ้นส่วนจำกัด ทัศนาออมทรัพย์กิจรุ่งเรือง")
+        self.assertIsNotNone(record.form_values)
+        assert record.form_values is not None
+        self.assertEqual(record.form_values.line7_receipt, 43200.00)
+        self.assertEqual(record.form_values.line12, 1296.00)
+        self.assertEqual(record.form_values.line13, 19.44)
+        self.assertEqual(record.form_values.line14, 64.80)
+        self.assertEqual(record.form_values.line17, 1518.26)
+        self.assertTrue(record.form_values.is_amendment)
 
 
 class Bt40InsertLinesTests(unittest.TestCase):
@@ -164,7 +216,38 @@ class Bt40InsertLinesTests(unittest.TestCase):
         self.assertEqual(vouchers[1].prefix, "PV")
         self.assertEqual(vouchers[1].description, "กรมสรรพากร-ภ.ธ.40 เดือน 7/69")
         self.assertEqual(vouchers[1].voudat_express, "11/09/69")
+        amended = Bt40FormValues(
+            line7_receipt=43200.00,
+            line12=1296.00,
+            line13=19.44,
+            line14=64.80,
+            line17=1518.26,
+            pv_date="11/09/69",
+            is_amendment=True,
+        )
+        extra = Bt40InsertService.vouchers(amended, form)
+        self.assertEqual(extra[0].description, "รับดอกเบี้ย-เงินกู้ยืมกรรมการ เพิ่มเติม")
+        self.assertEqual(extra[1].description, "กรมสรรพากร-ภ.ธ.40 เดือน 7/69 เพิ่มเติม")
+        pv_only = Bt40FormConfig(
+            pdf_folder=Path("/no-folder"),
+            rv_date="",
+            period=MonthYearPeriod.parse("07/69"),
+            voucher_mode=Bt40VoucherMode.pv(),
+        )
+        self.assertEqual([item.prefix for item in Bt40InsertService.vouchers(_VALUES, pv_only)], ["PV"])
+        rv_only = Bt40FormConfig(
+            pdf_folder=Path("/no-folder"),
+            rv_date="25/07/69",
+            period=MonthYearPeriod.parse("07/69"),
+            voucher_mode=Bt40VoucherMode.rv(),
+        )
+        self.assertEqual([item.prefix for item in Bt40InsertService.vouchers(_VALUES, rv_only)], ["RV"])
         self.assertEqual(form.validate(), [UI_TEXT["bt40_pdf_invalid"]])
+        self.assertEqual(pv_only.validate(), [UI_TEXT["bt40_pdf_invalid"]])
+        self.assertEqual(
+            Bt40VoucherMode.parse("pv").label,
+            UI_TEXT["bt40_mode_pv"],
+        )
         self.assertEqual(
             UI_TEXT["bt40_skip_period_log"].format(name="ห้าง", pdf="8/69", ui="7/69"),
             "ข้าม — ห้าง เดือน 8/69 ไม่ตรง 7/69",

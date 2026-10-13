@@ -15,6 +15,7 @@ class Bt40FormValues:
     line17: float = 0.0
     pv_date: str = ""
     period: MonthYearPeriod | None = None
+    is_amendment: bool = False
 
     @property
     def penalty_amount(self) -> float:

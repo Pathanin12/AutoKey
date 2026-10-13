@@ -52,6 +52,11 @@ _BE_YEAR_RE = re.compile(r"พ\.?\s*ศ\.?[.\s]*(\d{4})")
 _CHECKED_MONTH_RE = re.compile(
     r"[ü✓✔☑]\s*\(\s*(\d{1,2})\s*\)\s*(" + "|".join(re.escape(name) for name in _MONTH_NAMES) + r")"
 )
+_AMEND_CHECKED_RE = re.compile(r"[ü✓✔☑]\s*ยื่นเพิ่มเติม")
+
+
+def extract_bt40_is_amendment(text: str) -> bool:
+    return _AMEND_CHECKED_RE.search(text or "") is not None
 
 
 def extract_bt40_period(text: str) -> MonthYearPeriod | None:

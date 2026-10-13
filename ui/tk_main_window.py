@@ -23,6 +23,9 @@ from constants.routes import (
     PAGE_PAYROLL,
     INCOME_LOCK_NONE,
     INCOME_LOCK_PASSWORD,
+    BT40_MODE_ALL,
+    BT40_MODE_PV,
+    BT40_MODE_RV,
     PP30_MODE_NORMAL,
     PP30_MODE_SPECIAL,
     UI_TEXT,
@@ -36,6 +39,7 @@ from models.ka_tam_form_config import KaTamFormConfig
 from models.month_year_period import MonthYearPeriod
 from models.pnd1_form_config import Pnd1FormConfig
 from models.bt40_form_config import Bt40FormConfig
+from models.bt40_voucher_mode import Bt40VoucherMode
 from models.pnd2_form_config import Pnd2FormConfig
 from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd30_form_config import Pnd30FormConfig
@@ -73,7 +77,7 @@ PND30_WIN_H = 600
 PND3_WIN_H = 600
 PND1_WIN_H = 600
 PND2_WIN_H = 600
-BT40_WIN_H = 640
+BT40_WIN_H = 680
 SSO_WIN_H = 600
 WCF_WIN_H = 560
 PAYROLL_WIN_H = 640
@@ -162,6 +166,7 @@ class MainWindow:
         self._pnd2_running = False
         self.bt40_pdf_folder = tk.StringVar(value="")
         self.bt40_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
+        self.bt40_voucher_mode = tk.StringVar(value=BT40_MODE_ALL)
         self.bt40_rv_date = tk.StringVar(value="")
         self.bt40_period = tk.StringVar(value="")
         self.bt40_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
@@ -608,14 +613,26 @@ class MainWindow:
         ttk.Label(form, textvariable=self.bt40_pdf_summary, wraplength=500).grid(
             row=1, column=0, columnspan=3, sticky="w", pady=(4, 0)
         )
-        ttk.Label(form, text=UI_TEXT["bt40_rv_date"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(form, text=UI_TEXT["bt40_voucher_mode"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        mode_row = ttk.Frame(form)
+        mode_row.grid(row=2, column=1, columnspan=2, sticky="w", pady=(8, 0))
+        ttk.Radiobutton(
+            mode_row, text=UI_TEXT["bt40_mode_pv"], variable=self.bt40_voucher_mode, value=BT40_MODE_PV
+        ).pack(side="left")
+        ttk.Radiobutton(
+            mode_row, text=UI_TEXT["bt40_mode_rv"], variable=self.bt40_voucher_mode, value=BT40_MODE_RV
+        ).pack(side="left", padx=(16, 0))
+        ttk.Radiobutton(
+            mode_row, text=UI_TEXT["bt40_mode_all"], variable=self.bt40_voucher_mode, value=BT40_MODE_ALL
+        ).pack(side="left", padx=(16, 0))
+        ttk.Label(form, text=UI_TEXT["bt40_rv_date"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
         date_entry = ttk.Entry(form, textvariable=self.bt40_rv_date, width=14)
-        date_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        date_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
         date_entry.bind("<FocusOut>", self._format_bt40_rv_date)
         _bind_date_mask(self.bt40_rv_date, date_entry)
-        ttk.Label(form, text=UI_TEXT["bt40_period"]).grid(row=3, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(form, text=UI_TEXT["bt40_period"]).grid(row=4, column=0, sticky="w", pady=(8, 0))
         period_entry = ttk.Entry(form, textvariable=self.bt40_period, width=14)
-        period_entry.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        period_entry.grid(row=4, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
         _bind_period_mask(self.bt40_period, period_entry)
         form.columnconfigure(1, weight=1)
 
@@ -1269,6 +1286,7 @@ class MainWindow:
             rv_date=format_express_pv_date(self.bt40_rv_date.get()),
             period=MonthYearPeriod.parse(self.bt40_period.get()),
             pdf_files=list(self.bt40_pdf_files),
+            voucher_mode=Bt40VoucherMode.parse(self.bt40_voucher_mode.get()),
         )
 
     def _format_bt40_rv_date(self, _event=None) -> None:

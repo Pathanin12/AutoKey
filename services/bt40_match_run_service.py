@@ -91,13 +91,15 @@ class Bt40MatchRunService:
                 )
                 on_progress(index, total)
                 continue
-            if not record.form_values.has_receipt and not record.form_values.has_tax:
+            want_rv = form_config.voucher_mode.include_rv and record.form_values.has_receipt
+            want_pv = form_config.voucher_mode.include_pv and record.form_values.has_tax
+            if not want_rv and not want_pv:
                 on_status(UI_TEXT["bt40_skip_zero_log"].format(name=record.company_name))
                 on_progress(index, total)
                 continue
-            if record.form_values.has_tax and not record.form_values.pv_date:
+            if want_pv and not record.form_values.pv_date:
                 on_status(UI_TEXT["bt40_skip_date_log"].format(name=record.company_name))
-                if not record.form_values.has_receipt:
+                if not want_rv:
                     on_progress(index, total)
                     continue
             try:

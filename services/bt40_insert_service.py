@@ -16,11 +16,11 @@ class Bt40InsertService:
     def vouchers(values: Bt40FormValues, form: Bt40FormConfig) -> list[JournalVoucher]:
         vouchers: list[JournalVoucher] = []
         rv_date = format_express_pv_date(form.rv_date)
-        if values.has_receipt and is_complete_express_date(rv_date):
-            vouchers.append(rv_bt40(values, rv_date, form.rv_description))
+        if form.voucher_mode.include_rv and values.has_receipt and is_complete_express_date(rv_date):
+            vouchers.append(rv_bt40(values, rv_date, form.rv_description(values)))
         pv_date = format_express_pv_date(values.pv_date)
-        if values.has_tax and is_complete_express_date(pv_date):
-            vouchers.append(pv_bt40(values, pv_date, form.pv_description))
+        if form.voucher_mode.include_pv and values.has_tax and is_complete_express_date(pv_date):
+            vouchers.append(pv_bt40(values, pv_date, form.pv_description(values)))
         return [voucher for voucher in vouchers if voucher.lines]
 
     @staticmethod

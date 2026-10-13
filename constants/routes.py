@@ -94,6 +94,10 @@ ISINFO_SHOP_NAME_FIELD = "THINAM"
 PP30_MODE_NORMAL = "normal"
 PP30_MODE_SPECIAL = "special"
 PP30_RUN_MODES = (PP30_MODE_NORMAL, PP30_MODE_SPECIAL)
+BT40_MODE_PV = "pv"
+BT40_MODE_RV = "rv"
+BT40_MODE_ALL = "all"
+BT40_VOUCHER_MODES = (BT40_MODE_PV, BT40_MODE_RV, BT40_MODE_ALL)
 
 INCOME_LOCK_NONE = "none"
 INCOME_LOCK_PASSWORD = "password"
@@ -276,6 +280,11 @@ UI_TEXT = {
     "pnd2_insert_log": "สรุป — {shop}: {detail}",
     "menu_bt40": "ภ.ธ.40",
     "menu_bt40_hint": "ภาษีธุรกิจเฉพาะ — อ่าน PDF แล้วเทียบชื่อกับโฟลเดอร์ห้าง",
+    "bt40_voucher_mode": "ทำเอกสาร",
+    "bt40_mode_pv": "PV",
+    "bt40_mode_rv": "RV",
+    "bt40_mode_all": "ทั้งหมด",
+    "bt40_mode_invalid": "กรุณาเลือกทำ PV, RV หรือทั้งหมด",
     "bt40_rv_date": "วันที่ RV",
     "bt40_rv_date_invalid": "กรุณากรอกวันที่ RV ให้ครบ เช่น 25/07/69",
     "bt40_period": "เดือน/ปี รายละเอียด",

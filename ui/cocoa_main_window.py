@@ -60,6 +60,9 @@ from constants.routes import (
     INCOME_LOCK_NONE,
     INCOME_LOCK_PASSWORD,
     PERIOD_EXAMPLE,
+    BT40_MODE_ALL,
+    BT40_MODE_PV,
+    BT40_MODE_RV,
     PP30_MODE_NORMAL,
     PP30_MODE_SPECIAL,
     UI_TEXT,
@@ -73,6 +76,7 @@ from models.ka_tam_form_config import KaTamFormConfig
 from models.month_year_period import MonthYearPeriod
 from models.pnd1_form_config import Pnd1FormConfig
 from models.bt40_form_config import Bt40FormConfig
+from models.bt40_voucher_mode import Bt40VoucherMode
 from models.pnd2_form_config import Pnd2FormConfig
 from models.pnd3_form_config import Pnd3FormConfig
 from models.pnd30_form_config import Pnd30FormConfig
@@ -110,7 +114,7 @@ PND30_WIN_H = 620
 PND3_WIN_H = 620
 PND1_WIN_H = 620
 PND2_WIN_H = 620
-BT40_WIN_H = 660
+BT40_WIN_H = 700
 SSO_WIN_H = 620
 WCF_WIN_H = 580
 PAYROLL_WIN_H = 660
@@ -182,6 +186,7 @@ class MainWindow:
         self.pnd2_pdf_files: list[Path] = []
         self._pnd2_running = False
         self.bt40_pdf_files: list[Path] = []
+        self._bt40_mode = Bt40VoucherMode.all()
         self._bt40_running = False
         self.sso_pdf_files: list[Path] = []
         self._sso_running = False
@@ -792,7 +797,7 @@ class MainWindow:
         )
         _static_label(page, UI_TEXT["menu_bt40"], 188, 30, WIN_W - 212, 24, size=16, bold=True)
 
-        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 168)
+        _settings_box, settings = _box(page, "", 12, 72, WIN_W - 24, 200)
         sy = 8
         _static_label(settings, UI_TEXT["pp30_pdf_folder"], 8, sy, 110, 22)
         self.bt40_folder_field = _edit_field(settings, 120, sy, 248)
@@ -811,6 +816,36 @@ class MainWindow:
             settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
         )
         sy += 28
+        _static_label(settings, UI_TEXT["bt40_voucher_mode"], 8, sy, 110, 22)
+        self.bt40_mode_pv = _radio(
+            settings,
+            UI_TEXT["bt40_mode_pv"],
+            120,
+            sy - 2,
+            70,
+            26,
+            self._keep(lambda: self._set_bt40_mode(BT40_MODE_PV)),
+        )
+        self.bt40_mode_rv = _radio(
+            settings,
+            UI_TEXT["bt40_mode_rv"],
+            190,
+            sy - 2,
+            70,
+            26,
+            self._keep(lambda: self._set_bt40_mode(BT40_MODE_RV)),
+        )
+        self.bt40_mode_all = _radio(
+            settings,
+            UI_TEXT["bt40_mode_all"],
+            260,
+            sy - 2,
+            90,
+            26,
+            self._keep(lambda: self._set_bt40_mode(BT40_MODE_ALL)),
+        )
+        self._set_bt40_mode(BT40_MODE_ALL)
+        sy += 32
         _static_label(settings, UI_TEXT["bt40_rv_date"], 8, sy, 110, 22)
         self.bt40_rv_date_field = _edit_field(settings, 120, sy, 120)
         self.bt40_rv_date_field.setPlaceholderString_(PV_DATE_EXAMPLE)
@@ -825,14 +860,14 @@ class MainWindow:
             page,
             f"▶ {UI_TEXT['start']}",
             16,
-            256,
+            288,
             160,
             36,
             self._keep(self._start_bt40),
             bezel=NSBezelStyleRounded,
         )
 
-        y = 306
+        y = 338
         _status_box, status = _box(page, UI_TEXT["status_frame"], 12, y, WIN_W - 24, BT40_WIN_H - y - 12)
         self.bt40_progress_bar = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(8, 8, 360, 16))
         self.bt40_progress_bar.setStyle_(NSProgressIndicatorStyleBar)
@@ -1156,6 +1191,12 @@ class MainWindow:
         self._pp30_mode = Pp30RunMode.parse(key)
         self.pp30_mode_normal.setState_(1 if self._pp30_mode.key == PP30_MODE_NORMAL else 0)
         self.pp30_mode_special.setState_(1 if self._pp30_mode.key == PP30_MODE_SPECIAL else 0)
+
+    def _set_bt40_mode(self, key: str) -> None:
+        self._bt40_mode = Bt40VoucherMode.parse(key)
+        self.bt40_mode_pv.setState_(1 if self._bt40_mode.key == BT40_MODE_PV else 0)
+        self.bt40_mode_rv.setState_(1 if self._bt40_mode.key == BT40_MODE_RV else 0)
+        self.bt40_mode_all.setState_(1 if self._bt40_mode.key == BT40_MODE_ALL else 0)
 
     def _open_topic(self, item: TopicMenuItem) -> None:
         if item.page_route == PAGE_PP30:
@@ -1932,6 +1973,7 @@ class MainWindow:
             rv_date=format_express_pv_date(str(self.bt40_rv_date_field.stringValue() or "")),
             period=MonthYearPeriod.parse(str(self.bt40_period_field.stringValue() or "")),
             pdf_files=list(self.bt40_pdf_files),
+            voucher_mode=self._bt40_mode,
         )
 
     def _start_bt40(self) -> None:
