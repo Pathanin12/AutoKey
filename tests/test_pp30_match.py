@@ -59,6 +59,56 @@ class Pp30MatchTests(unittest.TestCase):
         self.assertIsNotNone(found)
         self.assertEqual(found.folder.name, "thassana")
 
+    def test_sso_contain_matches_when_pdf_adds_branch(self) -> None:
+        shop = ExpressCompany(
+            folder=Path("/tmp/infinite"),
+            shop_name="ห้างหุ้นส่วนจำกัด คิดจะค้าอินฟินิท",
+        )
+        other = ExpressCompany(folder=Path("/tmp/other"), shop_name="บริษัท อื่น จำกัด")
+        pdf_name = "ห้างหุ้นส่วนจำกัด คิดจะค้าอินฟินิท สาขา พหลโยธิน 44 (14037)เง"
+        self.assertIsNone(Pp30MatchService.match_name(pdf_name, [shop, other]))
+        found = Pp30MatchService.match_name_contained(pdf_name, [shop, other])
+        self.assertIsNotNone(found)
+        self.assertEqual(found.folder.name, "infinite")
+
+    def test_sso_contain_skips_short_name_when_pdf_has_extra_name(self) -> None:
+        short = ExpressCompany(folder=Path("/tmp/plain"), shop_name="ห้างหุ้นส่วนจำกัด กชกร")
+        numbered = ExpressCompany(folder=Path("/tmp/n38"), shop_name="ห้างหุ้นส่วนจำกัด กชกร 38")
+        worded = ExpressCompany(folder=Path("/tmp/one"), shop_name="ห้างหุ้นส่วนจำกัด กชกร หนึ่ง")
+        pdf_38 = "ห้างหุ้นส่วนจำกัด กชกร 38 สาขา ตลาดบางใหญ่"
+        pdf_one = "ห้างหุ้นส่วนจำกัด กชกร หนึ่ง สาขา ตลาดบางใหญ่"
+        self.assertEqual(
+            Pp30MatchService.match_name_contained(pdf_38, [short, numbered]).folder.name,
+            "n38",
+        )
+        self.assertIsNone(Pp30MatchService.match_name_contained(pdf_38, [short]))
+        self.assertEqual(
+            Pp30MatchService.match_name_contained(pdf_one, [short, worded]).folder.name,
+            "one",
+        )
+        self.assertIsNone(Pp30MatchService.match_name_contained(pdf_one, [short]))
+
+    def test_sso_contain_skips_prefix_of_longer_pdf_name(self) -> None:
+        short = ExpressCompany(folder=Path("/tmp/think"), shop_name="คิดจะค้า")
+        full = ExpressCompany(
+            folder=Path("/tmp/infinite"),
+            shop_name="ห้างหุ้นส่วนจำกัด คิดจะค้าอินฟินิท",
+        )
+        pdf_name = "ห้างหุ้นส่วนจำกัด คิดจะค้าอินฟินิท สาขา พหลโยธิน 44 (14037)"
+        found = Pp30MatchService.match_name_contained(pdf_name, [short, full])
+        self.assertIsNotNone(found)
+        self.assertEqual(found.folder.name, "infinite")
+        self.assertIsNone(Pp30MatchService.match_name_contained(pdf_name, [short]))
+
+    def test_sso_contain_prefers_longer_express_name(self) -> None:
+        short = ExpressCompany(folder=Path("/tmp/short"), shop_name="ห้างหุ้นส่วนจำกัด ฐานพัฒน์")
+        full = ExpressCompany(folder=Path("/tmp/full"), shop_name="ห้างหุ้นส่วนจำกัด ฐานพัฒน์ 88")
+        pdf_name = "ห้างหุ้นส่วนจำกัด ฐานพัฒน์ 88 สาขาเปรมประชาพรีเมียร์"
+        found = Pp30MatchService.match_name_contained(pdf_name, [short, full])
+        self.assertIsNotNone(found)
+        self.assertEqual(found.folder.name, "full")
+        self.assertIsNone(Pp30MatchService.match_name_contained(pdf_name, [short]))
+
     def test_unique_shop_keeps_year_folder(self) -> None:
         shop = ExpressCompany(
             folder=Path("/tmp/thassa68"),

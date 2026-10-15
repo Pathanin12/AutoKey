@@ -60,7 +60,7 @@ class SsoMatchRunService:
                 on_status(UI_TEXT["pp30_pdf_name_missing"].format(path=pdf_path.name))
                 on_progress(index, total)
                 continue
-            company = Pp30MatchService.match_name(
+            company = Pp30MatchService.match_name_contained(
                 record.company_name, companies, form_config.period.year
             )
             if company is None:

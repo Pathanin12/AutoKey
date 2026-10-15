@@ -36,6 +36,17 @@ class Pp30MatchService:
         return _pick_shop(Pp30MatchService.match_all(pdf_name, companies), year)
 
     @staticmethod
+    def match_name_contained(
+        pdf_name: str,
+        companies: list[ExpressCompany],
+        year: int | None = None,
+    ) -> ExpressCompany | None:
+        found = Pp30MatchService.match_all(pdf_name, companies)
+        if not found:
+            found = _contain_shops(pdf_name, companies)
+        return _pick_shop(found, year)
+
+    @staticmethod
     def match_names(
         names: list[str],
         companies: list[ExpressCompany],
@@ -103,6 +114,44 @@ def _pick_shop(found: list[ExpressCompany], year: int | None) -> ExpressCompany 
     if plain:
         return plain[0]
     return kept[0]
+
+
+def _contain_shops(pdf_name: str, companies: list[ExpressCompany]) -> list[ExpressCompany]:
+    pdf_tokens = _core_tokens(pdf_name)
+    pdf_keys = _token_keys(pdf_tokens)
+    if not pdf_keys:
+        return []
+    scored: list[tuple[int, ExpressCompany]] = []
+    seen: set[str] = set()
+    for company in companies:
+        shop_keys = _token_keys(_core_tokens(company.shop_name))
+        if not shop_keys.intersection(pdf_keys):
+            continue
+        folder = str(company.folder.resolve())
+        if folder in seen:
+            continue
+        seen.add(folder)
+        scored.append((max(len(key) for key in shop_keys), company))
+    if not scored:
+        return []
+    top = max(score for score, _company in scored)
+    return [company for score, company in scored if score == top]
+
+
+def _core_tokens(value: str) -> list[str]:
+    tokens: list[str] = []
+    for part in core_company_name(tidy_name(value)).split():
+        if part.startswith("(") or part.startswith("สาขา"):
+            break
+        tokens.append(part)
+    return tokens
+
+
+def _token_keys(tokens: list[str]) -> set[str]:
+    if not tokens:
+        return set()
+    joined = "".join(tokens)
+    return {key for key in (compact_name(joined), fold_thai_marks(joined)) if key}
 
 
 def _name_keys(value: str) -> list[str]:
