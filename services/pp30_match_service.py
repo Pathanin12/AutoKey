@@ -118,24 +118,37 @@ def _pick_shop(found: list[ExpressCompany], year: int | None) -> ExpressCompany 
 
 def _contain_shops(pdf_name: str, companies: list[ExpressCompany]) -> list[ExpressCompany]:
     pdf_tokens = _core_tokens(pdf_name)
-    pdf_keys = _token_keys(pdf_tokens)
-    if not pdf_keys:
+    if not pdf_tokens:
         return []
     scored: list[tuple[int, ExpressCompany]] = []
     seen: set[str] = set()
     for company in companies:
-        shop_keys = _token_keys(_core_tokens(company.shop_name))
-        if not shop_keys.intersection(pdf_keys):
+        shop_tokens = _core_tokens(company.shop_name)
+        score = _prefix_score(shop_tokens, pdf_tokens)
+        if not score:
             continue
         folder = str(company.folder.resolve())
         if folder in seen:
             continue
         seen.add(folder)
-        scored.append((max(len(key) for key in shop_keys), company))
+        scored.append((score, company))
     if not scored:
         return []
     top = max(score for score, _company in scored)
     return [company for score, company in scored if score == top]
+
+
+def _prefix_score(shop_tokens: list[str], pdf_tokens: list[str]) -> int:
+    if not shop_tokens or len(shop_tokens) > len(pdf_tokens):
+        return 0
+    shop_keys = _token_keys(shop_tokens)
+    head_keys = _token_keys(pdf_tokens[: len(shop_tokens)])
+    if not shop_keys.intersection(head_keys):
+        return 0
+    leftover = pdf_tokens[len(shop_tokens) :]
+    if leftover and not shop_tokens[-1].isdigit():
+        return 0
+    return max(len(key) for key in shop_keys)
 
 
 def _core_tokens(value: str) -> list[str]:

@@ -103,11 +103,16 @@ class Pp30MatchTests(unittest.TestCase):
     def test_sso_contain_prefers_longer_express_name(self) -> None:
         short = ExpressCompany(folder=Path("/tmp/short"), shop_name="ห้างหุ้นส่วนจำกัด ฐานพัฒน์")
         full = ExpressCompany(folder=Path("/tmp/full"), shop_name="ห้างหุ้นส่วนจำกัด ฐานพัฒน์ 88")
-        pdf_name = "ห้างหุ้นส่วนจำกัด ฐานพัฒน์ 88 สาขาเปรมประชาพรีเมียร์"
-        found = Pp30MatchService.match_name_contained(pdf_name, [short, full])
-        self.assertIsNotNone(found)
-        self.assertEqual(found.folder.name, "full")
-        self.assertIsNone(Pp30MatchService.match_name_contained(pdf_name, [short]))
+        for extra in ("เซเว่น", "แฟมิลี่มาร์ท", "โลตัส"):
+            pdf_name = f"ห้างหุ้นส่วนจำกัด ฐานพัฒน์ 88 {extra} สาขาเปรมประชาพรีเมียร์"
+            found = Pp30MatchService.match_name_contained(pdf_name, [short, full])
+            self.assertIsNotNone(found)
+            self.assertEqual(found.folder.name, "full")
+            self.assertIsNone(Pp30MatchService.match_name_contained(pdf_name, [short]))
+            self.assertEqual(
+                Pp30MatchService.match_name_contained(pdf_name, [full]).folder.name,
+                "full",
+            )
 
     def test_unique_shop_keeps_year_folder(self) -> None:
         shop = ExpressCompany(
