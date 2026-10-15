@@ -755,6 +755,9 @@ class MainWindow:
         self.pnd2_folder_summary_field = _static_label(
             settings, UI_TEXT["pp30_pdf_summary_empty"], 8, sy, 500, 20, size=11, gray=True
         )
+        sy += 28
+        _static_label(settings, UI_TEXT["pnd2_period"], 8, sy, 110, 22)
+        self.pnd2_period_field = self._period_field(settings, 120, sy)
 
         _button(
             page,
@@ -2055,6 +2058,7 @@ class MainWindow:
     def _pnd2_form_config(self) -> Pnd2FormConfig:
         return Pnd2FormConfig(
             pdf_folder=Path(str(self.pnd2_folder_field.stringValue() or "")).expanduser(),
+            period=MonthYearPeriod.parse(str(self.pnd2_period_field.stringValue() or "")),
             pdf_files=list(self.pnd2_pdf_files),
         )
 

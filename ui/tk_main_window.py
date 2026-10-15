@@ -161,6 +161,7 @@ class MainWindow:
         self._pnd1_running = False
         self.pnd2_pdf_folder = tk.StringVar(value="")
         self.pnd2_pdf_summary = tk.StringVar(value=UI_TEXT["pp30_pdf_summary_empty"])
+        self.pnd2_period = tk.StringVar(value="")
         self.pnd2_progress_text = tk.StringVar(value=UI_TEXT["pp30_progress"].format(done=0, total=0, percent=0))
         self.pnd2_pdf_files: list[Path] = []
         self._pnd2_running = False
@@ -574,6 +575,10 @@ class MainWindow:
         ttk.Label(form, textvariable=self.pnd2_pdf_summary, wraplength=500).grid(
             row=1, column=0, columnspan=3, sticky="w", pady=(4, 0)
         )
+        ttk.Label(form, text=UI_TEXT["pnd2_period"]).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        period_entry = ttk.Entry(form, textvariable=self.pnd2_period, width=14)
+        period_entry.grid(row=2, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        _bind_period_mask(self.pnd2_period, period_entry)
         form.columnconfigure(1, weight=1)
 
         ttk.Button(page, text=f"▶ {UI_TEXT['start']}", command=self._start_pnd2).pack(anchor="w", padx=20, pady=12)
@@ -1633,6 +1638,7 @@ class MainWindow:
     def _pnd2_form_config(self) -> Pnd2FormConfig:
         return Pnd2FormConfig(
             pdf_folder=Path(self.pnd2_pdf_folder.get().strip()).expanduser(),
+            period=MonthYearPeriod.parse(self.pnd2_period.get()),
             pdf_files=list(self.pnd2_pdf_files),
         )
 

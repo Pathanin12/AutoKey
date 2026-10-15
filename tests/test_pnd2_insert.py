@@ -36,6 +36,10 @@ SAMPLE_PDF = Path(
     "/Users/pathanin/.cursor/projects/Users-pathanin-job-AutoKey/attachments/"
     "95442e36-2dbc-40d8-8635-d8ec30cd3af5/______.pdf"
 )
+DECEMBER_PDF = Path(
+    "/Users/pathanin/.cursor/projects/Users-pathanin-job-AutoKey/attachments/"
+    "95442e36-2dbc-40d8-8635-d8ec30cd3af5/____________________12.68.pdf"
+)
 
 _VALUES = Pnd2FormValues(
     people_count=2,
@@ -82,6 +86,8 @@ class Pnd2ExtractTests(unittest.TestCase):
         assert values is not None
         self.assertTrue(values.is_amendment)
         self.assertEqual(values.description, "กรมสรรพากร-ภ.ง.ด.2 เดือน 5/69 เพิ่มเติม")
+        form = Pnd2FormConfig(pdf_folder=Path("."), period=MonthYearPeriod.parse("05/69"))
+        self.assertEqual(form.description(values), "กรมสรรพากร-ภ.ง.ด.2 เดือน 5/69 เพิ่มเติม")
 
     @unittest.skipUnless(SAMPLE_PDF.exists(), "sample ภ.ง.ด.2 pdf")
     def test_reads_uploaded_pdf(self) -> None:
@@ -97,6 +103,31 @@ class Pnd2ExtractTests(unittest.TestCase):
         self.assertIsNotNone(record.form_values.period)
         assert record.form_values.period is not None
         self.assertEqual(record.form_values.period.text, "5/69")
+
+    @unittest.skipUnless(DECEMBER_PDF.exists(), "sample ภ.ง.ด.2 december pdf")
+    def test_reads_uploaded_december_pdf(self) -> None:
+        record = Pnd2PdfService.load_record(DECEMBER_PDF)
+        self.assertEqual(record.company_name, "ห้างหุ้นส่วนจำกัด ยนจอหอ มาร์เก็ตติ้ง")
+        self.assertIsNotNone(record.form_values)
+        assert record.form_values is not None
+        self.assertEqual(record.form_values.tax_withheld, 50000.00)
+        self.assertEqual(record.form_values.surcharge, 750.00)
+        self.assertEqual(record.form_values.income_amount, 500000.00)
+        self.assertEqual(record.form_values.pv_date, "21/01/69")
+        self.assertIsNotNone(record.form_values.period)
+        assert record.form_values.period is not None
+        self.assertEqual(record.form_values.period.text, "12/68")
+        form = Pnd2FormConfig(pdf_folder=Path("."), period=MonthYearPeriod.parse("12/68"))
+        voucher = Pnd2InsertService.voucher(record.form_values, form)
+        self.assertEqual(voucher.description, "กรมสรรพากร-ภ.ง.ด.2 เดือน 12/68")
+        self.assertEqual(
+            [(line.account, line.amount, line.is_credit) for line in voucher.lines],
+            [
+                (ACCOUNT_WT_PND2, 50000.00, False),
+                (ACCOUNT_PP30_PENALTY, 750.00, False),
+                (ACCOUNT_CASH, 50750.00, True),
+            ],
+        )
 
 
 class Pnd2InsertLinesTests(unittest.TestCase):
@@ -132,16 +163,16 @@ class Pnd2InsertLinesTests(unittest.TestCase):
         )
 
     def test_insert_builds_one_pv(self) -> None:
-        form = Pnd2FormConfig(pdf_folder=Path("."))
+        form = Pnd2FormConfig(pdf_folder=Path("."), period=MonthYearPeriod.parse("05/69"))
         voucher = Pnd2InsertService.voucher(_VALUES, form)
         self.assertEqual(voucher.voudat_express, "12/06/69")
         self.assertEqual(voucher.description, "กรมสรรพากร-ภ.ง.ด.2 เดือน 5/69")
         self.assertEqual(voucher.lines[0].account, ACCOUNT_WT_PND2)
 
-    def test_tax_isvat_uses_pdf_month(self) -> None:
-        form = Pnd2FormConfig(pdf_folder=Path("."))
+    def test_tax_isvat_uses_ui_month(self) -> None:
+        form = Pnd2FormConfig(pdf_folder=Path("."), period=MonthYearPeriod.parse("05/69"))
         voucher = Pnd2InsertService.voucher(_VALUES, form)
-        record = Pnd2InsertService.tax_vat_record(_VALUES, voucher, "PV6906-0001")
+        record = Pnd2InsertService.tax_vat_record(_VALUES, voucher, "PV6906-0001", form)
         self.assertIsNotNone(record)
         assert record is not None
         self.assertEqual(record.vatprd, "20260501")
@@ -150,8 +181,15 @@ class Pnd2InsertLinesTests(unittest.TestCase):
         self.assertEqual(record.vat01, 5000.00)
 
     def test_form_needs_pdf_folder(self) -> None:
-        errors = Pnd2FormConfig(pdf_folder=Path("/no-folder")).validate()
+        errors = Pnd2FormConfig(
+            pdf_folder=Path("/no-folder"), period=MonthYearPeriod.parse("12/68")
+        ).validate()
         self.assertTrue(any("โฟลเดอร์" in item for item in errors))
+        self.assertNotIn(UI_TEXT["pnd2_period_invalid"], errors)
+
+    def test_form_needs_period(self) -> None:
+        errors = Pnd2FormConfig(pdf_folder=Path("/no-folder"), period=MonthYearPeriod.parse("")).validate()
+        self.assertIn(UI_TEXT["pnd2_period_invalid"], errors)
 
 
 if __name__ == "__main__":

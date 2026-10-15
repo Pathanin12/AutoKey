@@ -17,17 +17,17 @@ class Pnd2InsertService:
     @staticmethod
     def voucher(values: Pnd2FormValues, form: Pnd2FormConfig) -> JournalVoucher:
         date = format_express_pv_date(values.pv_date)
-        return pv_pnd2(values, date, values.description)
+        return pv_pnd2(values, date, form.description(values))
 
     @staticmethod
     def tax_vat_record(
-        values: Pnd2FormValues, voucher: JournalVoucher, docnum: str
+        values: Pnd2FormValues, voucher: JournalVoucher, docnum: str, form: Pnd2FormConfig
     ) -> ExpressVatRecord | None:
-        if values.period is None or not values.period.is_valid:
+        if not form.period.is_valid:
             return None
         if not voucher.lines:
             return None
-        period_start = f"01/{values.period.month:02d}/{values.period.year:02d}"
+        period_start = f"01/{form.period.month:02d}/{form.period.year:02d}"
         voudat = express_date_to_dbf(voucher.voudat_express)
         return ExpressVatRecord(
             vatrec=VATREC_PURCHASE,
@@ -49,7 +49,7 @@ class Pnd2InsertService:
         if not voucher.lines or not is_complete_express_date(voucher.voudat_express):
             return ""
         name = ExpressJournalService.insert(folder, voucher)
-        record = Pnd2InsertService.tax_vat_record(values, voucher, name)
+        record = Pnd2InsertService.tax_vat_record(values, voucher, name, form)
         if record is not None:
             ExpressVatService.insert(folder, record)
         return name
