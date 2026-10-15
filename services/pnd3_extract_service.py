@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from services.pp30_amount_service import line_money
+from services.pp30_amount_service import has_amount, line_money
 
 _LINE3_RE = re.compile(r"(?<!\d)3\.\s*เงินเพิ่ม")
 _LINE4_MARKER = "และเงินเพิ่ม"
@@ -16,7 +16,8 @@ def extract_line_2_and_3(text: str) -> tuple[float, float] | None:
             continue
         if _LINE3_RE.search(raw):
             amount = line_money(raw, allow_zero=True)
-            line3 = 0.0 if amount is None else amount
+            if amount is not None and has_amount(amount):
+                line3 = amount
             continue
         if "รวมยอดภาษีที่นำส่ง" in raw:
             amount = line_money(raw, allow_zero=True)

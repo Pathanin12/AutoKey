@@ -35,6 +35,18 @@ SAMPLE_PDF = Path(
     "/Users/pathanin/.cursor/projects/Users-pathanin-job-AutoKey/attachments/"
     "95442e36-2dbc-40d8-8635-d8ec30cd3af5/TAX_FORM_P010014548191.pdf"
 )
+SURCHARGE_PDF = Path(
+    "/Users/pathanin/.cursor/projects/Users-pathanin-job-AutoKey/attachments/"
+    "95442e36-2dbc-40d8-8635-d8ec30cd3af5/_______11.68_______.pdf"
+)
+
+_SAMPLE_LINE7_THEN_EMPTY = """
+6.    รวม          .     .     .     .     .                                      2                                           120,000.00                                 7,300.00
+7.    เงินเพิ่ม    (ถ้ามี)      .     .     .     .     .                                                                  109.50
+8.    รวมยอดภาษีที่นำส่งทั้งสิ้น และเงินเพิ่ม             (6.+7.)                                                      7,409.50
+7. เงินเพิ่ม (ถ้ามี)
+วันที่: 17/12/2568
+"""
 
 
 class Pnd1ExtractTests(unittest.TestCase):
@@ -44,6 +56,7 @@ class Pnd1ExtractTests(unittest.TestCase):
 
     def test_reads_surcharge_on_line_7(self) -> None:
         self.assertEqual(extract_line_6_and_7(_SAMPLE_SURCHARGE), (500.00, 15.00))
+        self.assertEqual(extract_line_6_and_7(_SAMPLE_LINE7_THEN_EMPTY), (7300.00, 109.50))
 
     def test_reads_company_and_values(self) -> None:
         name = Pnd1PdfService.extract_company_name(_SAMPLE)
@@ -76,6 +89,27 @@ class Pnd1ExtractTests(unittest.TestCase):
         self.assertEqual(record.form_values.tax_withheld, 500.00)
         self.assertFalse(record.form_values.has_surcharge)
         self.assertEqual(record.form_values.pv_date, "12/08/69")
+
+    @unittest.skipUnless(SURCHARGE_PDF.exists(), "sample ภ.ง.ด.1 surcharge pdf")
+    def test_reads_uploaded_surcharge_pdf(self) -> None:
+        record = Pnd1PdfService.load_record(SURCHARGE_PDF)
+        self.assertEqual(record.company_name, "ห้างหุ้นส่วนจำกัด เวนนี่")
+        self.assertIsNotNone(record.form_values)
+        assert record.form_values is not None
+        self.assertEqual(record.form_values.tax_withheld, 7300.00)
+        self.assertEqual(record.form_values.surcharge, 109.50)
+        self.assertEqual(record.form_values.pv_date, "17/12/68")
+        self.assertFalse(record.form_values.is_amendment)
+        form = Pnd1FormConfig(pdf_folder=Path("."), period=MonthYearPeriod.parse("11/68"))
+        voucher = Pnd1InsertService.voucher(record.form_values, form)
+        self.assertEqual(
+            [(line.account, line.amount, line.is_credit) for line in voucher.lines],
+            [
+                (ACCOUNT_WT_PND1, 7300.00, False),
+                (ACCOUNT_PP30_PENALTY, 109.50, False),
+                (ACCOUNT_CASH, 7409.50, True),
+            ],
+        )
 
 
 class Pnd1InsertLinesTests(unittest.TestCase):
