@@ -24,7 +24,9 @@ from services.pp30_insert_lines_service import (
     pv_pay_or_normal,
     pv_penalty,
 )
+from services.pnd30_extract_service import extract_is_amendment
 from services.pp30_insert_service import Pp30InsertService
+from services.pp30_pdf_service import Pp30PdfService
 
 _PERIOD = MonthYearPeriod(month=8, year=69)
 
@@ -137,6 +139,35 @@ class Pp30InsertLinesTests(unittest.TestCase):
         self.assertEqual(pv.lines[1].amount, 0.75)
         self.assertEqual(pv.lines[-1].account, ACCOUNT_CASH)
         self.assertEqual(pv.lines[-1].amount, 13454.0)
+
+    def test_amendment_appends_to_jv_and_pv_descriptions(self) -> None:
+        self.assertTrue(extract_is_amendment("ยื่นปกติüยื่นเพิ่มเติมครั้งที่........1ของ ภ.พ.30 ซึ่งยื่นไว้"))
+        self.assertFalse(extract_is_amendment("5. ภาษีขายเดือนนี้                         หรือกรณียื่นเพิ่มเติม"))
+        values = _values(vat_sale=14238, vat_purchase=784, amount_due=13454, line_8=13454, is_amendment=True)
+        form = Pp30FormConfig(
+            pdf_folder=Path("."),
+            jv_period=_PERIOD,
+            pv_period=_PERIOD,
+            jv_date="31/08/69",
+        )
+        vouchers = Pp30InsertService.vouchers(Pp30PaymentKind.normal(), values, form)
+        self.assertEqual(vouchers[0].description, "ปิดภาษีซื้อ-ขาย เดือน8/69 เพิ่มเติม")
+        self.assertEqual(vouchers[1].description, "กรมสรรพากร-ภ.พ.30 เดือน8/69 เพิ่มเติม")
+
+
+SAMPLE_AMEND_PDF = Path(
+    "/Users/pathanin/.cursor/projects/Users-pathanin-job-AutoKey/attachments/"
+    "95442e36-2dbc-40d8-8635-d8ec30cd3af5/________________2555.pdf"
+)
+
+
+class Pp30AmendmentPdfTests(unittest.TestCase):
+    @unittest.skipUnless(SAMPLE_AMEND_PDF.exists(), "sample ภ.พ.30 amendment pdf")
+    def test_reads_amendment_tick_from_pdf(self) -> None:
+        record = Pp30PdfService.load_record(SAMPLE_AMEND_PDF)
+        self.assertIsNotNone(record.form_values)
+        assert record.form_values is not None
+        self.assertTrue(record.form_values.is_amendment)
 
 
 if __name__ == "__main__":

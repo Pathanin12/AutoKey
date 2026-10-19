@@ -8,6 +8,7 @@ from models.pp30_form_values import Pp30FormValues
 from models.pp30_pdf_record import Pp30PdfRecord
 from services.name_match_service import tidy_name
 from services.pp30_amount_service import eq_amount, line_8_and_9, line_money, money_amounts
+from services.pnd30_extract_service import extract_is_amendment
 from services.pp30_extract_new_shop_service import complete_new_shop_lines
 from services.pp30_extract_no_pay_normal_service import complete_no_pay_normal_lines
 from services.pp30_extract_normal_service import complete_normal_lines
@@ -101,7 +102,7 @@ class Pp30PdfService:
         lines = _extract_tax_lines(text)
         if lines is None or not pv_date:
             return None
-        return Pp30FormValues(pv_date=pv_date, **lines)
+        return Pp30FormValues(pv_date=pv_date, is_amendment=extract_is_amendment(text), **lines)
 
     @staticmethod
     def load_record(pdf_path: Path) -> Pp30PdfRecord:

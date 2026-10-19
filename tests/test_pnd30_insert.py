@@ -5,8 +5,9 @@ from constants.routes import ACCOUNT_CASH, ACCOUNT_PP30_PENALTY, ACCOUNT_WT, UI_
 from models.month_year_period import MonthYearPeriod
 from models.pnd30_form_config import Pnd30FormConfig
 from models.pnd30_form_values import Pnd30FormValues
-from services.pnd30_extract_service import extract_line_2_and_3, extract_pv_date
+from services.pnd30_extract_service import extract_is_amendment, extract_line_2_and_3, extract_pv_date
 from services.pnd30_insert_lines_service import pv_pnd30
+from services.pnd30_insert_service import Pnd30InsertService
 from services.pnd30_pdf_service import Pnd30PdfService
 
 _SAMPLE_SURCHARGE = """
@@ -50,6 +51,21 @@ class Pnd30ExtractTests(unittest.TestCase):
         self.assertEqual(values.tax_withheld, 1020.94)
         self.assertEqual(values.surcharge, 15.31)
         self.assertEqual(values.pv_date, "16/06/69")
+        self.assertFalse(values.is_amendment)
+
+    def test_reads_amendment_tick(self) -> None:
+        text = _SAMPLE_NO_SURCHARGE + "\nü (2) ยื่นเพิ่มเติมครั้งที่ 1\n"
+        self.assertTrue(extract_is_amendment(text))
+        self.assertFalse(extract_is_amendment(_SAMPLE_NO_SURCHARGE + "\nü (1) ยื่นปกติ\n"))
+        values = Pnd30PdfService.extract_form_values(text)
+        self.assertIsNotNone(values)
+        assert values is not None
+        self.assertTrue(values.is_amendment)
+        form = Pnd30FormConfig(pdf_folder=Path("."), period=MonthYearPeriod.parse("09/69"))
+        self.assertEqual(
+            Pnd30InsertService.voucher(values, form).description,
+            "กรมสรรพากร-ภ.ง.ด.53 เดือน9/69 เพิ่มเติม",
+        )
 
 
 class Pnd30InsertLinesTests(unittest.TestCase):

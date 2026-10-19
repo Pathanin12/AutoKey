@@ -5,7 +5,7 @@ from pathlib import Path
 from models.pnd30_form_values import Pnd30FormValues
 from models.pnd30_pdf_record import Pnd30PdfRecord
 from services.name_match_service import tidy_name
-from services.pnd30_extract_service import extract_line_2_and_3, extract_pv_date
+from services.pnd30_extract_service import extract_is_amendment, extract_line_2_and_3, extract_pv_date
 
 _COMPANY_PREFIXES = (
     "ห้างหุ้นส่วนจำกัด",
@@ -73,7 +73,12 @@ class Pnd30PdfService:
         if lines is None or not pv_date:
             return None
         tax_withheld, surcharge = lines
-        return Pnd30FormValues(tax_withheld=tax_withheld, surcharge=surcharge, pv_date=pv_date)
+        return Pnd30FormValues(
+            tax_withheld=tax_withheld,
+            surcharge=surcharge,
+            pv_date=pv_date,
+            is_amendment=extract_is_amendment(text),
+        )
 
     @staticmethod
     def load_record(pdf_path: Path) -> Pnd30PdfRecord:

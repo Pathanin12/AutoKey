@@ -16,6 +16,7 @@ class Pp30FormValues:
     line_13: float = 0.0
     line_14: float = 0.0
     line_15: float = 0.0
+    is_amendment: bool = False
 
     @property
     def line_5(self) -> float:

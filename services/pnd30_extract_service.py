@@ -13,7 +13,7 @@ _FILE_DATE_RE = re.compile(
 )
 _LINE3_RE = re.compile(r"(?<!\d)3\.\s*เงินเพิ่ม")
 _LINE4_MARKER = "และเงินเพิ่ม"
-_AMEND_CHECKED_RE = re.compile(r"[ü✓✔☑]\s*ยื่นเพิ่มเติม")
+_AMEND_CHECKED_RE = re.compile(r"[ü✓✔☑]\s*(?:\(\s*2\s*\)\s*)?ยื่นเพิ่มเติม")
 
 
 def extract_is_amendment(text: str) -> bool:
