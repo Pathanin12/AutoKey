@@ -41,6 +41,25 @@ class Pp30MatchTests(unittest.TestCase):
         self.assertTrue(names_match(pdf_name, "ห้างหุ้นส่วนจำกัด  กชพรรุ่งเรือง"))
         self.assertTrue(names_match("หจก.กชพรรุ่งเรือง", shop_name))
 
+    def test_matches_thai_digits_to_arabic(self) -> None:
+        shop = ExpressCompany(
+            folder=Path("/tmp/tawiset2"),
+            shop_name="ห้างหุ้นส่วนจำกัด\xa0ตาวิเศษทวีทรัพย์\xa02",
+        )
+        pdf_name = "ห้างหุ้นส่วนจำกัด ตาวิเศษทวีทรัพย์ ๒"
+        pdf_branch = "ห้างหุ้นส่วนจำกัด ตาวิเศษทวีทรัพย์ ๒ สาขา พลูตาหลวง"
+        self.assertTrue(names_match(pdf_name, shop.shop_name))
+        self.assertEqual(Pp30MatchService.match_name(pdf_name, [shop]).folder.name, "tawiset2")
+        self.assertEqual(Pp30MatchService.match_names([pdf_name], [shop]).folder.name, "tawiset2")
+        self.assertEqual(
+            Pp30MatchService.match_lookup(pdf_name, Pp30MatchService.lookup([shop])).folder.name,
+            "tawiset2",
+        )
+        self.assertEqual(
+            Pp30MatchService.match_name_contained(pdf_branch, [shop]).folder.name,
+            "tawiset2",
+        )
+
     def test_matches_when_pdf_font_drops_thai_marks(self) -> None:
         shop = ExpressCompany(
             folder=Path("/tmp/pt"),

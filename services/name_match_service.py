@@ -39,8 +39,15 @@ def fold_thai_marks(value: str) -> str:
     return "".join(ch for ch in compact_name(value) if unicodedata.category(ch) != "Mn")
 
 
+_THAI_DIGITS = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
+
+
+def fold_thai_digits(value: str) -> str:
+    return (value or "").translate(_THAI_DIGITS)
+
+
 def compact_name(value: str) -> str:
-    return (
+    return fold_thai_digits(
         tidy_name(value)
         .replace(".", "")
         .replace(",", "")

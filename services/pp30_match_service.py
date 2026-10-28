@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 from models.express_company import ExpressCompany
-from services.name_match_service import compact_name, core_company_name, fold_thai_marks, tidy_name
+from services.name_match_service import compact_name, core_company_name, fold_thai_digits, fold_thai_marks, tidy_name
 
 _YEAR_SUFFIX = re.compile(r"(?:ปี\s*)?(\d{2})$")
 
@@ -146,7 +146,7 @@ def _prefix_score(shop_tokens: list[str], pdf_tokens: list[str]) -> int:
     if not shop_keys.intersection(head_keys):
         return 0
     leftover = pdf_tokens[len(shop_tokens) :]
-    if leftover and not shop_tokens[-1].isdigit():
+    if leftover and not fold_thai_digits(shop_tokens[-1]).isdigit():
         return 0
     return max(len(key) for key in shop_keys)
 
@@ -156,7 +156,7 @@ def _core_tokens(value: str) -> list[str]:
     for part in core_company_name(tidy_name(value)).split():
         if part.startswith("(") or part.startswith("สาขา"):
             break
-        tokens.append(part)
+        tokens.append(fold_thai_digits(part))
     return tokens
 
 
