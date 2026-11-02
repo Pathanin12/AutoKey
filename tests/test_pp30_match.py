@@ -41,6 +41,26 @@ class Pp30MatchTests(unittest.TestCase):
         self.assertTrue(names_match(pdf_name, "ห้างหุ้นส่วนจำกัด  กชพรรุ่งเรือง"))
         self.assertTrue(names_match("หจก.กชพรรุ่งเรือง", shop_name))
 
+    def test_matches_when_express_duplicates_thai_vowel_in_prefix(self) -> None:
+        shop = ExpressCompany(
+            folder=Path("/tmp/chanoksu"),
+            shop_name="ห้างหุุ้นส่วนจำกัด\xa0ชนกสุวรรณ",
+        )
+        pdf_name = "หจก. ชนกสุวรรณ"
+        self.assertTrue(names_match(pdf_name, shop.shop_name))
+        found = Pp30MatchService.match_name(pdf_name, [shop])
+        self.assertIsNotNone(found)
+        self.assertEqual(found.folder.name, "chanoksu")
+
+    def test_matches_when_express_puts_tone_on_wrong_letter(self) -> None:
+        shop = ExpressCompany(
+            folder=Path("/tmp/chanoksu"),
+            shop_name="ห้างห" + "\u0e38\u0e49" + "นส่วนจำกัด\xa0ชนกสุวรรณ",
+        )
+        found = Pp30MatchService.match_name("หจก. ชนกสุวรรณ", [shop])
+        self.assertIsNotNone(found)
+        self.assertEqual(found.folder.name, "chanoksu")
+
     def test_matches_thai_digits_to_arabic(self) -> None:
         shop = ExpressCompany(
             folder=Path("/tmp/tawiset2"),

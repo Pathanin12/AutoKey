@@ -73,6 +73,31 @@ def core_company_name(value: str) -> str:
     return text
 
 
+def folded_core_name(value: str) -> str:
+    text = fold_thai_marks(value)
+    changed = True
+    while text and changed:
+        changed = False
+        for prefix in _FOLDED_PREFIXES:
+            if text.startswith(prefix) and len(text) > len(prefix):
+                text = text[len(prefix) :]
+                changed = True
+                break
+    for suffix in _FOLDED_SUFFIXES:
+        if text.endswith(suffix) and len(text) > len(suffix):
+            text = text[: -len(suffix)]
+            break
+    return text
+
+
+_FOLDED_PREFIXES = tuple(
+    key for key in (fold_thai_marks(prefix) for prefix in _LEGAL_PREFIXES) if key
+)
+_FOLDED_SUFFIXES = tuple(
+    key for key in (fold_thai_marks(suffix) for suffix in _LEGAL_SUFFIXES) if key
+)
+
+
 def names_match(left: str, right: str) -> bool:
     left_tidy = tidy_name(left)
     right_tidy = tidy_name(right)
@@ -86,6 +111,6 @@ def names_match(left: str, right: str) -> bool:
     right_core = compact_name(core_company_name(right_tidy))
     if left_core and left_core == right_core:
         return True
-    left_fold = fold_thai_marks(core_company_name(left_tidy))
-    right_fold = fold_thai_marks(core_company_name(right_tidy))
+    left_fold = folded_core_name(left_tidy)
+    right_fold = folded_core_name(right_tidy)
     return bool(left_fold) and left_fold == right_fold
