@@ -125,7 +125,16 @@ class Pp30MatchTests(unittest.TestCase):
             Pp30MatchService.match_name_contained(pdf_one, [short, worded]).folder.name,
             "one",
         )
-        self.assertIsNone(Pp30MatchService.match_name_contained(pdf_one, [short]))
+
+    def test_sso_contain_allows_extra_words_after_express_name(self) -> None:
+        shop = ExpressCompany(
+            folder=Path("/tmp/supanna"),
+            shop_name="ห้างหุ้นส่วนจำกัด สุพรรณา ภะคะโต",
+        )
+        pdf_name = "ห้างหุ้นส่วนจำกัด สุพรรณา ภะคะโต อินทามะระ 55"
+        found = Pp30MatchService.match_name_contained(pdf_name, [shop])
+        self.assertIsNotNone(found)
+        self.assertEqual(found.folder.name, "supanna")
 
     def test_sso_contain_skips_prefix_of_longer_pdf_name(self) -> None:
         short = ExpressCompany(folder=Path("/tmp/think"), shop_name="คิดจะค้า")

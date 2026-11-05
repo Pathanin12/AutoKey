@@ -146,7 +146,7 @@ def _prefix_score(shop_tokens: list[str], pdf_tokens: list[str]) -> int:
     if not shop_keys.intersection(head_keys):
         return 0
     leftover = pdf_tokens[len(shop_tokens) :]
-    if leftover and not fold_thai_digits(shop_tokens[-1]).isdigit():
+    if leftover and fold_thai_digits(leftover[0]).isdigit():
         return 0
     return max(len(key) for key in shop_keys)
 
